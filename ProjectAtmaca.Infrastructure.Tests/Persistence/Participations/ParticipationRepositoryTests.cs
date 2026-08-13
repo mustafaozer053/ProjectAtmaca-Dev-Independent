@@ -11,7 +11,7 @@ using Xunit;
 
 namespace ProjectAtmaca.Infrastructure.Tests
     .Persistence.Participations;
-
+[Collection(SqlIntegrationCollection.Name)]
 public sealed class ParticipationRepositoryTests
 {
     [Fact]
