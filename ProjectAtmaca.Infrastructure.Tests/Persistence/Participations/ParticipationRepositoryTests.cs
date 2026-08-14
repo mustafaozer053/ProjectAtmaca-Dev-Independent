@@ -22,8 +22,6 @@ public sealed class ParticipationRepositoryTests
             ParticipationPersistenceTestContextFactory
                 .CreateContext();
 
-        await context.Database.MigrateAsync();
-
         ParticipationRepository repository =
             new(context);
 
@@ -67,7 +65,6 @@ public sealed class ParticipationRepositoryTests
                 ParticipationPersistenceTestContextFactory
                     .CreateContext())
         {
-            await setupContext.Database.MigrateAsync();
 
             Participation participation =
                 CreateParticipation();
@@ -109,8 +106,6 @@ public sealed class ParticipationRepositoryTests
             ParticipationPersistenceTestContextFactory
                 .CreateContext();
 
-        await context.Database.MigrateAsync();
-
         ParticipationRepository repository =
             new(context);
 
@@ -141,8 +136,6 @@ public sealed class ParticipationRepositoryTests
         await using ProjectAtmacaDbContext context =
             ParticipationPersistenceTestContextFactory
                 .CreateContext();
-
-        await context.Database.MigrateAsync();
 
         Participation participation =
             Participation.Create(
@@ -175,8 +168,6 @@ public sealed class ParticipationRepositoryTests
         await using ProjectAtmacaDbContext context =
             ParticipationPersistenceTestContextFactory
                 .CreateContext();
-
-        await context.Database.MigrateAsync();
 
         ParticipationRepository repository =
             new(context);

@@ -25,12 +25,6 @@ public sealed class ParticipationUnitOfWorkTests
             ParticipationPersistenceTestContextFactory
                 .CreateContext();
 
-        await writeContext.Database
-            .EnsureDeletedAsync();
-
-        await writeContext.Database
-            .MigrateAsync();
-
         ParticipationRepository repository =
             new(writeContext);
 
@@ -44,8 +38,8 @@ public sealed class ParticipationUnitOfWorkTests
         AtmacaCardId atmacaCardId =
             AtmacaCardId.New();
 
-        Result<ProjectAtmaca.Domain.Participations.Participation> creationResult =
-    ProjectAtmaca.Domain.Participations.Participation.Create(
+        Result<Participation> creationResult =
+        Participation.Create(
         activityReference,
         atmacaCardId);
 
@@ -53,8 +47,8 @@ public sealed class ParticipationUnitOfWorkTests
             .Should()
             .BeTrue();
 
-        ProjectAtmaca.Domain.Participations.Participation participation =
-            creationResult.Value!;
+        Participation participation =
+        creationResult.Value!;
 
         Result markPresentResult =
             participation.MarkPresent();
@@ -108,5 +102,122 @@ public sealed class ParticipationUnitOfWorkTests
         persistedParticipation.Status
             .Should()
             .Be(ParticipationStatus.Present);
+    }
+    [Fact]
+    public async Task SaveChangesAsync_Should_RollBackAllChanges_WhenAnyTrackedChangeFails()
+    {
+        // Arrange — establish a committed row that will later
+        // be used to trigger the database uniqueness constraint.
+        AtmacaCardId existingAtmacaCardId =
+            AtmacaCardId.New();
+
+        ActivityReference existingActivityReference =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        await using (
+            ProjectAtmacaDbContext seedContext =
+                ParticipationPersistenceTestContextFactory
+                    .CreateContext())
+        {
+            ParticipationRepository seedRepository =
+                new(seedContext);
+
+            UnitOfWork seedUnitOfWork =
+                new(seedContext);
+
+            Result<Participation> seedCreationResult =
+                Participation.Create(
+                    existingActivityReference,
+                    existingAtmacaCardId);
+
+            seedCreationResult.IsSuccess
+                .Should()
+                .BeTrue();
+
+            await seedRepository.AddAsync(
+                seedCreationResult.Value!);
+
+            await seedUnitOfWork.SaveChangesAsync();
+        }
+
+        AtmacaCardId validAtmacaCardId =
+            AtmacaCardId.New();
+
+        ActivityReference validActivityReference =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        await using (
+            ProjectAtmacaDbContext writeContext =
+                ParticipationPersistenceTestContextFactory
+                    .CreateContext())
+        {
+            ParticipationRepository repository =
+                new(writeContext);
+
+            UnitOfWork unitOfWork =
+                new(writeContext);
+
+            Result<Participation> validCreationResult =
+                Participation.Create(
+                    validActivityReference,
+                    validAtmacaCardId);
+
+            validCreationResult.IsSuccess
+                .Should()
+                .BeTrue();
+
+            Result<Participation> duplicateCreationResult =
+                Participation.Create(
+                    existingActivityReference,
+                    existingAtmacaCardId);
+
+            duplicateCreationResult.IsSuccess
+                .Should()
+                .BeTrue();
+
+            await repository.AddAsync(
+                validCreationResult.Value!);
+
+            await repository.AddAsync(
+                duplicateCreationResult.Value!);
+
+            // Act
+            Func<Task> action =
+                async () =>
+                    await unitOfWork.SaveChangesAsync();
+
+            // Assert — the database constraint must reject
+            // the entire Unit of Work persistence operation.
+            await action.Should()
+                .ThrowAsync<DbUpdateException>();
+        }
+
+        // A completely new DbContext is intentional.
+        // We must verify committed SQL state, not EF tracking state.
+        await using ProjectAtmacaDbContext verificationContext =
+            ParticipationPersistenceTestContextFactory
+                .CreateContext();
+
+        int existingCount =
+            await verificationContext.Participations
+                .CountAsync(
+                    participation =>
+                        participation.AtmacaCardId ==
+                            existingAtmacaCardId);
+
+        int validCount =
+            await verificationContext.Participations
+                .CountAsync(
+                    participation =>
+                        participation.AtmacaCardId ==
+                            validAtmacaCardId);
+
+        existingCount.Should()
+            .Be(1);
+
+        validCount.Should()
+            .Be(0);
     }
 }

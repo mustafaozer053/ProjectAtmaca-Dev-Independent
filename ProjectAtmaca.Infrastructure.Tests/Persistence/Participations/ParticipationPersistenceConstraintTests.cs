@@ -19,8 +19,6 @@ public sealed class ParticipationPersistenceConstraintTests
             ParticipationPersistenceTestContextFactory
                 .CreateContext();
 
-        await context.Database.MigrateAsync();
-
         AtmacaCardId atmacaCardId =
             AtmacaCardId.New();
 
@@ -68,5 +66,95 @@ public sealed class ParticipationPersistenceConstraintTests
 
         persistedCount.Should()
             .Be(1);
+    }
+    [Fact]
+    public async Task SaveChanges_Should_RollBackAllChanges_WhenAnyTrackedChangeFails()
+    {
+        // Arrange
+        AtmacaCardId existingAtmacaCardId =
+            AtmacaCardId.New();
+
+        ActivityReference existingActivityReference =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        await using (
+            ProjectAtmacaDbContext seedContext =
+                ParticipationPersistenceTestContextFactory
+                    .CreateContext())
+        {
+
+            Participation existingParticipation =
+                Participation.Create(
+                    existingActivityReference,
+                    existingAtmacaCardId).Value!;
+
+            seedContext.Participations.Add(
+                existingParticipation);
+
+            await seedContext.SaveChangesAsync();
+        }
+
+        AtmacaCardId validAtmacaCardId =
+            AtmacaCardId.New();
+
+        ActivityReference validActivityReference =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        await using (
+            ProjectAtmacaDbContext context =
+                ParticipationPersistenceTestContextFactory
+                    .CreateContext())
+        {
+            Participation validParticipation =
+                Participation.Create(
+                    validActivityReference,
+                    validAtmacaCardId).Value!;
+
+            Participation duplicateParticipation =
+                Participation.Create(
+                    existingActivityReference,
+                    existingAtmacaCardId).Value!;
+
+            context.Participations.Add(
+                validParticipation);
+
+            context.Participations.Add(
+                duplicateParticipation);
+
+            // Act
+            Func<Task> action =
+                async () =>
+                    await context.SaveChangesAsync();
+
+            // Assert
+            await action.Should()
+                .ThrowAsync<DbUpdateException>();
+        }
+
+        await using ProjectAtmacaDbContext verificationContext =
+            ParticipationPersistenceTestContextFactory
+                .CreateContext();
+
+        int existingCount =
+            await verificationContext.Participations
+                .CountAsync(
+                    participation =>
+                        participation.AtmacaCardId ==
+                            existingAtmacaCardId);
+
+        int validCount =
+            await verificationContext.Participations
+                .CountAsync(
+                    participation =>
+                        participation.AtmacaCardId ==
+                            validAtmacaCardId);
+
+        existingCount.Should()
+            .Be(1);
+
+        validCount.Should()
+            .Be(0);
     }
 }

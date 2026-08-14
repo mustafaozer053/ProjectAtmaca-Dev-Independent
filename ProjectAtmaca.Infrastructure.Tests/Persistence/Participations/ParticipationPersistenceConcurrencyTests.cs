@@ -23,7 +23,6 @@ public sealed class ParticipationPersistenceConcurrencyTests
                 ParticipationPersistenceTestContextFactory
                     .CreateContext())
         {
-            await setupContext.Database.MigrateAsync();
 
             AtmacaCardId atmacaCardId =
                 AtmacaCardId.New();

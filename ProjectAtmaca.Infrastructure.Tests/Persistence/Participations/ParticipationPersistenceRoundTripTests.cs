@@ -18,8 +18,6 @@ public sealed class ParticipationPersistenceRoundTripTests
             ParticipationPersistenceTestContextFactory
                 .CreateContext();
 
-        await setupContext.Database.MigrateAsync();
-
         ActivityReference activityReference =
             ActivityReference.ForTraining(
                 TrainingId.New());

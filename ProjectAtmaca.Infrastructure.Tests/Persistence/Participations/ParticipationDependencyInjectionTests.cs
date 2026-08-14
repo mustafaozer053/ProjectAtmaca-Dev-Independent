@@ -25,15 +25,6 @@ public sealed class ParticipationDependencyInjectionTests
     public async Task AddInfrastructure_Should_ShareScopedDbContext_BetweenRepositoryAndUnitOfWork()
     {
         // Arrange
-        await using ProjectAtmacaDbContext setupContext =
-            ParticipationPersistenceTestContextFactory
-                .CreateContext();
-
-        await setupContext.Database
-            .EnsureDeletedAsync();
-
-        await setupContext.Database
-            .MigrateAsync();
 
         Dictionary<string, string?> configurationValues =
             new()
