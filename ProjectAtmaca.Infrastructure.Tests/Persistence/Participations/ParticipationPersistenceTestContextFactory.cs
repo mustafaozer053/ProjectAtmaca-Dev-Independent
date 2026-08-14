@@ -6,7 +6,7 @@ namespace ProjectAtmaca.Infrastructure.Tests
 
 internal static class ParticipationPersistenceTestContextFactory
 {
-    private const string ConnectionString =
+    internal const string ConnectionString =
         "Server=(localdb)\\mssqllocaldb;" +
         "Database=ProjectAtmaca_IntegrationTests;" +
         "Trusted_Connection=True;" +
