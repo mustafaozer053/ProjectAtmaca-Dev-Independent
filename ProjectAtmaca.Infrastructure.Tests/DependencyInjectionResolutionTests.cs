@@ -1,12 +1,11 @@
 ﻿using FluentAssertions;
-
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-
 using ProjectAtmaca.Application;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Infrastructure;
-
+using ProjectAtmaca.Application.Participations.GetById;
+using ProjectAtmaca.Infrastructure.Persistence.Readers;
 using Xunit;
 
 namespace ProjectAtmaca.Infrastructure.Tests;
@@ -54,5 +53,50 @@ public sealed class DependencyInjectionResolutionTests
         // Assert
         handler.Should()
             .NotBeNull();
+    }
+    [Fact]
+    public void ApplicationAndInfrastructureRegistrations_Should_Resolve_ParticipationReader()
+    {
+        // Arrange
+        Dictionary<string, string?> configurationValues =
+            new()
+            {
+                ["ConnectionStrings:ProjectAtmacaDatabase"] =
+                    "Server=(localdb)\\mssqllocaldb;" +
+                    "Database=ProjectAtmaca_IntegrationTests;" +
+                    "Trusted_Connection=True;" +
+                    "TrustServerCertificate=True"
+            };
+
+        IConfiguration configuration =
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(configurationValues)
+                .Build();
+
+        ServiceCollection services =
+            new();
+
+        services.AddApplication();
+
+        services.AddInfrastructure(
+            configuration);
+
+        using ServiceProvider serviceProvider =
+            services.BuildServiceProvider();
+
+        using IServiceScope scope =
+            serviceProvider.CreateScope();
+
+        // Act
+        IParticipationReader? reader =
+            scope.ServiceProvider
+                .GetService<IParticipationReader>();
+
+        // Assert
+        reader.Should()
+            .NotBeNull();
+
+        reader.Should()
+            .BeOfType<ParticipationReader>();
     }
 }

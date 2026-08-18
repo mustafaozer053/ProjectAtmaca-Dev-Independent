@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-
+using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.Create;
 
 namespace ProjectAtmaca.Application;
@@ -11,6 +11,9 @@ public static class DependencyInjection
     {
         services.AddScoped<
             CreateParticipationCommandHandler>();
+
+        services.AddScoped<
+            GetParticipationByIdQueryHandler>();
 
         return services;
     }

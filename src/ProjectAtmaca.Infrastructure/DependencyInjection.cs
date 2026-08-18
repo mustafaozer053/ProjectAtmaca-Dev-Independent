@@ -1,7 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-
+using ProjectAtmaca.Application.Participations.GetById;
+using ProjectAtmaca.Infrastructure.Persistence.Readers;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Repositories;
@@ -30,6 +31,10 @@ public static class DependencyInjection
         services.AddScoped<
             IParticipationRepository,
             ParticipationRepository>();
+
+        services.AddScoped<
+            IParticipationReader,
+            ParticipationReader>();
 
         services.AddScoped<
             IUnitOfWork,
