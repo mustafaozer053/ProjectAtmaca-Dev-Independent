@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Participations.MarkPresent;
 
 namespace ProjectAtmaca.Application.Tests;
 
@@ -48,6 +49,31 @@ public sealed class DependencyInjectionTests
                 service =>
                     service.ServiceType ==
                     typeof(GetParticipationByIdQueryHandler));
+
+        descriptor.Should()
+            .NotBeNull();
+
+        descriptor!.Lifetime
+            .Should()
+            .Be(ServiceLifetime.Scoped);
+    }
+    [Fact]
+    public void AddApplication_Should_Register_MarkParticipationPresentCommandHandler()
+    {
+        // Arrange
+        ServiceCollection services =
+            new();
+
+        // Act
+        services.AddApplication();
+
+        // Assert
+        ServiceDescriptor? descriptor =
+            services.SingleOrDefault(
+                service =>
+                    service.ServiceType ==
+                    typeof(
+                        MarkParticipationPresentCommandHandler));
 
         descriptor.Should()
             .NotBeNull();
