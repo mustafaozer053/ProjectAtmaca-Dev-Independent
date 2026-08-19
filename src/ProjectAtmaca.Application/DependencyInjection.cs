@@ -2,6 +2,7 @@
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.MarkPresent;
+using ProjectAtmaca.Application.Participations.RecordArrival;
 
 namespace ProjectAtmaca.Application;
 
@@ -18,6 +19,9 @@ public static class DependencyInjection
 
         services.AddScoped<
             MarkParticipationPresentCommandHandler>();
+
+        services.AddScoped<
+            RecordParticipationArrivalCommandHandler>();
 
         return services;
     }
