@@ -1,4 +1,5 @@
 ﻿using ProjectAtmaca.Domain.Common;
+using ProjectAtmaca.Application.Participations;
 
 namespace ProjectAtmaca.Application
     .Participations.GetById;

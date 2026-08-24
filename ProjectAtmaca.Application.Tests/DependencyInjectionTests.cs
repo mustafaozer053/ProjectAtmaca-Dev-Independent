@@ -6,6 +6,7 @@ using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
+using ProjectAtmaca.Application.Participations.ListByActivity;
 
 namespace ProjectAtmaca.Application.Tests;
 
@@ -143,6 +144,38 @@ public sealed class DependencyInjectionTests
             .Be(
                 typeof(
                     RecordParticipationDepartureCommandHandler));
+
+        descriptor.Lifetime
+            .Should()
+            .Be(ServiceLifetime.Scoped);
+    }
+    [Fact]
+    public void AddApplication_Should_Register_ListParticipationsByActivityQueryHandler()
+    {
+        // Arrange
+        ServiceCollection services =
+            new();
+
+        // Act
+        services.AddApplication();
+
+        // Assert
+        ServiceDescriptor? descriptor =
+            services.SingleOrDefault(
+                descriptor =>
+                    descriptor.ServiceType ==
+                    typeof(
+                        ListParticipationsByActivityQueryHandler));
+
+        descriptor
+            .Should()
+            .NotBeNull();
+
+        descriptor!.ImplementationType
+            .Should()
+            .Be(
+                typeof(
+                    ListParticipationsByActivityQueryHandler));
 
         descriptor.Lifetime
             .Should()

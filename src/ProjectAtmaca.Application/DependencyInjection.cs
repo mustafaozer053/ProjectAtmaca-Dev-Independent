@@ -4,6 +4,7 @@ using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
+using ProjectAtmaca.Application.Participations.ListByActivity;
 
 namespace ProjectAtmaca.Application;
 
@@ -26,6 +27,9 @@ public static class DependencyInjection
 
         services.AddScoped<
             RecordParticipationDepartureCommandHandler>();
+
+        services.AddScoped<
+            ListParticipationsByActivityQueryHandler>();
 
         return services;
     }

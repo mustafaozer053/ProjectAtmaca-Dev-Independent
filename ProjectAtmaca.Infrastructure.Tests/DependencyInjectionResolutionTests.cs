@@ -9,6 +9,8 @@ using ProjectAtmaca.Infrastructure.Persistence.Readers;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
+using ProjectAtmaca.Application.Participations.ListByActivity;
+using ProjectAtmaca.Application.Participations;
 using Xunit;
 
 namespace ProjectAtmaca.Infrastructure.Tests;
@@ -226,6 +228,51 @@ public sealed class DependencyInjectionResolutionTests
             scope.ServiceProvider
                 .GetService<
                     RecordParticipationDepartureCommandHandler>();
+
+        // Assert
+        handler
+            .Should()
+            .NotBeNull();
+    }
+    [Fact]
+    public void ApplicationAndInfrastructureRegistrations_Should_Resolve_ListParticipationsByActivityQueryHandler()
+    {
+        // Arrange
+        Dictionary<string, string?> configurationValues =
+            new()
+            {
+                ["ConnectionStrings:ProjectAtmacaDatabase"] =
+                    "Server=(localdb)\\mssqllocaldb;" +
+                    "Database=ProjectAtmaca_IntegrationTests;" +
+                    "Trusted_Connection=True;" +
+                    "TrustServerCertificate=True"
+            };
+
+        IConfiguration configuration =
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    configurationValues)
+                .Build();
+
+        ServiceCollection services =
+            new();
+
+        services.AddApplication();
+
+        services.AddInfrastructure(
+            configuration);
+
+        using ServiceProvider serviceProvider =
+            services.BuildServiceProvider();
+
+        using IServiceScope scope =
+            serviceProvider.CreateScope();
+
+        // Act
+        ListParticipationsByActivityQueryHandler? handler =
+            scope.ServiceProvider
+                .GetService<
+                    ListParticipationsByActivityQueryHandler>();
 
         // Assert
         handler

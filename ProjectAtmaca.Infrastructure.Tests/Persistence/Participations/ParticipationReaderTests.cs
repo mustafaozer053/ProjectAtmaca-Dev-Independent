@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-
+using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Participations;
@@ -7,7 +7,7 @@ using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Repositories;
 using ProjectAtmaca.Infrastructure.Persistence.Readers;
-
+using ProjectAtmaca.Application.Participations;
 using Xunit;
 
 namespace ProjectAtmaca.Infrastructure.Tests
@@ -83,6 +83,7 @@ public sealed class ParticipationReaderTests
         result.Note.Should()
             .BeNull();
     }
+
     [Fact]
     public async Task GetByIdAsync_Should_PreservePersistedSemanticState()
     {
@@ -180,6 +181,7 @@ public sealed class ParticipationReaderTests
         result.Note.Should()
             .Be(note.Value);
     }
+
     [Fact]
     public async Task GetByIdAsync_Should_ReturnNull_WhenParticipationDoesNotExist()
     {
@@ -203,6 +205,169 @@ public sealed class ParticipationReaderTests
 
         // Assert
         result.Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public async Task ListByActivityAsync_Should_ReturnOnlyTargetActivityParticipations_InDeterministicOrder()
+    {
+        // Arrange
+        ActivityReference targetActivity =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        ActivityReference otherActivity =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        Participation firstTargetParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        Participation secondTargetParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        Participation otherParticipation =
+            Participation.Create(
+                otherActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        DateTimeOffset joinedAt =
+            new(
+                2026,
+                8,
+                20,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        firstTargetParticipation
+            .MarkPresent(
+                ParticipationCondition.Late)
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
+        firstTargetParticipation
+            .RecordArrival(
+                joinedAt)
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
+        await using (
+            ProjectAtmacaDbContext seedContext =
+                ParticipationPersistenceTestContextFactory
+                    .CreateContext())
+        {
+            seedContext.Participations.AddRange(
+                firstTargetParticipation,
+                secondTargetParticipation,
+                otherParticipation);
+
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using ProjectAtmacaDbContext queryContext =
+            ParticipationPersistenceTestContextFactory
+                .CreateContext();
+
+        IParticipationReader reader =
+            new ParticipationReader(
+                queryContext);
+
+        // Act
+        IReadOnlyList<ParticipationListItem> result =
+            await reader.ListByActivityAsync(
+                targetActivity,
+                CancellationToken.None);
+
+        // Assert
+        result.Should()
+            .HaveCount(2);
+
+        result.Select(item => item.Id)
+            .Should()
+            .BeInAscendingOrder();
+
+        result.Select(item => item.Id)
+            .Should()
+            .BeEquivalentTo(
+                new[]
+                {
+                    firstTargetParticipation
+                        .ParticipationId.Value,
+                    secondTargetParticipation
+                        .ParticipationId.Value
+                });
+
+        result.Should()
+            .NotContain(
+                item =>
+                    item.Id ==
+                    otherParticipation
+                        .ParticipationId.Value);
+
+        ParticipationListItem firstProjection =
+            result.Single(
+                item =>
+                    item.Id ==
+                    firstTargetParticipation
+                        .ParticipationId.Value);
+
+        firstProjection.AtmacaCardId
+            .Should()
+            .Be(
+                firstTargetParticipation
+                    .AtmacaCardId.Value);
+
+        firstProjection.Status
+            .Should()
+            .Be(
+                ParticipationStatus.Present);
+
+        firstProjection.ConditionCode
+            .Should()
+            .Be(
+                ParticipationCondition.Late.Code);
+
+        firstProjection.JoinedAt
+            .Should()
+            .Be(joinedAt);
+
+        firstProjection.LeftAt
+            .Should()
+            .BeNull();
+
+        ParticipationListItem secondProjection =
+            result.Single(
+                item =>
+                    item.Id ==
+                    secondTargetParticipation
+                        .ParticipationId.Value);
+
+        secondProjection.Status
+            .Should()
+            .Be(
+                ParticipationStatus.NotRecorded);
+
+        secondProjection.ConditionCode
+            .Should()
+            .BeNull();
+
+        secondProjection.JoinedAt
+            .Should()
+            .BeNull();
+
+        secondProjection.LeftAt
+            .Should()
             .BeNull();
     }
 }

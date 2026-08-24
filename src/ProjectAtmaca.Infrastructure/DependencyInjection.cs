@@ -1,12 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Infrastructure.Persistence.Readers;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Repositories;
 using ProjectAtmaca.Application.Abstractions.Persistence;
+using ProjectAtmaca.Application.Participations;
 
 namespace ProjectAtmaca.Infrastructure;
 
