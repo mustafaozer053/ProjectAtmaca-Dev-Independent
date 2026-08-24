@@ -7,6 +7,7 @@ using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Participations.ListByActivity;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 
 namespace ProjectAtmaca.Application.Tests;
 
@@ -36,6 +37,7 @@ public sealed class DependencyInjectionTests
             .Should()
             .Be(ServiceLifetime.Scoped);
     }
+
     [Fact]
     public void AddApplication_Should_Register_GetParticipationByIdQueryHandler()
     {
@@ -60,6 +62,7 @@ public sealed class DependencyInjectionTests
             .Should()
             .Be(ServiceLifetime.Scoped);
     }
+
     [Fact]
     public void AddApplication_Should_Register_MarkParticipationPresentCommandHandler()
     {
@@ -85,6 +88,7 @@ public sealed class DependencyInjectionTests
             .Should()
             .Be(ServiceLifetime.Scoped);
     }
+
     [Fact]
     public void AddApplication_Should_Register_RecordParticipationArrivalCommandHandler()
     {
@@ -117,6 +121,7 @@ public sealed class DependencyInjectionTests
             .Should()
             .Be(ServiceLifetime.Scoped);
     }
+
     [Fact]
     public void AddApplication_Should_Register_RecordParticipationDepartureCommandHandler()
     {
@@ -149,6 +154,7 @@ public sealed class DependencyInjectionTests
             .Should()
             .Be(ServiceLifetime.Scoped);
     }
+
     [Fact]
     public void AddApplication_Should_Register_ListParticipationsByActivityQueryHandler()
     {
@@ -176,6 +182,39 @@ public sealed class DependencyInjectionTests
             .Be(
                 typeof(
                     ListParticipationsByActivityQueryHandler));
+
+        descriptor.Lifetime
+            .Should()
+            .Be(ServiceLifetime.Scoped);
+    }
+
+    [Fact]
+    public void AddApplication_Should_Register_GetParticipationSummaryByActivityQueryHandler()
+    {
+        // Arrange
+        ServiceCollection services =
+            new();
+
+        // Act
+        services.AddApplication();
+
+        // Assert
+        ServiceDescriptor? descriptor =
+            services.SingleOrDefault(
+                descriptor =>
+                    descriptor.ServiceType ==
+                    typeof(
+                        GetParticipationSummaryByActivityQueryHandler));
+
+        descriptor
+            .Should()
+            .NotBeNull();
+
+        descriptor!.ImplementationType
+            .Should()
+            .Be(
+                typeof(
+                    GetParticipationSummaryByActivityQueryHandler));
 
         descriptor.Lifetime
             .Should()

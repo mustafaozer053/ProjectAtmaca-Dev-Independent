@@ -11,6 +11,7 @@ using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using Xunit;
 
 namespace ProjectAtmaca.Infrastructure.Tests;
@@ -59,6 +60,7 @@ public sealed class DependencyInjectionResolutionTests
         handler.Should()
             .NotBeNull();
     }
+
     [Fact]
     public void ApplicationAndInfrastructureRegistrations_Should_Resolve_ParticipationReader()
     {
@@ -104,6 +106,7 @@ public sealed class DependencyInjectionResolutionTests
         reader.Should()
             .BeOfType<ParticipationReader>();
     }
+
     [Fact]
     public void ApplicationAndInfrastructureRegistrations_Should_Resolve_MarkParticipationPresentCommandHandler()
     {
@@ -147,6 +150,7 @@ public sealed class DependencyInjectionResolutionTests
         handler.Should()
             .NotBeNull();
     }
+
     [Fact]
     public void ApplicationAndInfrastructureRegistrations_Should_Resolve_RecordParticipationArrivalCommandHandler()
     {
@@ -190,6 +194,7 @@ public sealed class DependencyInjectionResolutionTests
         handler.Should()
             .NotBeNull();
     }
+
     [Fact]
     public void ApplicationAndInfrastructureRegistrations_Should_Resolve_RecordParticipationDepartureCommandHandler()
     {
@@ -234,6 +239,7 @@ public sealed class DependencyInjectionResolutionTests
             .Should()
             .NotBeNull();
     }
+
     [Fact]
     public void ApplicationAndInfrastructureRegistrations_Should_Resolve_ListParticipationsByActivityQueryHandler()
     {
@@ -273,6 +279,52 @@ public sealed class DependencyInjectionResolutionTests
             scope.ServiceProvider
                 .GetService<
                     ListParticipationsByActivityQueryHandler>();
+
+        // Assert
+        handler
+            .Should()
+            .NotBeNull();
+    }
+
+    [Fact]
+    public void ApplicationAndInfrastructureRegistrations_Should_Resolve_GetParticipationSummaryByActivityQueryHandler()
+    {
+        // Arrange
+        Dictionary<string, string?> configurationValues =
+            new()
+            {
+                ["ConnectionStrings:ProjectAtmacaDatabase"] =
+                    "Server=(localdb)\\mssqllocaldb;" +
+                    "Database=ProjectAtmaca_IntegrationTests;" +
+                    "Trusted_Connection=True;" +
+                    "TrustServerCertificate=True"
+            };
+
+        IConfiguration configuration =
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    configurationValues)
+                .Build();
+
+        ServiceCollection services =
+            new();
+
+        services.AddApplication();
+
+        services.AddInfrastructure(
+            configuration);
+
+        using ServiceProvider serviceProvider =
+            services.BuildServiceProvider();
+
+        using IServiceScope scope =
+            serviceProvider.CreateScope();
+
+        // Act
+        GetParticipationSummaryByActivityQueryHandler? handler =
+            scope.ServiceProvider
+                .GetService<
+                    GetParticipationSummaryByActivityQueryHandler>();
 
         // Assert
         handler

@@ -1,10 +1,11 @@
 using FluentAssertions;
-using ProjectAtmaca.Application.Participations.ListByActivity;
-using ProjectAtmaca.Domain.Participations;
-using ProjectAtmaca.Application.Participations.GetById;
-using ProjectAtmaca.Domain.Common;
-using Xunit;
 using ProjectAtmaca.Application.Participations;
+using ProjectAtmaca.Application.Participations.GetById;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
+using ProjectAtmaca.Application.Participations.ListByActivity;
+using ProjectAtmaca.Domain.Common;
+using ProjectAtmaca.Domain.Participations;
+using Xunit;
 
 namespace ProjectAtmaca.Application.Tests
     .Participations.GetById;
@@ -153,6 +154,13 @@ public sealed class GetParticipationByIdQueryHandlerTests
         {
             throw new NotSupportedException();
         }
+        public Task<ParticipationActivitySummary>
+            GetSummaryByActivityAsync(
+                ActivityReference activityReference,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
     private sealed class CapturingParticipationReader
     : IParticipationReader
@@ -175,6 +183,13 @@ public sealed class GetParticipationByIdQueryHandlerTests
         }
         public Task<IReadOnlyList<ParticipationListItem>>
             ListByActivityAsync(
+                ActivityReference activityReference,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+        public Task<ParticipationActivitySummary>
+            GetSummaryByActivityAsync(
                 ActivityReference activityReference,
                 CancellationToken cancellationToken = default)
         {

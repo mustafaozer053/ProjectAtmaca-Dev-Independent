@@ -3,6 +3,7 @@ using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 
 namespace ProjectAtmaca.Infrastructure.Persistence.Readers;
 
@@ -90,5 +91,46 @@ public sealed class ParticipationReader
                 item =>
                     item.Id)
             .ToList();
+    }
+
+    public async Task<ParticipationActivitySummary>
+        GetSummaryByActivityAsync(
+            ActivityReference activityReference,
+            CancellationToken cancellationToken = default)
+    {
+        var summary =
+            await _dbContext.Participations
+                .AsNoTracking()
+                .Where(
+                    participation =>
+                        participation.ActivityReference ==
+                        activityReference)
+                .GroupBy(
+                    _ => 1)
+                .Select(
+                    group =>
+                        new ParticipationActivitySummary(
+                            group.Count(),
+                            group.Count(
+                                participation =>
+                                    participation.Status ==
+                                    ParticipationStatus.NotRecorded),
+                            group.Count(
+                                participation =>
+                                    participation.Status ==
+                                    ParticipationStatus.Present),
+                            group.Count(
+                                participation =>
+                                    participation.Status ==
+                                    ParticipationStatus.Absent)))
+                .SingleOrDefaultAsync(
+                    cancellationToken);
+
+        return summary
+            ?? new ParticipationActivitySummary(
+                Total: 0,
+                NotRecorded: 0,
+                Present: 0,
+                Absent: 0);
     }
 }

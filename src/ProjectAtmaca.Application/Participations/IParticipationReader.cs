@@ -1,6 +1,7 @@
 ﻿using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Domain.Participations;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 
 namespace ProjectAtmaca.Application.Participations;
 
@@ -12,6 +13,11 @@ public interface IParticipationReader
 
     Task<IReadOnlyList<ParticipationListItem>>
         ListByActivityAsync(
+            ActivityReference activityReference,
+            CancellationToken cancellationToken = default);
+
+    Task<ParticipationActivitySummary>
+        GetSummaryByActivityAsync(
             ActivityReference activityReference,
             CancellationToken cancellationToken = default);
 }

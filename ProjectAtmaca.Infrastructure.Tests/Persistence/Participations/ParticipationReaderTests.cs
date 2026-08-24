@@ -8,6 +8,7 @@ using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Repositories;
 using ProjectAtmaca.Infrastructure.Persistence.Readers;
 using ProjectAtmaca.Application.Participations;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using Xunit;
 
 namespace ProjectAtmaca.Infrastructure.Tests
@@ -369,5 +370,186 @@ public sealed class ParticipationReaderTests
         secondProjection.LeftAt
             .Should()
             .BeNull();
+    }
+
+    [Fact]
+    public async Task GetSummaryByActivityAsync_Should_ReturnExactStatusSummary_ForTargetActivity()
+    {
+        // Arrange
+        ActivityReference targetActivity =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        ActivityReference otherActivity =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        Participation notRecordedParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        Participation firstPresentParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        Participation secondPresentParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        Participation absentParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        Participation otherPresentParticipation =
+            Participation.Create(
+                otherActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        Participation otherAbsentParticipation =
+            Participation.Create(
+                otherActivity,
+                AtmacaCardId.New())
+            .Value!;
+
+        firstPresentParticipation
+            .MarkPresent()
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
+        secondPresentParticipation
+            .MarkPresent(
+                ParticipationCondition.Late)
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
+        absentParticipation
+            .MarkAbsent()
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
+        otherPresentParticipation
+            .MarkPresent()
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
+        otherAbsentParticipation
+            .MarkAbsent()
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
+        await using (
+            ProjectAtmacaDbContext seedContext =
+                ParticipationPersistenceTestContextFactory
+                    .CreateContext())
+        {
+            seedContext.Participations.AddRange(
+                notRecordedParticipation,
+                firstPresentParticipation,
+                secondPresentParticipation,
+                absentParticipation,
+                otherPresentParticipation,
+                otherAbsentParticipation);
+
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using ProjectAtmacaDbContext queryContext =
+            ParticipationPersistenceTestContextFactory
+                .CreateContext();
+
+        IParticipationReader reader =
+            new ParticipationReader(
+                queryContext);
+
+        // Act
+        ParticipationActivitySummary result =
+            await reader.GetSummaryByActivityAsync(
+                targetActivity,
+                CancellationToken.None);
+
+        // Assert
+        result.Total
+            .Should()
+            .Be(4);
+
+        result.NotRecorded
+            .Should()
+            .Be(1);
+
+        result.Present
+            .Should()
+            .Be(2);
+
+        result.Absent
+            .Should()
+            .Be(1);
+
+        (
+            result.NotRecorded +
+            result.Present +
+            result.Absent)
+            .Should()
+            .Be(result.Total);
+    }
+
+    [Fact]
+    public async Task GetSummaryByActivityAsync_Should_ReturnZeroSummary_WhenNoMatchesExist()
+    {
+        // Arrange
+        ActivityReference targetActivity =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        await using ProjectAtmacaDbContext queryContext =
+            ParticipationPersistenceTestContextFactory
+                .CreateContext();
+
+        IParticipationReader reader =
+            new ParticipationReader(
+                queryContext);
+
+        // Act
+        ParticipationActivitySummary result =
+            await reader.GetSummaryByActivityAsync(
+                targetActivity,
+                CancellationToken.None);
+
+        // Assert
+        result.Total
+            .Should()
+            .Be(0);
+
+        result.NotRecorded
+            .Should()
+            .Be(0);
+
+        result.Present
+            .Should()
+            .Be(0);
+
+        result.Absent
+            .Should()
+            .Be(0);
+
+        (
+            result.NotRecorded +
+            result.Present +
+            result.Absent)
+            .Should()
+            .Be(result.Total);
     }
 }

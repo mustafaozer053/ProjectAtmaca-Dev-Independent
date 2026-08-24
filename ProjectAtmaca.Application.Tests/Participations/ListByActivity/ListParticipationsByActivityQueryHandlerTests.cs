@@ -6,6 +6,7 @@ using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.Trainings;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 
 namespace ProjectAtmaca.Application.Tests
     .Participations.ListByActivity;
@@ -146,6 +147,14 @@ public sealed class ListParticipationsByActivityQueryHandlerTests
         {
             return Task.FromResult(
                 _participations);
+        }
+
+        public Task<ParticipationActivitySummary>
+            GetSummaryByActivityAsync(
+                ActivityReference activityReference,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }
