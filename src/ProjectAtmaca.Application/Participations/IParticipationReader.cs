@@ -2,6 +2,8 @@
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
+using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
+using ProjectAtmaca.Domain.AtmacaCards;
 
 namespace ProjectAtmaca.Application.Participations;
 
@@ -20,4 +22,12 @@ public interface IParticipationReader
         GetSummaryByActivityAsync(
             ActivityReference activityReference,
             CancellationToken cancellationToken = default);
+
+    Task<ParticipationHistoryPage>
+        ListHistoryByAtmacaCardAsync(
+            AtmacaCardId atmacaCardId,
+            int pageSize,
+            ParticipationHistoryCursor? cursor,
+            CancellationToken cancellationToken = default);
+
 }

@@ -1,8 +1,10 @@
 ﻿using FluentAssertions;
-using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Application.Participations.GetById;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations.ListByActivity;
+using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
+using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.Trainings;
@@ -199,6 +201,16 @@ public sealed class GetParticipationSummaryByActivityQueryHandlerTests
             return Task.FromResult(
                 _summary);
         }
+
+        public Task<ParticipationHistoryPage>
+            ListHistoryByAtmacaCardAsync(
+                AtmacaCardId atmacaCardId,
+                int pageSize,
+                ParticipationHistoryCursor? cursor,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class CapturingParticipationReader
@@ -245,6 +257,16 @@ public sealed class GetParticipationSummaryByActivityQueryHandlerTests
 
             return Task.FromResult(
                 _summary);
+        }
+
+        public Task<ParticipationHistoryPage>
+            ListHistoryByAtmacaCardAsync(
+                AtmacaCardId atmacaCardId,
+                int pageSize,
+                ParticipationHistoryCursor? cursor,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }

@@ -4,9 +4,10 @@ using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
+using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
+using ProjectAtmaca.Domain.AtmacaCards;
 
 namespace ProjectAtmaca.Infrastructure.Persistence.Readers;
-
 
 public sealed class ParticipationReader
     : IParticipationReader
@@ -132,5 +133,118 @@ public sealed class ParticipationReader
                 NotRecorded: 0,
                 Present: 0,
                 Absent: 0);
+
+    }
+
+    public async Task<ParticipationHistoryPage>
+        ListHistoryByAtmacaCardAsync(
+            AtmacaCardId atmacaCardId,
+            int pageSize,
+            ParticipationHistoryCursor? cursor,
+            CancellationToken cancellationToken = default)
+    {
+        var query =
+            _dbContext.Participations
+                .AsNoTracking()
+                .Where(
+                    participation =>
+                        participation.AtmacaCardId ==
+                        atmacaCardId);
+
+        if (cursor is not null)
+        {
+            query =
+                query.Where(
+                    participation =>
+                        participation.CreatedAtUtc <
+                            cursor.CreatedAtUtc ||
+                        (
+                            participation.CreatedAtUtc ==
+                                cursor.CreatedAtUtc &&
+                            EF.Property<Guid>(
+                                    participation,
+                                    "Id")
+                                .CompareTo(
+                                    cursor.ParticipationId) <
+                                0
+                        ));
+        }
+
+        var rows =
+            await query
+                .OrderByDescending(
+            participation =>
+                participation.CreatedAtUtc)
+        .ThenByDescending(
+            participation =>
+                EF.Property<Guid>(
+                    participation,
+                    "Id"))
+        .Take(
+            pageSize + 1)
+        .Select(
+            participation =>
+                new
+                {
+                    Id =
+                        EF.Property<Guid>(
+                            participation,
+                            "Id"),
+
+                    participation.ActivityReference,
+                    participation.Status,
+                    participation.Condition,
+                    participation.JoinedAt,
+                    participation.LeftAt,
+                    participation.CreatedAtUtc
+                })
+        .ToListAsync(
+            cancellationToken);
+
+
+
+        bool hasMore =
+            rows.Count >
+            pageSize;
+
+        var pageRows =
+            rows
+                .Take(
+                    pageSize)
+                .ToList();
+
+        IReadOnlyList<ParticipationHistoryItem> items =
+            pageRows
+                .Select(
+                    row =>
+                        new ParticipationHistoryItem(
+                            row.Id,
+                            row.ActivityReference,
+                            row.Status,
+                            row.Condition?.Code,
+                            row.JoinedAt,
+                            row.LeftAt,
+                            row.CreatedAtUtc))
+                .ToList();
+
+        ParticipationHistoryCursor? nextCursor =
+            null;
+
+        if (hasMore &&
+            pageRows.Count > 0)
+        {
+            var lastRow =
+                pageRows[^1];
+
+            nextCursor =
+                new ParticipationHistoryCursor(
+                    atmacaCardId,
+                    lastRow.CreatedAtUtc,
+                    lastRow.Id);
+        }
+
+        return new ParticipationHistoryPage(
+            items,
+            nextCursor);
     }
 }
