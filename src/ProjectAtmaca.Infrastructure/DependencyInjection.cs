@@ -7,6 +7,7 @@ using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Repositories;
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Participations;
+using ProjectAtmaca.Domain.Decisions;
 
 namespace ProjectAtmaca.Infrastructure;
 
@@ -31,6 +32,14 @@ public static class DependencyInjection
         services.AddScoped<
             IParticipationRepository,
             ParticipationRepository>();
+
+        services.AddScoped<
+            IDecisionRepository,
+            DecisionRepository>();
+
+        services.AddScoped<
+            IDecisionApplicationRepository,
+            DecisionApplicationRepository>();
 
         services.AddScoped<
             IParticipationReader,

@@ -7,6 +7,7 @@ using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
+using ProjectAtmaca.Application.Decisions.ApplyParticipationClassification;
 
 namespace ProjectAtmaca.Application;
 
@@ -38,6 +39,9 @@ public static class DependencyInjection
 
         services.AddScoped<
             ListParticipationHistoryByAtmacaCardQueryHandler>();
+
+        services.AddScoped<
+            ApplyParticipationClassificationCommandHandler>();
 
         return services;
     }
