@@ -24,4 +24,9 @@ public static class ApplyParticipationClassificationErrors
         Error.Create(
             "Decision.Superseded",
             "A superseded decision cannot be applied.");
+
+    public static readonly Error DecisionAuthorityLost =
+        Error.Create(
+            "Decision.AuthorityLost",
+            "Decision authority was lost before the application could be committed.");
 }

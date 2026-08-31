@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Decisions
@@ -56,15 +56,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -109,9 +109,100 @@ public sealed class
             .Should()
             .Be(0);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
+    }
+
+    [Fact]
+    public async Task Handle_Should_Fail_WhenDecisionAuthorityIsLostBeforeCommit()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter
+            {
+                OutcomeToReturn =
+                    DecisionAuthorityCommitOutcome.AuthorityLost
+            };
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                decision.DecisionId,
+                decision.Revision,
+                new DateTimeOffset(
+                    2026,
+                    8,
+                    29,
+                    11,
+                    0,
+                    0,
+                    TimeSpan.Zero));
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure
+            .Should()
+            .BeTrue();
+
+        result.Error
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .DecisionAuthorityLost);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.DecisionIdReceived
+            .Should()
+            .Be(
+                decision.DecisionId);
+
+        authorityCommitter.ExpectedRevisionReceived
+            .Should()
+            .Be(
+                decision.Revision);
     }
 
     [Fact]
@@ -133,15 +224,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -181,7 +272,7 @@ public sealed class
             .Should()
             .Be(0);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
     }
@@ -213,15 +304,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -256,7 +347,7 @@ public sealed class
             .Should()
             .Be(1);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(1);
     }
@@ -289,15 +380,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -343,7 +434,7 @@ public sealed class
             .Should()
             .Be(0);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
     }
@@ -386,15 +477,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -433,7 +524,7 @@ public sealed class
             .Should()
             .Be(1);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(1);
     }
@@ -482,15 +573,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -529,7 +620,7 @@ public sealed class
             .Should()
             .Be(1);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(1);
     }
@@ -569,15 +660,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -622,7 +713,7 @@ public sealed class
             .Should()
             .Be(0);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
     }
@@ -655,15 +746,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         DateTimeOffset appliedAtUtc =
             new(
@@ -725,7 +816,7 @@ public sealed class
             .Be(
                 appliedAtUtc);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(1);
     }
@@ -758,15 +849,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -801,9 +892,95 @@ public sealed class
             .Should()
             .Be(1);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(1);
+    }
+
+    [Fact]
+    public async Task Handle_Should_CommitThroughExactDecisionAuthority_WhenDecisionApplicationSucceeds()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                decision.DecisionId,
+                decision.Revision,
+                new DateTimeOffset(
+                    2026,
+                    8,
+                    29,
+                    10,
+                    30,
+                    0,
+                    TimeSpan.Zero));
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        participation.Status
+            .Should()
+            .Be(
+                ParticipationStatus.Present);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.DecisionIdReceived
+            .Should()
+            .Be(
+                decision.DecisionId);
+
+        authorityCommitter.ExpectedRevisionReceived
+            .Should()
+            .Be(
+                decision.Revision);
     }
 
     [Fact]
@@ -834,15 +1011,15 @@ public sealed class
         var decisionApplicationRepository =
             new FakeDecisionApplicationRepository();
 
-        var unitOfWork =
-            new FakeUnitOfWork();
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -886,7 +1063,7 @@ public sealed class
             .Should()
             .Be(cancellationToken);
 
-        unitOfWork.CancellationTokenReceived
+        authorityCommitter.CancellationTokenReceived
             .Should()
             .Be(cancellationToken);
     }
@@ -923,8 +1100,8 @@ public sealed class
             new InvalidOperationException(
                 "Simulated persistence failure.");
 
-        var unitOfWork =
-            new FakeUnitOfWork
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter
             {
                 ExceptionToThrow =
                     persistenceException
@@ -935,7 +1112,7 @@ public sealed class
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                unitOfWork);
+                authorityCommitter);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -976,7 +1153,7 @@ public sealed class
             .Should()
             .Be(1);
 
-        unitOfWork.SaveChangesCallCount
+        authorityCommitter.CommitCallCount
             .Should()
             .Be(1);
     }
@@ -1088,7 +1265,7 @@ public sealed class
     }
 
     private sealed class FakeDecisionApplicationRepository
-    : IDecisionApplicationRepository
+        : IDecisionApplicationRepository
     {
         public int AddCallCount { get; private set; }
 
@@ -1120,15 +1297,54 @@ public sealed class
         }
     }
 
-    private sealed class FakeUnitOfWork
-        : IUnitOfWork
+    private sealed class FakeDecisionAuthorityCommitter
+        : IDecisionAuthorityCommitter
     {
-        public int SaveChangesCallCount { get; private set; }
+        public int CommitCallCount { get; private set; }
 
-        public Task<int> SaveChangesAsync(
+        public DecisionId? DecisionIdReceived
+        {
+            get;
+            private set;
+        }
+
+        public DecisionRevision? ExpectedRevisionReceived
+        {
+            get;
+            private set;
+        }
+
+        public CancellationToken CancellationTokenReceived
+        {
+            get;
+            private set;
+        }
+
+        public DecisionAuthorityCommitOutcome OutcomeToReturn
+        {
+            get;
+            init;
+        } =
+            DecisionAuthorityCommitOutcome.Committed;
+
+        public Exception? ExceptionToThrow
+        {
+            get;
+            init;
+        }
+
+        public Task<DecisionAuthorityCommitOutcome> CommitAsync(
+            DecisionId decisionId,
+            DecisionRevision expectedRevision,
             CancellationToken cancellationToken = default)
         {
-            SaveChangesCallCount++;
+            CommitCallCount++;
+
+            DecisionIdReceived =
+                decisionId;
+
+            ExpectedRevisionReceived =
+                expectedRevision;
 
             CancellationTokenReceived =
                 cancellationToken;
@@ -1138,18 +1354,8 @@ public sealed class
                 throw ExceptionToThrow;
             }
 
-            return Task.FromResult(1);
-        }
-
-        public CancellationToken CancellationTokenReceived
-        {
-            get;
-            private set;
-        }
-        public Exception? ExceptionToThrow
-        {
-            get;
-            init;
+            return Task.FromResult(
+                OutcomeToReturn);
         }
     }
 }

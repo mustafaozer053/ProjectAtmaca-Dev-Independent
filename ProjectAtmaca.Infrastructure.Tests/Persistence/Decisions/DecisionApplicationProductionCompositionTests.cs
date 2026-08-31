@@ -15,6 +15,7 @@ using Xunit;
 namespace ProjectAtmaca.Infrastructure.Tests
     .Persistence.Decisions;
 
+[Collection(SqlIntegrationCollection.Name)]
 public sealed class DecisionApplicationProductionCompositionTests
 {
     [Fact]

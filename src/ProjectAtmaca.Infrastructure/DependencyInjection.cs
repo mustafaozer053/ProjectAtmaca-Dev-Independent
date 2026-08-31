@@ -1,13 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ProjectAtmaca.Infrastructure.Persistence.Readers;
-using ProjectAtmaca.Domain.Participations;
-using ProjectAtmaca.Infrastructure.Persistence;
-using ProjectAtmaca.Infrastructure.Persistence.Repositories;
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Domain.Decisions;
+using ProjectAtmaca.Domain.Participations;
+using ProjectAtmaca.Infrastructure.Persistence;
+using ProjectAtmaca.Infrastructure.Persistence.Decisions;
+using ProjectAtmaca.Infrastructure.Persistence.Readers;
+using ProjectAtmaca.Infrastructure.Persistence.Repositories;
 
 namespace ProjectAtmaca.Infrastructure;
 
@@ -48,6 +49,10 @@ public static class DependencyInjection
         services.AddScoped<
             IUnitOfWork,
             UnitOfWork>();
+
+        services.AddScoped<
+            IDecisionAuthorityCommitter,
+            DecisionAuthorityCommitter>();
 
         return services;
     }

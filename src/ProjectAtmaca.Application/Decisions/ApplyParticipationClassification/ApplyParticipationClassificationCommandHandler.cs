@@ -18,14 +18,14 @@ public sealed class ApplyParticipationClassificationCommandHandler
     private readonly IDecisionApplicationRepository
         _decisionApplicationRepository;
 
-    private readonly IUnitOfWork
-        _unitOfWork;
+    private readonly IDecisionAuthorityCommitter
+        _decisionAuthorityCommitter;
 
     public ApplyParticipationClassificationCommandHandler(
         IDecisionRepository decisionRepository,
         IParticipationRepository participationRepository,
         IDecisionApplicationRepository decisionApplicationRepository,
-        IUnitOfWork unitOfWork)
+        IDecisionAuthorityCommitter decisionAuthorityCommitter)
     {
         _decisionRepository =
             decisionRepository;
@@ -36,8 +36,8 @@ public sealed class ApplyParticipationClassificationCommandHandler
         _decisionApplicationRepository =
             decisionApplicationRepository;
 
-        _unitOfWork =
-            unitOfWork;
+        _decisionAuthorityCommitter =
+            decisionAuthorityCommitter;
     }
 
     public async Task<Result> Handle(
@@ -109,8 +109,19 @@ public sealed class ApplyParticipationClassificationCommandHandler
             decisionApplication,
             cancellationToken);
 
-        await _unitOfWork.SaveChangesAsync(
-            cancellationToken);
+        DecisionAuthorityCommitOutcome commitOutcome =
+            await _decisionAuthorityCommitter.CommitAsync(
+                decision.DecisionId,
+                decision.Revision,
+                cancellationToken);
+
+        if (commitOutcome ==
+            DecisionAuthorityCommitOutcome.AuthorityLost)
+        {
+            return Result.Failure(
+                ApplyParticipationClassificationErrors
+                    .DecisionAuthorityLost);
+        }
 
         return Result.Success();
     }
