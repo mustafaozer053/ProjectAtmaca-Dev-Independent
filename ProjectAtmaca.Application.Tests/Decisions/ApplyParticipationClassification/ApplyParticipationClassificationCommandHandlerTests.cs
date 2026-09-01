@@ -16,6 +16,462 @@ namespace ProjectAtmaca.Application.Tests.Decisions
 public sealed class
     ApplyParticipationClassificationCommandHandlerTests
 {
+
+    [Fact]
+    public async Task Handle_Should_ReturnSuccessWithoutReapplying_WhenCompletedOperationIsReplayed()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                8,
+                31,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        var operationRepository =
+            new FakeDecisionApplicationOperationStore()
+            {
+                OperationToReturn =
+                    new DecisionApplicationOperation(
+                        operationId,
+                        decision.DecisionId,
+                        decision.Revision,
+                        appliedAtUtc)
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationRepository,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        operationRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participation.Status
+            .Should()
+            .Be(
+                ParticipationStatus.NotRecorded);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(0);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(0);
+    }
+
+    [Fact]
+    public async Task
+    Handle_Should_ReturnConflict_WhenOperationIdIsReusedWithDifferentAppliedAtUtc()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset completedAppliedAtUtc =
+            new(
+                2026,
+                8,
+                31,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        DateTimeOffset replayedAppliedAtUtc =
+            completedAppliedAtUtc.AddMinutes(1);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore()
+            {
+                OperationToReturn =
+                    new DecisionApplicationOperation(
+                        operationId,
+                        decision.DecisionId,
+                        decision.Revision,
+                        completedAppliedAtUtc)
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                replayedAppliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure
+            .Should()
+            .BeTrue();
+
+        result.Error
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participation.Status
+            .Should()
+            .Be(
+                ParticipationStatus.NotRecorded);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(0);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(0);
+    }
+
+    [Fact]
+    public async Task
+    Handle_Should_ReturnConflict_WhenOperationIdIsReusedWithDifferentDecisionId()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                8,
+                31,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationToReturn =
+                    new DecisionApplicationOperation(
+                        operationId,
+                        decision.DecisionId,
+                        decision.Revision,
+                        appliedAtUtc)
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                DecisionId.New(),
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure
+            .Should()
+            .BeTrue();
+
+        result.Error
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participation.Status
+            .Should()
+            .Be(
+                ParticipationStatus.NotRecorded);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(0);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(0);
+    }
+
+    [Fact]
+    public async Task
+    Handle_Should_ReturnConflict_WhenOperationIdIsReusedWithDifferentDecisionRevision()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                8,
+                31,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationToReturn =
+                    new DecisionApplicationOperation(
+                        operationId,
+                        decision.DecisionId,
+                        decision.Revision,
+                        appliedAtUtc)
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        DecisionRevision differentRevision =
+            decision.Revision.Next();
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                differentRevision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure
+            .Should()
+            .BeTrue();
+
+        result.Error
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(0);
+
+        participation.Status
+            .Should()
+            .Be(
+                ParticipationStatus.NotRecorded);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(0);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(0);
+    }
+
     [Fact]
     public async Task Handle_Should_FailWithoutMutationOrCommit_WhenRequestedRevisionIsNotCurrent()
     {
@@ -59,8 +515,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -68,6 +528,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 requestedRevision,
                 new DateTimeOffset(
@@ -149,8 +610,12 @@ public sealed class
                     DecisionAuthorityCommitOutcome.AuthorityLost
             };
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -158,6 +623,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -227,8 +693,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -236,6 +706,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 DecisionId.New(),
                 DecisionRevision.Initial,
                 new DateTimeOffset(
@@ -307,8 +778,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -316,6 +791,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -383,8 +859,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -392,6 +872,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -480,8 +961,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -489,6 +974,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -576,8 +1062,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -585,6 +1075,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -663,8 +1154,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -672,6 +1167,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -749,8 +1245,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -768,6 +1268,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 appliedAtUtc);
@@ -852,8 +1353,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -861,6 +1366,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -928,8 +1434,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -937,6 +1447,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -984,6 +1495,94 @@ public sealed class
     }
 
     [Fact]
+    public async Task
+Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceeds()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                new DateTimeOffset(
+                    2026,
+                    9,
+                    1,
+                    13,
+                    30,
+                    0,
+                    TimeSpan.Zero));
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.OperationIdReceived
+            .Should()
+            .Be(operationId);
+
+        authorityCommitter.DecisionIdReceived
+            .Should()
+            .Be(decision.DecisionId);
+
+        authorityCommitter.ExpectedRevisionReceived
+            .Should()
+            .Be(decision.Revision);
+    }
+
+    [Fact]
     public async Task Handle_Should_PropagateCancellationToken_ThroughEntireApplicationFlow()
     {
         // Arrange
@@ -1014,8 +1613,12 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -1023,6 +1626,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -1107,8 +1711,12 @@ public sealed class
                     persistenceException
             };
 
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
@@ -1116,6 +1724,7 @@ public sealed class
 
         var command =
             new ApplyParticipationClassificationCommand(
+                DecisionApplicationOperationId.New(),
                 decision.DecisionId,
                 decision.Revision,
                 new DateTimeOffset(
@@ -1158,6 +1767,643 @@ public sealed class
             .Be(1);
     }
 
+    [Fact]
+    public async Task
+    Handle_Should_ApplyAgain_WhenSameDecisionRevisionIsUsedWithDifferentOperationId()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId previousOperationId =
+            DecisionApplicationOperationId.New();
+
+        DecisionApplicationOperationId newOperationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset previousAppliedAtUtc =
+            new(
+                2026,
+                8,
+                31,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        DateTimeOffset newAppliedAtUtc =
+            previousAppliedAtUtc.AddMinutes(30);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationToReturn = null
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                newOperationId,
+                decision.DecisionId,
+                decision.Revision,
+                newAppliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        newOperationId
+            .Should()
+            .NotBe(previousOperationId);
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        operationStore.OperationIdReceived
+            .Should()
+            .Be(newOperationId);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        participation.Status
+            .Should()
+            .Be(
+                ParticipationStatus.Present);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(1);
+
+        decisionApplicationRepository
+            .AddedDecisionApplication
+            .Should()
+            .NotBeNull();
+
+        decisionApplicationRepository
+            .AddedDecisionApplication!
+            .DecisionId
+            .Should()
+            .Be(
+                decision.DecisionId);
+
+        decisionApplicationRepository
+            .AddedDecisionApplication!
+            .AppliedDecisionRevision
+            .Should()
+            .Be(
+                decision.Revision);
+
+        decisionApplicationRepository
+            .AddedDecisionApplication!
+            .AppliedAtUtc
+            .Should()
+            .Be(
+                newAppliedAtUtc);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.DecisionIdReceived
+            .Should()
+            .Be(
+                decision.DecisionId);
+
+        authorityCommitter.ExpectedRevisionReceived
+            .Should()
+            .Be(
+                decision.Revision);
+    }
+
+    [Fact]
+    public async Task
+    Handle_Should_RecordOperation_WhenNewApplicationSucceeds()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                8,
+                31,
+                11,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationToReturn = null
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        operationStore.AddCallCount
+            .Should()
+            .Be(1);
+
+        operationStore.AddedOperation
+            .Should()
+            .NotBeNull();
+
+        operationStore.AddedOperation!
+            .OperationId
+            .Should()
+            .Be(
+                operationId);
+
+        operationStore.AddedOperation!
+            .DecisionId
+            .Should()
+            .Be(
+                decision.DecisionId);
+
+        operationStore.AddedOperation!
+            .DecisionRevision
+            .Should()
+            .Be(
+                decision.Revision);
+
+        operationStore.AddedOperation!
+            .AppliedAtUtc
+            .Should()
+            .Be(
+                appliedAtUtc);
+    }
+
+    [Fact]
+    public async Task
+        Handle_Should_ReturnSuccess_WhenConcurrentOperationWasAlreadyCompletedWithSameSemantics()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                9,
+                1,
+                11,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        DecisionApplicationOperation completedOperation =
+            new(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationsToReturn =
+                [
+                    null,
+                completedOperation
+                ]
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter
+            {
+                OutcomeToReturn =
+                    DecisionAuthorityCommitOutcome
+                        .OperationAlreadyExists
+            };
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(2);
+
+        operationStore.OperationIdReceived
+            .Should()
+            .Be(operationId);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(1);
+
+        operationStore.AddCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+    }
+
+    [Fact]
+    public async Task
+        Handle_Should_ReturnConflict_WhenConcurrentOperationWasCompletedWithDifferentSemantics()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset requestedAppliedAtUtc =
+            new(
+                2026,
+                9,
+                1,
+                12,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        DateTimeOffset durableAppliedAtUtc =
+            requestedAppliedAtUtc.AddMinutes(-1);
+
+        DecisionApplicationOperation durableOperation =
+            new(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                durableAppliedAtUtc);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationsToReturn =
+                [
+                    null,
+                durableOperation
+                ]
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter
+            {
+                OutcomeToReturn =
+                    DecisionAuthorityCommitOutcome
+                        .OperationAlreadyExists
+            };
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                requestedAppliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure
+            .Should()
+            .BeTrue();
+
+        result.Error
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(2);
+
+        operationStore.OperationIdReceived
+            .Should()
+            .Be(operationId);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(1);
+
+        operationStore.AddCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+    }
+
+    [Fact]
+    public async Task
+        Handle_Should_ReturnConflict_WhenOperationAlreadyExistsButDurableOperationCannotBeLoaded()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                9,
+                1,
+                12,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationsToReturn =
+                [
+                    null,
+                null
+                ]
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter
+            {
+                OutcomeToReturn =
+                    DecisionAuthorityCommitOutcome
+                        .OperationAlreadyExists
+            };
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure
+            .Should()
+            .BeTrue();
+
+        result.Error
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(2);
+
+        operationStore.OperationIdReceived
+            .Should()
+            .Be(operationId);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        participationRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionApplicationRepository.AddCallCount
+            .Should()
+            .Be(1);
+
+        operationStore.AddCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+    }
+
     private static Participation CreateParticipation()
     {
         var creationResult =
@@ -1192,14 +2438,18 @@ public sealed class
     }
 
     private sealed class FakeDecisionRepository
-        : IDecisionRepository
+    : IDecisionRepository
     {
         public Decision? DecisionToReturn { get; init; }
+
+        public int GetByIdCallCount { get; private set; }
 
         public Task<Decision?> GetByIdAsync(
             DecisionId id,
             CancellationToken cancellationToken = default)
         {
+            GetByIdCallCount++;
+
             CancellationTokenReceived =
                 cancellationToken;
 
@@ -1334,11 +2584,15 @@ public sealed class
         }
 
         public Task<DecisionAuthorityCommitOutcome> CommitAsync(
+            DecisionApplicationOperationId operationId,
             DecisionId decisionId,
             DecisionRevision expectedRevision,
             CancellationToken cancellationToken = default)
         {
             CommitCallCount++;
+
+            OperationIdReceived =
+                operationId;
 
             DecisionIdReceived =
                 decisionId;
@@ -1356,6 +2610,94 @@ public sealed class
 
             return Task.FromResult(
                 OutcomeToReturn);
+        }
+
+        public DecisionApplicationOperationId?
+            OperationIdReceived
+        {
+            get;
+            private set;
+        }
+    }
+
+    private sealed class FakeDecisionApplicationOperationStore
+    : IDecisionApplicationOperationStore
+    {
+        public DecisionApplicationOperation? OperationToReturn
+        {
+            get;
+            init;
+        }
+
+        public int GetByIdCallCount
+        {
+            get;
+            private set;
+        }
+
+        public DecisionApplicationOperationId? OperationIdReceived
+        {
+            get;
+            private set;
+        }
+
+        public CancellationToken CancellationTokenReceived
+        {
+            get;
+            private set;
+        }
+
+        public Task<DecisionApplicationOperation?> GetByIdAsync(
+            DecisionApplicationOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            GetByIdCallCount++;
+
+            OperationIdReceived =
+                operationId;
+
+            CancellationTokenReceived =
+                cancellationToken;
+
+            if (OperationsToReturn is not null)
+            {
+                int index =
+                    GetByIdCallCount - 1;
+
+                return Task.FromResult(
+                    index < OperationsToReturn.Count
+                        ? OperationsToReturn[index]
+                        : OperationsToReturn[^1]);
+            }
+
+            return Task.FromResult(
+                OperationToReturn);
+        }
+
+        public int AddCallCount { get; private set; }
+
+        public DecisionApplicationOperation? AddedOperation
+        {
+            get;
+            private set;
+        }
+        public Task AddAsync(
+            DecisionApplicationOperation operation,
+            CancellationToken cancellationToken = default)
+        {
+            AddCallCount++;
+
+            AddedOperation =
+                operation;
+
+            return Task.CompletedTask;
+        }
+
+        public IReadOnlyList<DecisionApplicationOperation?>?
+            OperationsToReturn
+        {
+            get;
+            init;
         }
     }
 }

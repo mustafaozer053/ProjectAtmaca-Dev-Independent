@@ -130,6 +130,7 @@ public sealed class ApplyParticipationClassificationIntegrationTests
 
             var command =
                 new ApplyParticipationClassificationCommand(
+                    DecisionApplicationOperationId.New(),
                     decisionId,
                     decisionRevision,
                     appliedAtUtc);
@@ -193,5 +194,182 @@ public sealed class ApplyParticipationClassificationIntegrationTests
         persistedApplication.AppliedAtUtc
             .Should()
             .Be(appliedAtUtc);
+    }
+
+    [Fact]
+    public async Task Handle_Should_TreatExactRedeliveryAsReplay_WithoutDuplicateProvenance()
+    {
+        // Arrange
+        ActivityReference activityReference =
+            ActivityReference.ForTraining(
+                TrainingId.New());
+
+        AtmacaCardId atmacaCardId =
+            AtmacaCardId.New();
+
+        Participation participation =
+            Participation.Create(
+                activityReference,
+                atmacaCardId)
+            .Value!;
+
+        Decision decision =
+            Decision.CreateParticipationClassification(
+                participation.ParticipationId,
+                ParticipationClassificationSnapshot.Create(
+                    activityReference,
+                    atmacaCardId,
+                    ParticipationStatus.NotRecorded,
+                    null,
+                    null,
+                    null),
+                ParticipationClassificationEffect.Present());
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                9,
+                1,
+                14,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        await using (
+            ProjectAtmacaDbContext seedContext =
+                ParticipationPersistenceTestContextFactory
+                    .CreateContext())
+        {
+            seedContext.Participations.Add(
+                participation);
+
+            seedContext
+                .Set<Decision>()
+                .Add(decision);
+
+            await seedContext.SaveChangesAsync();
+        }
+
+        Dictionary<string, string?> configurationValues =
+            new()
+            {
+                ["ConnectionStrings:ProjectAtmacaDatabase"] =
+                    ParticipationPersistenceTestContextFactory
+                        .ConnectionString
+            };
+
+        IConfiguration configuration =
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    configurationValues)
+                .Build();
+
+        ServiceCollection services =
+            new();
+
+        services.AddApplication();
+
+        services.AddInfrastructure(
+            configuration);
+
+        await using ServiceProvider serviceProvider =
+            services.BuildServiceProvider();
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        Result firstResult;
+
+        await using (
+            AsyncServiceScope firstScope =
+                serviceProvider.CreateAsyncScope())
+        {
+            ApplyParticipationClassificationCommandHandler handler =
+                firstScope.ServiceProvider
+                    .GetRequiredService<
+                        ApplyParticipationClassificationCommandHandler>();
+
+            firstResult =
+                await handler.Handle(
+                    command,
+                    CancellationToken.None);
+        }
+
+        // Act — simulate redelivery through a fresh
+        // production scope.
+        Result replayResult;
+
+        await using (
+            AsyncServiceScope replayScope =
+                serviceProvider.CreateAsyncScope())
+        {
+            ApplyParticipationClassificationCommandHandler handler =
+                replayScope.ServiceProvider
+                    .GetRequiredService<
+                        ApplyParticipationClassificationCommandHandler>();
+
+            replayResult =
+                await handler.Handle(
+                    command,
+                    CancellationToken.None);
+        }
+
+        // Assert
+        firstResult.IsSuccess
+            .Should()
+            .BeTrue();
+
+        replayResult.IsSuccess
+            .Should()
+            .BeTrue();
+
+        await using ProjectAtmacaDbContext verificationContext =
+            ParticipationPersistenceTestContextFactory
+                .CreateContext();
+
+        Participation persistedParticipation =
+            await verificationContext.Participations
+                .AsNoTracking()
+                .SingleAsync(
+                    item =>
+                        item.Id ==
+                        participation.Id);
+
+        int applicationCount =
+            await verificationContext
+                .Set<DecisionApplication>()
+                .AsNoTracking()
+                .CountAsync(
+                    item =>
+                        item.DecisionId ==
+                        decision.DecisionId);
+
+        int operationCount =
+            await verificationContext
+                .Set<DecisionApplicationOperation>()
+                .AsNoTracking()
+                .CountAsync(
+                    item =>
+                        item.OperationId ==
+                        operationId);
+
+        persistedParticipation.Status
+            .Should()
+            .Be(ParticipationStatus.Present);
+
+        applicationCount
+            .Should()
+            .Be(1);
+
+        operationCount
+            .Should()
+            .Be(1);
     }
 }

@@ -21,12 +21,19 @@ public sealed class ApplyParticipationClassificationCommandHandler
     private readonly IDecisionAuthorityCommitter
         _decisionAuthorityCommitter;
 
+    private readonly IDecisionApplicationOperationStore
+    _decisionApplicationOperationStore;
+
     public ApplyParticipationClassificationCommandHandler(
+        IDecisionApplicationOperationStore decisionApplicationOperationStore,
         IDecisionRepository decisionRepository,
         IParticipationRepository participationRepository,
         IDecisionApplicationRepository decisionApplicationRepository,
         IDecisionAuthorityCommitter decisionAuthorityCommitter)
     {
+        _decisionApplicationOperationStore =
+            decisionApplicationOperationStore;
+
         _decisionRepository =
             decisionRepository;
 
@@ -44,6 +51,33 @@ public sealed class ApplyParticipationClassificationCommandHandler
         ApplyParticipationClassificationCommand command,
         CancellationToken cancellationToken = default)
     {
+        DecisionApplicationOperation? completedOperation =
+            await _decisionApplicationOperationStore.GetByIdAsync(
+                command.OperationId,
+                cancellationToken);
+
+        if (completedOperation is not null)
+        {
+            bool isExactReplay =
+                completedOperation.DecisionId ==
+                    command.DecisionId
+                &&
+                completedOperation.DecisionRevision ==
+                    command.DecisionRevision
+                &&
+                completedOperation.AppliedAtUtc ==
+                    command.AppliedAtUtc;
+
+            if (isExactReplay)
+            {
+                return Result.Success();
+            }
+
+            return Result.Failure(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
+        }
+
         Decision? decision =
             await _decisionRepository.GetByIdAsync(
                 command.DecisionId,
@@ -109,8 +143,20 @@ public sealed class ApplyParticipationClassificationCommandHandler
             decisionApplication,
             cancellationToken);
 
+        var operation =
+            new DecisionApplicationOperation(
+                command.OperationId,
+                decision.DecisionId,
+                decision.Revision,
+                command.AppliedAtUtc);
+
+        await _decisionApplicationOperationStore.AddAsync(
+            operation,
+            cancellationToken);
+
         DecisionAuthorityCommitOutcome commitOutcome =
             await _decisionAuthorityCommitter.CommitAsync(
+                command.OperationId,
                 decision.DecisionId,
                 decision.Revision,
                 cancellationToken);
@@ -121,6 +167,36 @@ public sealed class ApplyParticipationClassificationCommandHandler
             return Result.Failure(
                 ApplyParticipationClassificationErrors
                     .DecisionAuthorityLost);
+        }
+
+        if (commitOutcome ==
+            DecisionAuthorityCommitOutcome.OperationAlreadyExists)
+        {
+            DecisionApplicationOperation? durableOperation =
+                await _decisionApplicationOperationStore.GetByIdAsync(
+                    command.OperationId,
+                    cancellationToken);
+
+            bool isExactReplay =
+                durableOperation is not null
+                &&
+                durableOperation.DecisionId ==
+                    command.DecisionId
+                &&
+                durableOperation.DecisionRevision ==
+                    command.DecisionRevision
+                &&
+                durableOperation.AppliedAtUtc ==
+                    command.AppliedAtUtc;
+
+            if (isExactReplay)
+            {
+                return Result.Success();
+            }
+
+            return Result.Failure(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
         }
 
         return Result.Success();

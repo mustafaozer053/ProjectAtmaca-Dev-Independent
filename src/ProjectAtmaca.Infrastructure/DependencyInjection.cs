@@ -54,6 +54,10 @@ public static class DependencyInjection
             IDecisionAuthorityCommitter,
             DecisionAuthorityCommitter>();
 
+        services.AddScoped<
+            IDecisionApplicationOperationStore,
+            DecisionApplicationOperationStore>();
+
         return services;
     }
 }

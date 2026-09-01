@@ -2,7 +2,7 @@
 using FluentAssertions.Execution;
 using Microsoft.EntityFrameworkCore;
 using ProjectAtmaca.Application.Abstractions.Persistence;
-using ProjectAtmaca.Infrastructure.Persistence.Decisions;
+using ProjectAtmaca.Application.Decisions.ApplyParticipationClassification;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Decisions;
 using ProjectAtmaca.Domain.Decisions.Effects.Participations;
@@ -10,9 +10,9 @@ using ProjectAtmaca.Domain.Decisions.Snapshots.Participations;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Infrastructure.Persistence;
+using ProjectAtmaca.Infrastructure.Persistence.Decisions;
 using ProjectAtmaca.Infrastructure.Tests
     .Persistence.Participations;
-
 using Xunit;
 
 namespace ProjectAtmaca.Infrastructure.Tests
@@ -73,6 +73,9 @@ public sealed class DecisionApplicationAuthorityConcurrencyTests
 
             await seedContext.SaveChangesAsync();
         }
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
 
         // T1 — application reads and validates revision 1.
         await using ProjectAtmacaDbContext applicationContext =
@@ -171,6 +174,7 @@ public sealed class DecisionApplicationAuthorityConcurrencyTests
 
         DecisionAuthorityCommitOutcome outcome =
             await committer.CommitAsync(
+                operationId,
                 staleDecision.DecisionId,
                 staleDecision.Revision);
 
@@ -282,6 +286,9 @@ public sealed class DecisionApplicationAuthorityConcurrencyTests
             await seedContext.SaveChangesAsync();
         }
 
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
         // T1 — application reads and validates
         // revision 1 while Decision is authoritative.
         await using ProjectAtmacaDbContext applicationContext =
@@ -372,6 +379,7 @@ public sealed class DecisionApplicationAuthorityConcurrencyTests
 
         DecisionAuthorityCommitOutcome outcome =
             await committer.CommitAsync(
+                operationId,
                 staleDecision.DecisionId,
                 staleDecision.Revision);
 

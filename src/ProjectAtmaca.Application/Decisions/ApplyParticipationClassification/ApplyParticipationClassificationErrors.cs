@@ -29,4 +29,9 @@ public static class ApplyParticipationClassificationErrors
         Error.Create(
             "Decision.AuthorityLost",
             "Decision authority was lost before the application could be committed.");
+
+    public static readonly Error OperationConflict =
+        Error.Create(
+            "DecisionApplication.OperationConflict",
+            "The decision application operation ID is already associated with different operation semantics.");
 }

@@ -3,7 +3,7 @@
 namespace ProjectAtmaca.Application.Decisions
     .ApplyParticipationClassification;
 
-public sealed record ApplyParticipationClassificationCommand(
+public sealed record DecisionApplicationOperation(
     DecisionApplicationOperationId OperationId,
     DecisionId DecisionId,
     DecisionRevision DecisionRevision,
