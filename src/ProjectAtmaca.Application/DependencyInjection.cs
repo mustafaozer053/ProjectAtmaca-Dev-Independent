@@ -8,6 +8,7 @@ using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Application.Decisions.ApplyParticipationClassification;
+using ProjectAtmaca.Application.Decisions.ListApplicationHistory;
 
 namespace ProjectAtmaca.Application;
 
@@ -42,6 +43,9 @@ public static class DependencyInjection
 
         services.AddScoped<
             ApplyParticipationClassificationCommandHandler>();
+
+        services.AddScoped<
+            ListDecisionApplicationHistoryQueryHandler>();
 
         return services;
     }
