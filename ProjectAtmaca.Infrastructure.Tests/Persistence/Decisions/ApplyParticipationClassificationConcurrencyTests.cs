@@ -105,6 +105,8 @@ public sealed class
         ServiceCollection services =
             new();
 
+        services.AddLogging();
+
         services.AddApplication();
 
         services.AddInfrastructure(
@@ -305,6 +307,8 @@ public sealed class
 
         ServiceCollection services =
             new();
+
+        services.AddLogging();
 
         services.AddApplication();
 
@@ -562,6 +566,8 @@ public sealed class
 
         ServiceCollection services =
             new();
+
+        services.AddLogging();
 
         services.AddApplication();
 

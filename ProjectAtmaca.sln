@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectAtmaca.Infrastructur
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectAtmaca.Application.Tests", "ProjectAtmaca.Application.Tests\ProjectAtmaca.Application.Tests.csproj", "{E69BE5F5-F35F-4F31-8B8F-8DD3CC682116}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectAtmaca.Api.Tests", "ProjectAtmaca.Api.Tests\ProjectAtmaca.Api.Tests.csproj", "{42BA9996-FF7C-4E3A-B0C0-BE99B7E6A9B6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -59,6 +61,10 @@ Global
 		{E69BE5F5-F35F-4F31-8B8F-8DD3CC682116}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E69BE5F5-F35F-4F31-8B8F-8DD3CC682116}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E69BE5F5-F35F-4F31-8B8F-8DD3CC682116}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42BA9996-FF7C-4E3A-B0C0-BE99B7E6A9B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42BA9996-FF7C-4E3A-B0C0-BE99B7E6A9B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42BA9996-FF7C-4E3A-B0C0-BE99B7E6A9B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42BA9996-FF7C-4E3A-B0C0-BE99B7E6A9B6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

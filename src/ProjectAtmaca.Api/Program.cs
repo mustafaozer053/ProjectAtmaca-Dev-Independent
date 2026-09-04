@@ -1,7 +1,17 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
+
 using ProjectAtmaca.Infrastructure;
 using ProjectAtmaca.Application;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddSimpleConsole(
+    options =>
+    {
+        options.IncludeScopes =
+            true;
+    });
 
 // Add services to the container.
 
@@ -11,6 +21,8 @@ builder.Services.AddInfrastructure(
     builder.Configuration);
 
 builder.Services.AddControllers();
+
+builder.Services.AddHealthChecks();
 
 // Learn more about configuring Swagger/OpenAPI at
 // https://aka.ms/aspnetcore/swashbuckle
@@ -30,6 +42,28 @@ app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions
+    {
+        Predicate =
+            registration =>
+                registration.Tags.Contains(
+                    "ready")
+    });
+
 app.MapControllers();
 
+app.MapHealthChecks(
+    "/health/live",
+    new HealthCheckOptions
+    {
+        Predicate =
+            _ => false
+    });
+
 app.Run();
+
+public partial class Program
+{
+}

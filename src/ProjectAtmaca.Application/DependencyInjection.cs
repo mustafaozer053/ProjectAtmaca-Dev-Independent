@@ -17,6 +17,12 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(
         this IServiceCollection services)
     {
+        services.AddMetrics();
+
+        services.AddSingleton<
+            IDecisionApplicationMetrics,
+            DecisionApplicationMetrics>();
+
         services.AddScoped<
             CreateParticipationCommandHandler>();
 

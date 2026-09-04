@@ -111,6 +111,8 @@ public sealed class ApplyParticipationClassificationIntegrationTests
         ServiceCollection services =
             new();
 
+        services.AddLogging();
+
         services.AddApplication();
 
         services.AddInfrastructure(
@@ -269,6 +271,8 @@ public sealed class ApplyParticipationClassificationIntegrationTests
 
         ServiceCollection services =
             new();
+
+        services.AddLogging();
 
         services.AddApplication();
 

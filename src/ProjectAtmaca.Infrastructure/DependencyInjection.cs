@@ -31,6 +31,15 @@ public static class DependencyInjection
                 options.UseSqlServer(
                     connectionString));
 
+        services.AddHealthChecks()
+            .AddDbContextCheck<ProjectAtmacaDbContext>(
+                name: "projectatmaca-database",
+                tags:
+                    new[]
+                    {
+                        "ready"
+                    });
+
         services.AddScoped<
             IParticipationRepository,
             ParticipationRepository>();

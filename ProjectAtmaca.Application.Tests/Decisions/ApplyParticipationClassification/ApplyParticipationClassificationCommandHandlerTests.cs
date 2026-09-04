@@ -1,4 +1,8 @@
+using System.Diagnostics.Metrics;
+
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Decisions
@@ -74,11 +78,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationRepository,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -126,7 +134,7 @@ public sealed class
 
     [Fact]
     public async Task
-    Handle_Should_ReturnConflict_WhenOperationIdIsReusedWithDifferentAppliedAtUtc()
+    Handle_Should_ObserveRejectedOutcome_WithoutInvokingAuthorityCommit_WhenOperationIdConflictsDuringPreflight()
     {
         // Arrange
         Participation participation =
@@ -183,13 +191,22 @@ public sealed class
         var authorityCommitter =
             new FakeDecisionAuthorityCommitter();
 
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                logger);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -239,6 +256,57 @@ public sealed class
         authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationRejected");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeFalse();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                operationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                decision.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                decision.Revision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Rejected");
+
+        entry.Properties["ErrorCode"]
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict
+                    .Code);
     }
 
     [Fact]
@@ -299,11 +367,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -413,11 +485,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         DecisionRevision differentRevision =
             decision.Revision.Next();
@@ -473,7 +549,8 @@ public sealed class
     }
 
     [Fact]
-    public async Task Handle_Should_FailWithoutMutationOrCommit_WhenRequestedRevisionIsNotCurrent()
+    public async Task
+    Handle_Should_ObserveRejectedOutcome_WithoutMutationOrCommit_WhenRequestedRevisionIsNotCurrent()
     {
         // Arrange
         Participation participation =
@@ -518,13 +595,22 @@ public sealed class
         var operationStore =
             new FakeDecisionApplicationOperationStore();
 
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                logger);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -557,6 +643,14 @@ public sealed class
                 ApplyParticipationClassificationErrors
                     .RevisionMismatch);
 
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
         participation.Status
             .Should()
             .Be(
@@ -573,10 +667,62 @@ public sealed class
         authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationRejected");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeFalse();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                command.OperationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                command.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                command.DecisionRevision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Rejected");
+
+        entry.Properties["ErrorCode"]
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .RevisionMismatch
+                    .Code);
     }
 
     [Fact]
-    public async Task Handle_Should_Fail_WhenDecisionAuthorityIsLostBeforeCommit()
+    public async Task
+    Handle_Should_ObserveRejectedOutcome_AfterDecisionAuthorityIsLostBeforeCommit()
     {
         // Arrange
         Participation participation =
@@ -613,13 +759,22 @@ public sealed class
         var operationStore =
             new FakeDecisionApplicationOperationStore();
 
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                logger);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -669,10 +824,87 @@ public sealed class
             .Should()
             .Be(
                 decision.Revision);
+
+        authorityCommitter.OperationIdReceived
+            .Should()
+            .Be(
+                command.OperationId);
+
+        authorityCommitter.HasReturnedOutcome
+            .Should()
+            .BeTrue();
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationRejected");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeTrue();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                command.OperationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                command.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                command.DecisionRevision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Rejected");
+
+        entry.Properties["ErrorCode"]
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .DecisionAuthorityLost
+                    .Code);
+
+        string[] forbiddenProperties =
+        [
+            "ParticipationId",
+            "Snapshot",
+            "Effect",
+            "DecisionSnapshot",
+            "DecisionEffect"
+        ];
+
+        forbiddenProperties
+            .Should()
+            .OnlyContain(
+                propertyName =>
+                    !entry.Properties.ContainsKey(
+                        propertyName));
     }
 
     [Fact]
-    public async Task Handle_Should_FailWithoutMutationOrCommit_WhenDecisionDoesNotExist()
+    public async Task
+    Handle_Should_ObserveRejectedOutcome_WithoutMutationOrCommit_WhenDecisionDoesNotExist()
     {
         // Arrange
         var decisionRepository =
@@ -696,13 +928,85 @@ public sealed class
         var operationStore =
             new FakeDecisionApplicationOperationStore();
 
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
+        int measurementCallCount =
+            0;
+
+        long recordedValue =
+            0;
+
+        int commitCallCountWhenMeasured =
+            -1;
+
+        var recordedTags =
+            new Dictionary<string, object?>();
+
+        using var listener =
+            new MeterListener();
+
+        listener.InstrumentPublished =
+            (instrument, meterListener) =>
+            {
+                if (
+                    instrument.Meter.Name ==
+                        DecisionApplicationMetrics.MeterName &&
+                    instrument.Name ==
+                        DecisionApplicationMetrics
+                            .OutcomeCounterName)
+                {
+                    meterListener.EnableMeasurementEvents(
+                        instrument);
+                }
+            };
+
+        listener.SetMeasurementEventCallback<long>(
+            (
+                instrument,
+                measurement,
+                tags,
+                state) =>
+            {
+                measurementCallCount++;
+
+                recordedValue =
+                    measurement;
+
+                commitCallCountWhenMeasured =
+                    authorityCommitter.CommitCallCount;
+
+                foreach (
+                    KeyValuePair<string, object?> tag
+                    in tags)
+                {
+                    recordedTags[tag.Key] =
+                        tag.Value;
+                }
+            });
+
+        listener.Start();
+
+        using var meterFactory =
+            new TestMeterFactory();
+
+        var outcomeMetrics =
+            new DecisionApplicationMetrics(
+                meterFactory);
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                outcomeMetrics,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                logger);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -735,6 +1039,14 @@ public sealed class
                 ApplyParticipationClassificationErrors
                     .DecisionNotFound);
 
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
         participationRepository.GetByIdCallCount
             .Should()
             .Be(0);
@@ -746,6 +1058,90 @@ public sealed class
         authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationRejected");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeFalse();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                command.OperationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                command.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                command.DecisionRevision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Rejected");
+
+        entry.Properties["ErrorCode"]
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .DecisionNotFound
+                    .Code);
+
+        measurementCallCount
+            .Should()
+            .Be(1);
+
+        recordedValue
+            .Should()
+            .Be(1);
+
+        commitCallCountWhenMeasured
+            .Should()
+            .Be(0);
+
+        recordedTags
+            .Should()
+            .HaveCount(2);
+
+        recordedTags
+            .Should()
+            .ContainKey("outcome")
+            .WhoseValue
+            .Should()
+            .Be("rejected");
+
+        recordedTags
+            .Should()
+            .ContainKey("reason")
+            .WhoseValue
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .DecisionNotFound
+                    .Code);
     }
 
     [Fact]
@@ -783,11 +1179,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -829,7 +1229,8 @@ public sealed class
     }
 
     [Fact]
-    public async Task Handle_Should_FailWithoutProvenanceOrCommit_WhenTargetParticipationDoesNotExist()
+    public async Task
+    Handle_Should_ObserveRejectedOutcome_WithoutProvenanceOrCommit_WhenTargetParticipationDoesNotExist()
     {
         // Arrange
         Participation participation =
@@ -862,13 +1263,22 @@ public sealed class
         var operationStore =
             new FakeDecisionApplicationOperationStore();
 
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                logger);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -901,6 +1311,19 @@ public sealed class
                 ApplyParticipationClassificationErrors
                     .ParticipationNotFound);
 
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        participation.Status
+            .Should()
+            .Be(
+                ParticipationStatus.NotRecorded);
+
         participationRepository.GetByIdCallCount
             .Should()
             .Be(1);
@@ -918,6 +1341,73 @@ public sealed class
         authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationRejected");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeFalse();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                command.OperationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                command.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                command.DecisionRevision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Rejected");
+
+        entry.Properties["ErrorCode"]
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .ParticipationNotFound
+                    .Code);
+
+        string[] forbiddenProperties =
+        [
+            "ParticipationId",
+            "Snapshot",
+            "Effect",
+            "DecisionSnapshot",
+            "DecisionEffect"
+        ];
+
+        forbiddenProperties
+            .Should()
+            .OnlyContain(
+                propertyName =>
+                    !entry.Properties.ContainsKey(
+                        propertyName));
     }
 
     [Fact]
@@ -966,11 +1456,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1067,11 +1561,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1117,7 +1615,8 @@ public sealed class
     }
 
     [Fact]
-    public async Task Handle_Should_FailWithoutMutationOrCommit_WhenDecisionIsSuperseded()
+    public async Task
+    Handle_Should_ObserveRejectedOutcome_WithoutMutationOrCommit_WhenDecisionIsSuperseded()
     {
         // Arrange
         Participation participation =
@@ -1157,13 +1656,22 @@ public sealed class
         var operationStore =
             new FakeDecisionApplicationOperationStore();
 
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                logger);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1196,6 +1704,14 @@ public sealed class
                 ApplyParticipationClassificationErrors
                     .DecisionSuperseded);
 
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        decisionRepository.GetByIdCallCount
+            .Should()
+            .Be(1);
+
         participation.Status
             .Should()
             .Be(
@@ -1212,6 +1728,62 @@ public sealed class
         authorityCommitter.CommitCallCount
             .Should()
             .Be(0);
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationRejected");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeFalse();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                command.OperationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                command.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                command.DecisionRevision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Rejected");
+
+        entry.Properties["ErrorCode"]
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .DecisionSuperseded
+                    .Code);
+
+        entry.Properties.ContainsKey(
+                "SupersededByDecisionId")
+            .Should()
+            .BeFalse();
     }
 
     [Fact]
@@ -1250,11 +1822,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         DateTimeOffset appliedAtUtc =
             new(
@@ -1358,11 +1934,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1439,11 +2019,15 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1534,11 +2118,15 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1618,11 +2206,15 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1716,11 +2308,15 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1826,11 +2422,15 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -1973,11 +2573,15 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -2099,11 +2703,15 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -2154,7 +2762,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
     [Fact]
     public async Task
-        Handle_Should_ReturnConflict_WhenConcurrentOperationWasCompletedWithDifferentSemantics()
+    Handle_Should_ObserveRejectedOutcome_AfterConcurrentOperationWinnerIsConfirmedWithDifferentSemantics()
     {
         // Arrange
         Participation participation =
@@ -2222,13 +2830,22 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
                         .OperationAlreadyExists
             };
 
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                logger);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -2281,6 +2898,77 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
         authorityCommitter.CommitCallCount
             .Should()
             .Be(1);
+
+        authorityCommitter.HasReturnedOutcome
+            .Should()
+            .BeTrue();
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationRejected");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeTrue();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                command.OperationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                command.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                command.DecisionRevision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Rejected");
+
+        entry.Properties["ErrorCode"]
+            .Should()
+            .Be(
+                ApplyParticipationClassificationErrors
+                    .OperationConflict
+                    .Code);
+
+        string[] forbiddenProperties =
+        [
+            "ParticipationId",
+            "Snapshot",
+            "Effect",
+            "DecisionSnapshot",
+            "DecisionEffect"
+        ];
+
+        forbiddenProperties
+            .Should()
+            .OnlyContain(
+                propertyName =>
+                    !entry.Properties.ContainsKey(
+                        propertyName));
     }
 
     [Fact]
@@ -2345,11 +3033,15 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
                 participationRepository,
                 decisionApplicationRepository,
-                authorityCommitter);
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -2404,6 +3096,1077 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
             .Be(1);
     }
 
+    [Fact]
+    public async Task
+    Handle_Should_ObserveReplayOutcome_AfterConcurrentOperationWinnerIsDurablyConfirmed()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                9,
+                2,
+                11,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        DecisionApplicationOperation completedOperation =
+            new(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationsToReturn =
+                [
+                    null,
+                completedOperation
+                ]
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter
+            {
+                OutcomeToReturn =
+                    DecisionAuthorityCommitOutcome
+                        .OperationAlreadyExists
+            };
+
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter,
+                logger);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(2);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.HasReturnedOutcome
+            .Should()
+            .BeTrue();
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationReplayed");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeTrue();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                operationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                decision.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                decision.Revision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Replay");
+    }
+    [Fact]
+    public async Task
+    Handle_Should_ObserveReplayOutcome_WithoutInvokingAuthorityCommit_WhenCompletedOperationIsReplayed()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                9,
+                2,
+                11,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationToReturn =
+                    new DecisionApplicationOperation(
+                        operationId,
+                        decision.DecisionId,
+                        decision.Revision,
+                        appliedAtUtc)
+            };
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
+                operationStore,
+                new FakeDecisionRepository(),
+                new FakeParticipationRepository(),
+                new FakeDecisionApplicationRepository(),
+                authorityCommitter,
+                logger);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(0);
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationReplayed");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeFalse();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                operationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                decision.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                decision.Revision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Replay");
+    }
+    [Fact]
+    public async Task
+        Handle_Should_IncrementReplayOutcomeCounter_AfterConcurrentOperationWinnerIsDurablyConfirmed()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                9,
+                4,
+                10,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        DecisionApplicationOperation completedOperation =
+            new(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationsToReturn =
+                [
+                    null,
+                    completedOperation
+                ]
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter
+            {
+                OutcomeToReturn =
+                    DecisionAuthorityCommitOutcome
+                        .OperationAlreadyExists
+            };
+
+        int measurementCallCount =
+            0;
+
+        long recordedValue =
+            0;
+
+        bool wasCommitOutcomeReturnedWhenMeasured =
+            false;
+
+        int operationLookupCallCountWhenMeasured =
+            -1;
+
+        var recordedTags =
+            new Dictionary<string, object?>();
+
+        using var listener =
+            new MeterListener();
+
+        listener.InstrumentPublished =
+            (instrument, meterListener) =>
+            {
+                if (
+                    instrument.Meter.Name ==
+                        DecisionApplicationMetrics.MeterName &&
+                    instrument.Name ==
+                        DecisionApplicationMetrics
+                            .OutcomeCounterName)
+                {
+                    meterListener.EnableMeasurementEvents(
+                        instrument);
+                }
+            };
+
+        listener.SetMeasurementEventCallback<long>(
+            (
+                instrument,
+                measurement,
+                tags,
+                state) =>
+            {
+                measurementCallCount++;
+
+                recordedValue =
+                    measurement;
+
+                wasCommitOutcomeReturnedWhenMeasured =
+                    authorityCommitter.HasReturnedOutcome;
+
+                operationLookupCallCountWhenMeasured =
+                    operationStore.GetByIdCallCount;
+
+                foreach (
+                    KeyValuePair<string, object?> tag
+                    in tags)
+                {
+                    recordedTags[tag.Key] =
+                        tag.Value;
+                }
+            });
+
+        listener.Start();
+
+        using var meterFactory =
+            new TestMeterFactory();
+
+        var outcomeMetrics =
+            new DecisionApplicationMetrics(
+                meterFactory);
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                outcomeMetrics,
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(2);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.HasReturnedOutcome
+            .Should()
+            .BeTrue();
+
+        measurementCallCount
+            .Should()
+            .Be(1);
+
+        recordedValue
+            .Should()
+            .Be(1);
+
+        wasCommitOutcomeReturnedWhenMeasured
+            .Should()
+            .BeTrue();
+
+        operationLookupCallCountWhenMeasured
+            .Should()
+            .Be(2);
+
+        recordedTags
+            .Should()
+            .ContainSingle();
+
+        recordedTags
+            .Should()
+            .ContainKey("outcome")
+            .WhoseValue
+            .Should()
+            .Be("replay");
+    }
+    [Fact]
+    public async Task Handle_Should_IncrementReplayOutcomeCounter_WithoutInvokingAuthorityCommit_WhenCompletedOperationIsReplayed()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        DateTimeOffset appliedAtUtc =
+            new(
+                2026,
+                9,
+                3,
+                9,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        DecisionApplicationOperation completedOperation =
+            new(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore
+            {
+                OperationToReturn =
+                    completedOperation
+            };
+
+        var decisionRepository =
+            new FakeDecisionRepository();
+
+        var participationRepository =
+            new FakeParticipationRepository();
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        int measurementCallCount =
+            0;
+
+        long recordedValue =
+            0;
+
+        int commitCallCountWhenMeasured =
+            -1;
+
+        var recordedTags =
+            new Dictionary<string, object?>();
+
+        using var listener =
+            new MeterListener();
+
+        listener.InstrumentPublished =
+            (instrument, meterListener) =>
+            {
+                if (
+                    instrument.Meter.Name ==
+                        DecisionApplicationMetrics.MeterName &&
+                    instrument.Name ==
+                        DecisionApplicationMetrics
+                            .OutcomeCounterName)
+                {
+                    meterListener.EnableMeasurementEvents(
+                        instrument);
+                }
+            };
+
+        listener.SetMeasurementEventCallback<long>(
+            (
+                instrument,
+                measurement,
+                tags,
+                state) =>
+            {
+                measurementCallCount++;
+                recordedValue =
+                    measurement;
+
+                commitCallCountWhenMeasured =
+                    authorityCommitter.CommitCallCount;
+
+                foreach (
+                    KeyValuePair<string, object?> tag
+                    in tags)
+                {
+                    recordedTags[tag.Key] =
+                        tag.Value;
+                }
+            });
+
+        listener.Start();
+
+        var meterFactory =
+            new TestMeterFactory();
+
+        var outcomeMetrics =
+            new DecisionApplicationMetrics(
+                meterFactory);
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                outcomeMetrics,
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                appliedAtUtc);
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        operationStore.GetByIdCallCount
+            .Should()
+            .Be(1);
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(0);
+
+        measurementCallCount
+            .Should()
+            .Be(1);
+
+        recordedValue
+            .Should()
+            .Be(1);
+
+        commitCallCountWhenMeasured
+            .Should()
+            .Be(0);
+
+        recordedTags
+            .Should()
+            .ContainSingle();
+
+        recordedTags
+            .Should()
+            .ContainKey("outcome")
+            .WhoseValue
+            .Should()
+            .Be("replay");
+    }
+    [Fact]
+    public async Task Handle_Should_IncrementAppliedOutcomeCounter_OnlyAfterAuthorityCommitSucceeds()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
+        int measurementCallCount =
+            0;
+
+        long recordedValue =
+            0;
+
+        bool wasCommitOutcomeReturned =
+            false;
+
+        var recordedTags =
+            new Dictionary<string, object?>();
+
+        using MeterListener listener =
+            new();
+
+        listener.InstrumentPublished =
+            (instrument, publishedListener) =>
+            {
+                if (
+                    instrument.Meter.Name ==
+                        "ProjectAtmaca.Application.DecisionApplication"
+                    &&
+                    instrument.Name ==
+                        "projectatmaca.decision_application.outcomes")
+                {
+                    publishedListener.EnableMeasurementEvents(
+                        instrument);
+                }
+            };
+
+        listener.SetMeasurementEventCallback<long>(
+            (instrument, measurement, tags, state) =>
+            {
+                measurementCallCount++;
+
+                recordedValue =
+                    measurement;
+
+                wasCommitOutcomeReturned =
+                    authorityCommitter.HasReturnedOutcome;
+
+                foreach (
+                    KeyValuePair<string, object?> tag
+                    in tags)
+                {
+                    recordedTags[tag.Key] =
+                        tag.Value;
+                }
+            });
+
+        listener.Start();
+
+        using var meterFactory =
+            new TestMeterFactory();
+
+        var outcomeMetrics =
+            new DecisionApplicationMetrics(
+                meterFactory);
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                outcomeMetrics,
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter,
+                NullLogger<
+                    ApplyParticipationClassificationCommandHandler>
+                    .Instance);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                new DateTimeOffset(
+                    2026,
+                    9,
+                    3,
+                    9,
+                    15,
+                    0,
+                    TimeSpan.Zero));
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        authorityCommitter.CommitCallCount
+            .Should()
+            .Be(1);
+
+        measurementCallCount
+            .Should()
+            .Be(1);
+
+        recordedValue
+            .Should()
+            .Be(1);
+
+        wasCommitOutcomeReturned
+            .Should()
+            .BeTrue();
+
+        recordedTags
+            .Should()
+            .ContainSingle();
+
+        recordedTags.ContainsKey(
+                "outcome")
+            .Should()
+            .BeTrue();
+
+        recordedTags["outcome"]
+            .Should()
+            .Be(
+                "applied");
+    }
+    [Fact]
+    public async Task Handle_Should_ObserveAppliedOutcome_OnlyAfterAuthorityCommitSucceeds()
+    {
+        // Arrange
+        Participation participation =
+            CreateParticipation();
+
+        Decision decision =
+            CreateDecision(
+                participation);
+
+        DecisionApplicationOperationId operationId =
+            DecisionApplicationOperationId.New();
+
+        var decisionRepository =
+            new FakeDecisionRepository
+            {
+                DecisionToReturn =
+                    decision
+            };
+
+        var participationRepository =
+            new FakeParticipationRepository
+            {
+                ParticipationToReturn =
+                    participation
+            };
+
+        var decisionApplicationRepository =
+            new FakeDecisionApplicationRepository();
+
+        var authorityCommitter =
+            new FakeDecisionAuthorityCommitter();
+
+        var operationStore =
+            new FakeDecisionApplicationOperationStore();
+
+        var logger =
+            new CapturingLogger<
+                ApplyParticipationClassificationCommandHandler>(
+                    () =>
+                        authorityCommitter
+                            .HasReturnedOutcome);
+
+        var handler =
+            new ApplyParticipationClassificationCommandHandler(
+                NullDecisionApplicationMetrics.Instance,
+                operationStore,
+                decisionRepository,
+                participationRepository,
+                decisionApplicationRepository,
+                authorityCommitter,
+                logger);
+
+        var command =
+            new ApplyParticipationClassificationCommand(
+                operationId,
+                decision.DecisionId,
+                decision.Revision,
+                new DateTimeOffset(
+                    2026,
+                    9,
+                    2,
+                    10,
+                    30,
+                    0,
+                    TimeSpan.Zero));
+
+        // Act
+        var result =
+            await handler.Handle(
+                command,
+                TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess
+            .Should()
+            .BeTrue();
+
+        logger.LogCallCount
+            .Should()
+            .Be(1);
+
+        logger.Entry
+            .Should()
+            .NotBeNull();
+
+        CapturedLogEntry entry =
+            logger.Entry!;
+
+        entry.LogLevel
+            .Should()
+            .Be(LogLevel.Information);
+
+        entry.EventId.Name
+            .Should()
+            .Be(
+                "DecisionApplicationApplied");
+
+        entry.WasCommitOutcomeReturned
+            .Should()
+            .BeTrue();
+
+        entry.Properties["OperationId"]
+            .Should()
+            .Be(
+                operationId.Value);
+
+        entry.Properties["DecisionId"]
+            .Should()
+            .Be(
+                decision.DecisionId.Value);
+
+        entry.Properties["DecisionRevision"]
+            .Should()
+            .Be(
+                decision.Revision.Value);
+
+        entry.Properties["Outcome"]
+            .Should()
+            .Be(
+                "Applied");
+    }
+
+    private sealed class NullDecisionApplicationMetrics
+        : IDecisionApplicationMetrics
+    {
+        public static NullDecisionApplicationMetrics Instance
+        {
+            get;
+        } =
+            new();
+
+        private NullDecisionApplicationMetrics()
+        {
+        }
+
+        public void RecordAppliedOutcome()
+        {
+        }
+
+        public void RecordReplayOutcome()
+        {
+        }
+
+        public void RecordRejectedOutcome(
+            string reason)
+        {
+        }
+    }
+
+    private sealed class TestMeterFactory
+        : IMeterFactory
+    {
+        private readonly List<Meter> _meters =
+            new();
+
+        public Meter Create(
+            MeterOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(
+                options);
+
+            Meter meter =
+                new(
+                    options);
+
+            _meters.Add(
+                meter);
+
+            return meter;
+        }
+
+        public void Dispose()
+        {
+            foreach (Meter meter in _meters)
+            {
+                meter.Dispose();
+            }
+        }
+    }
+    private sealed record CapturedLogEntry(
+        LogLevel LogLevel,
+        EventId EventId,
+        IReadOnlyDictionary<string, object?> Properties,
+        bool WasCommitOutcomeReturned);
+
+    private sealed class CapturingLogger<T>
+        : ILogger<T>
+    {
+        private readonly Func<bool>
+            _wasCommitOutcomeReturned;
+
+        public CapturingLogger(
+            Func<bool> wasCommitOutcomeReturned)
+        {
+            _wasCommitOutcomeReturned =
+                wasCommitOutcomeReturned;
+        }
+
+        public int LogCallCount
+        {
+            get;
+            private set;
+        }
+
+        public CapturedLogEntry? Entry
+        {
+            get;
+            private set;
+        }
+
+        public IDisposable? BeginScope<TState>(
+            TState state)
+            where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(
+            LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            LogCallCount++;
+
+            IReadOnlyDictionary<string, object?> properties =
+                state is IEnumerable<
+                    KeyValuePair<string, object?>> structuredState
+                    ? structuredState.ToDictionary(
+                        item => item.Key,
+                        item => item.Value)
+                    : new Dictionary<string, object?>();
+
+            Entry =
+                new CapturedLogEntry(
+                    logLevel,
+                    eventId,
+                    properties,
+                    _wasCommitOutcomeReturned());
+        }
+    }
     private static Participation CreateParticipation()
     {
         var creationResult =
@@ -2552,6 +4315,12 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
     {
         public int CommitCallCount { get; private set; }
 
+        public bool HasReturnedOutcome
+        {
+            get;
+            private set;
+        }
+
         public DecisionId? DecisionIdReceived
         {
             get;
@@ -2607,6 +4376,9 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
             {
                 throw ExceptionToThrow;
             }
+
+            HasReturnedOutcome =
+                true;
 
             return Task.FromResult(
                 OutcomeToReturn);

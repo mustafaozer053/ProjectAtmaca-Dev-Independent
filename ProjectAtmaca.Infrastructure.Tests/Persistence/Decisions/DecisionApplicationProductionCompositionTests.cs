@@ -39,6 +39,8 @@ public sealed class DecisionApplicationProductionCompositionTests
         ServiceCollection services =
             new();
 
+        services.AddLogging();
+
         services.AddApplication();
 
         services.AddInfrastructure(

@@ -1,4 +1,5 @@
-﻿using ProjectAtmaca.Application.Abstractions.Persistence;
+﻿using Microsoft.Extensions.Logging;
+using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Decisions;
 using ProjectAtmaca.Domain.Decisions.Effects.Participations;
@@ -9,6 +10,12 @@ namespace ProjectAtmaca.Application.Decisions
 
 public sealed class ApplyParticipationClassificationCommandHandler
 {
+    private readonly ILogger<
+        ApplyParticipationClassificationCommandHandler> _logger;
+
+    private readonly IDecisionApplicationMetrics
+        _decisionApplicationMetrics;
+
     private readonly IDecisionRepository
         _decisionRepository;
 
@@ -25,12 +32,19 @@ public sealed class ApplyParticipationClassificationCommandHandler
     _decisionApplicationOperationStore;
 
     public ApplyParticipationClassificationCommandHandler(
+        IDecisionApplicationMetrics decisionApplicationMetrics,
         IDecisionApplicationOperationStore decisionApplicationOperationStore,
         IDecisionRepository decisionRepository,
         IParticipationRepository participationRepository,
         IDecisionApplicationRepository decisionApplicationRepository,
-        IDecisionAuthorityCommitter decisionAuthorityCommitter)
+        IDecisionAuthorityCommitter decisionAuthorityCommitter,
+        ILogger<ApplyParticipationClassificationCommandHandler> logger)
     {
+        _decisionApplicationMetrics =
+            decisionApplicationMetrics
+            ?? throw new ArgumentNullException(
+                nameof(decisionApplicationMetrics));
+
         _decisionApplicationOperationStore =
             decisionApplicationOperationStore;
 
@@ -45,6 +59,11 @@ public sealed class ApplyParticipationClassificationCommandHandler
 
         _decisionAuthorityCommitter =
             decisionAuthorityCommitter;
+
+        _logger =
+            logger
+            ?? throw new ArgumentNullException(
+                nameof(logger));
     }
 
     public async Task<Result> Handle(
@@ -70,8 +89,29 @@ public sealed class ApplyParticipationClassificationCommandHandler
 
             if (isExactReplay)
             {
+                _logger.LogInformation(
+                    new EventId(
+                        id: 0,
+                        name: "DecisionApplicationReplayed"),
+                    "Decision application operation {OperationId} "
+                    + "for decision {DecisionId} at revision "
+                    + "{DecisionRevision} completed with outcome "
+                    + "{Outcome}.",
+                    completedOperation.OperationId.Value,
+                    completedOperation.DecisionId.Value,
+                    completedOperation.DecisionRevision.Value,
+                    "Replay");
+
+                _decisionApplicationMetrics
+                    .RecordReplayOutcome();
+
                 return Result.Success();
             }
+
+            ObserveRejectedOutcome(
+                command,
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
 
             return Result.Failure(
                 ApplyParticipationClassificationErrors
@@ -85,6 +125,11 @@ public sealed class ApplyParticipationClassificationCommandHandler
 
         if (decision is null)
         {
+            ObserveRejectedOutcome(
+                command,
+                ApplyParticipationClassificationErrors
+                    .DecisionNotFound);
+
             return Result.Failure(
                 ApplyParticipationClassificationErrors
                     .DecisionNotFound);
@@ -92,6 +137,11 @@ public sealed class ApplyParticipationClassificationCommandHandler
 
         if (decision.Revision != command.DecisionRevision)
         {
+            ObserveRejectedOutcome(
+                command,
+                ApplyParticipationClassificationErrors
+                    .RevisionMismatch);
+
             return Result.Failure(
                 ApplyParticipationClassificationErrors
                     .RevisionMismatch);
@@ -99,6 +149,11 @@ public sealed class ApplyParticipationClassificationCommandHandler
 
         if (decision.SupersededByDecisionId is not null)
         {
+            ObserveRejectedOutcome(
+                command,
+                ApplyParticipationClassificationErrors
+                    .DecisionSuperseded);
+
             return Result.Failure(
                 ApplyParticipationClassificationErrors
                     .DecisionSuperseded);
@@ -115,6 +170,11 @@ public sealed class ApplyParticipationClassificationCommandHandler
 
         if (participation is null)
         {
+            ObserveRejectedOutcome(
+                command,
+                ApplyParticipationClassificationErrors
+                    .ParticipationNotFound);
+
             return Result.Failure(
                 ApplyParticipationClassificationErrors
                     .ParticipationNotFound);
@@ -164,6 +224,11 @@ public sealed class ApplyParticipationClassificationCommandHandler
         if (commitOutcome ==
             DecisionAuthorityCommitOutcome.AuthorityLost)
         {
+            ObserveRejectedOutcome(
+                command,
+                ApplyParticipationClassificationErrors
+                    .DecisionAuthorityLost);
+
             return Result.Failure(
                 ApplyParticipationClassificationErrors
                     .DecisionAuthorityLost);
@@ -191,14 +256,74 @@ public sealed class ApplyParticipationClassificationCommandHandler
 
             if (isExactReplay)
             {
+                _logger.LogInformation(
+                    new EventId(
+                        id: 0,
+                        name: "DecisionApplicationReplayed"),
+                    "Decision application operation {OperationId} "
+                    + "for decision {DecisionId} at revision "
+                    + "{DecisionRevision} completed with outcome "
+                    + "{Outcome}.",
+                    command.OperationId.Value,
+                    command.DecisionId.Value,
+                    command.DecisionRevision.Value,
+                    "Replay");
+
+                _decisionApplicationMetrics
+                    .RecordReplayOutcome();
+
                 return Result.Success();
             }
+
+            ObserveRejectedOutcome(
+                command,
+                ApplyParticipationClassificationErrors
+                    .OperationConflict);
 
             return Result.Failure(
                 ApplyParticipationClassificationErrors
                     .OperationConflict);
         }
 
+        _logger.LogInformation(
+            new EventId(
+                id: 0,
+                name: "DecisionApplicationApplied"),
+            "Decision application operation {OperationId} "
+            + "for decision {DecisionId} at revision "
+            + "{DecisionRevision} completed with outcome "
+            + "{Outcome}.",
+            command.OperationId.Value,
+            decision.DecisionId.Value,
+            decision.Revision.Value,
+            "Applied");
+
+        _decisionApplicationMetrics
+            .RecordAppliedOutcome();
+
         return Result.Success();
+    }
+
+    private void ObserveRejectedOutcome(
+        ApplyParticipationClassificationCommand command,
+        Error error)
+    {
+        _logger.LogInformation(
+            new EventId(
+                id: 0,
+                name: "DecisionApplicationRejected"),
+            "Decision application operation {OperationId} "
+            + "for decision {DecisionId} at revision "
+            + "{DecisionRevision} completed with outcome "
+            + "{Outcome} and error code {ErrorCode}.",
+            command.OperationId.Value,
+            command.DecisionId.Value,
+            command.DecisionRevision.Value,
+            "Rejected",
+            error.Code);
+
+        _decisionApplicationMetrics
+            .RecordRejectedOutcome(
+                error.Code);
     }
 }
