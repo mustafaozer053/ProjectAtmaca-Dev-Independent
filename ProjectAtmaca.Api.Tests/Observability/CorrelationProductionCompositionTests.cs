@@ -17,7 +17,7 @@ public sealed class CorrelationProductionCompositionTests
     {
         // Arrange
         using WebApplicationFactory<global::Program> factory =
-            new();
+            new ProjectAtmacaApiFactory();
 
         ActivityTrackingOptions requiredTrackingOptions =
             ActivityTrackingOptions.TraceId
@@ -47,7 +47,7 @@ public sealed class CorrelationProductionCompositionTests
     {
         // Arrange
         using WebApplicationFactory<global::Program> factory =
-            new();
+            new ProjectAtmacaApiFactory();
 
         // Act
         IOptionsMonitor<SimpleConsoleFormatterOptions>
@@ -112,7 +112,7 @@ public sealed class CorrelationProductionCompositionTests
             listener);
 
         using WebApplicationFactory<global::Program> factory =
-            new();
+            new ProjectAtmacaApiFactory();
 
         using HttpClient client =
             factory.CreateClient(

@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 
-using ProjectAtmaca.Infrastructure;
+using ProjectAtmaca.Api.Security;
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,19 +21,28 @@ builder.Logging.AddSimpleConsole(
 // Add services to the container.
 
 builder.Services
+    .AddOptions<ApiAuthenticationOptions>()
+    .Bind(
+        builder.Configuration.GetSection(
+            ApiAuthenticationOptions.SectionName))
+    .Validate(
+        static options =>
+            !string.IsNullOrWhiteSpace(
+                options.Authority),
+        "Authentication:Authority is required.")
+    .Validate(
+        static options =>
+            !string.IsNullOrWhiteSpace(
+                options.Audience),
+        "Authentication:Audience is required.")
+    .ValidateOnStart();
+
+builder.Services
     .AddAuthentication(
         JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(
         options =>
         {
-            options.Authority =
-                builder.Configuration[
-                    "Authentication:Authority"];
-
-            options.Audience =
-                builder.Configuration[
-                    "Authentication:Audience"];
-
             options.MapInboundClaims =
                 false;
 
@@ -51,6 +62,19 @@ builder.Services
                     ValidateIssuerSigningKey = true,
                     ValidateLifetime = true
                 };
+        });
+
+builder.Services
+    .AddOptions<JwtBearerOptions>(
+        JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<ApiAuthenticationOptions>>(
+        (jwtBearerOptions, authenticationOptions) =>
+        {
+            jwtBearerOptions.Authority =
+                authenticationOptions.Value.Authority;
+
+            jwtBearerOptions.Audience =
+                authenticationOptions.Value.Audience;
         });
 
 builder.Services

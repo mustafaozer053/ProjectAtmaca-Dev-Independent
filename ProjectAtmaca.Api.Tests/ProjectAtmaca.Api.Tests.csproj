@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="ProjectAtmaca.Api.Tests.Infrastructure" />
     <Using Include="Xunit" />
   </ItemGroup>
 

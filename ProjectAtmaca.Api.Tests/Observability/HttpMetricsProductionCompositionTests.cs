@@ -52,7 +52,7 @@ public sealed class HttpMetricsProductionCompositionTests
         listener.Start();
 
         using WebApplicationFactory<global::Program> factory =
-            new();
+            new ProjectAtmacaApiFactory();
 
         using HttpClient client =
             factory.CreateClient(

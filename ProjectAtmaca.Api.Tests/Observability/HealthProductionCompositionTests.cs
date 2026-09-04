@@ -18,7 +18,7 @@ public sealed class HealthProductionCompositionTests
     {
         // Arrange
         using WebApplicationFactory<global::Program> factory =
-            new();
+            new ProjectAtmacaApiFactory();
 
         using HttpClient client =
             factory.CreateClient(
@@ -59,7 +59,7 @@ public sealed class HealthProductionCompositionTests
     {
         // Arrange
         using WebApplicationFactory<Program> factory =
-            new();
+            new ProjectAtmacaApiFactory();
 
         // Act
         IOptions<HealthCheckServiceOptions> healthCheckOptions =
@@ -106,7 +106,7 @@ public sealed class HealthProductionCompositionTests
             };
 
         using WebApplicationFactory<Program> rootFactory =
-            new();
+            new ProjectAtmacaApiFactory();
 
         using WebApplicationFactory<Program> factory =
             rootFactory.WithWebHostBuilder(
