@@ -27,9 +27,17 @@ builder.Services
             ApiAuthenticationOptions.SectionName))
     .Validate(
         static options =>
-            !string.IsNullOrWhiteSpace(
-                options.Authority),
-        "Authentication:Authority is required.")
+            Uri.TryCreate(
+                options.Authority,
+                UriKind.Absolute,
+                out Uri? authority) &&
+            authority is not null &&
+            string.Equals(
+                authority.Scheme,
+                Uri.UriSchemeHttps,
+                StringComparison.OrdinalIgnoreCase),
+        "Authentication:Authority must be configured " +
+        "as an absolute HTTPS URI.")
     .Validate(
         static options =>
             !string.IsNullOrWhiteSpace(

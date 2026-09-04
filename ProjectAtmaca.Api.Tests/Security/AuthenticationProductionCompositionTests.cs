@@ -101,6 +101,55 @@ public sealed class AuthenticationProductionCompositionTests
             .WithMessage(
                 $"*{missingConfigurationKey}*");
     }
+
+    [Theory]
+    [InlineData("identity.projectatmaca.test")]
+    [InlineData("http://identity.projectatmaca.test")]
+    public void ProductionHost_Should_FailAtStartup_WhenAuthorityIsNotAnAbsoluteHttpsUri(
+        string authority)
+    {
+        // Arrange
+        Dictionary<string, string?> configurationValues =
+            new()
+            {
+                ["Authentication:Authority"] =
+                    authority,
+                ["Authentication:Audience"] =
+                    "project-atmaca-api"
+            };
+
+        using WebApplicationFactory<global::Program> rootFactory =
+            new();
+
+        using WebApplicationFactory<global::Program> factory =
+            rootFactory.WithWebHostBuilder(
+                builder =>
+                {
+                    builder.ConfigureAppConfiguration(
+                        (_, configuration) =>
+                        {
+                            configuration
+                                .AddInMemoryCollection(
+                                    configurationValues);
+                        });
+                });
+
+        // Act
+        Action startHost =
+            () =>
+            {
+                using HttpClient client =
+                    factory.CreateClient();
+            };
+
+        // Assert
+        startHost
+            .Should()
+            .Throw<OptionsValidationException>()
+            .WithMessage(
+                "*Authentication:Authority*" +
+                "absolute HTTPS URI*");
+    }
 }
 
 [ApiController]
