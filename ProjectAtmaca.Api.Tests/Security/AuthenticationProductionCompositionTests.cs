@@ -2,6 +2,7 @@ using System.Net;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -149,6 +150,79 @@ public sealed class AuthenticationProductionCompositionTests
             .WithMessage(
                 "*Authentication:Authority*" +
                 "absolute HTTPS URI*");
+    }
+
+    [Fact]
+    public void ProductionHost_Should_PropagateValidatedConfigurationAndSecurityInvariants_ToBearerOptions()
+    {
+        // Arrange
+        using ProjectAtmacaApiFactory factory =
+            new();
+
+        IOptionsMonitor<JwtBearerOptions> optionsMonitor =
+            factory.Services
+                .GetRequiredService<
+                    IOptionsMonitor<JwtBearerOptions>>();
+
+        // Act
+        JwtBearerOptions options =
+            optionsMonitor.Get(
+                JwtBearerDefaults.AuthenticationScheme);
+
+        // Assert
+        options.Authority
+            .Should()
+            .Be(
+                ProjectAtmacaApiFactory
+                    .AuthenticationAuthority);
+
+        options.Audience
+            .Should()
+            .Be(
+                ProjectAtmacaApiFactory
+                    .AuthenticationAudience);
+
+        options.MapInboundClaims
+            .Should()
+            .BeFalse();
+
+        options.RequireHttpsMetadata
+            .Should()
+            .BeTrue();
+
+        options.IncludeErrorDetails
+            .Should()
+            .BeFalse();
+
+        options.TokenValidationParameters
+            .RequireExpirationTime
+            .Should()
+            .BeTrue();
+
+        options.TokenValidationParameters
+            .RequireSignedTokens
+            .Should()
+            .BeTrue();
+
+        options.TokenValidationParameters
+            .ValidateAudience
+            .Should()
+            .BeTrue();
+
+        options.TokenValidationParameters
+            .ValidateIssuer
+            .Should()
+            .BeTrue();
+
+        options.TokenValidationParameters
+            .ValidateIssuerSigningKey
+            .Should()
+            .BeTrue();
+
+        options.TokenValidationParameters
+            .ValidateLifetime
+            .Should()
+            .BeTrue();
     }
 }
 
