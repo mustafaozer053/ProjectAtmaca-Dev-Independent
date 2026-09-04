@@ -66,7 +66,7 @@ public sealed class HttpMetricsProductionCompositionTests
         // Act
         using HttpResponseMessage response =
             await client.GetAsync(
-                "/WeatherForecast",
+                "/health/live",
                 TestContext.Current.CancellationToken);
 
         double requestDuration =

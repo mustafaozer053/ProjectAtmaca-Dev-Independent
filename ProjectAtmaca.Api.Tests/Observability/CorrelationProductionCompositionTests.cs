@@ -129,7 +129,7 @@ public sealed class CorrelationProductionCompositionTests
         using HttpRequestMessage request =
             new(
                 HttpMethod.Get,
-                "/WeatherForecast");
+                "/health/live");
 
         request.Headers
             .TryAddWithoutValidation(
