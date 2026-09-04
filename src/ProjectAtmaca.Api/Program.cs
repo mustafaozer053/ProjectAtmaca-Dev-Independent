@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Logging;
 
 using ProjectAtmaca.Infrastructure;
@@ -14,6 +17,48 @@ builder.Logging.AddSimpleConsole(
     });
 
 // Add services to the container.
+
+builder.Services
+    .AddAuthentication(
+        JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(
+        options =>
+        {
+            options.Authority =
+                builder.Configuration[
+                    "Authentication:Authority"];
+
+            options.Audience =
+                builder.Configuration[
+                    "Authentication:Audience"];
+
+            options.MapInboundClaims =
+                false;
+
+            options.RequireHttpsMetadata =
+                true;
+
+            options.IncludeErrorDetails =
+                false;
+
+            options.TokenValidationParameters =
+                new TokenValidationParameters
+                {
+                    RequireExpirationTime = true,
+                    RequireSignedTokens = true,
+                    ValidateAudience = true,
+                    ValidateIssuer = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidateLifetime = true
+                };
+        });
+
+builder.Services
+    .AddAuthorizationBuilder()
+    .SetFallbackPolicy(
+        new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build());
 
 builder.Services.AddApplication();
 
@@ -40,6 +85,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+
 app.UseAuthorization();
 
 app.MapHealthChecks(
@@ -50,7 +97,8 @@ app.MapHealthChecks(
             registration =>
                 registration.Tags.Contains(
                     "ready")
-    });
+    })
+    .AllowAnonymous();
 
 app.MapControllers();
 
@@ -60,7 +108,13 @@ app.MapHealthChecks(
     {
         Predicate =
             _ => false
-    });
+    })
+    .AllowAnonymous();
+
+app.MapFallback(
+        () =>
+            Results.NotFound())
+    .AllowAnonymous();
 
 app.Run();
 
