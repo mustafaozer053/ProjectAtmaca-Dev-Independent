@@ -168,6 +168,15 @@ public sealed class ParticipationConfiguration
     private static void ConfigureConcurrency(
         EntityTypeBuilder<Participation> builder)
     {
+        // Canonical actor audit persistence is introduced by Gate 5.7.3.
+        builder.Ignore(
+            participation =>
+                participation.CreatedByActorId);
+
+        builder.Ignore(
+            participation =>
+                participation.LastModifiedByActorId);
+
         builder.Property<byte[]>("RowVersion")
             .IsRowVersion()
             .HasColumnName("RowVersion");
@@ -229,13 +238,6 @@ public sealed class ParticipationConfiguration
             $"Unsupported persisted activity type " +
             $"'{activityTypeCode}'.");
 
-        // Canonical actor audit persistence is introduced by Gate 5.7.3.
-        builder.Ignore(
-            participation =>
-                participation.CreatedByActorId);
 
-        builder.Ignore(
-            participation =>
-                participation.LastModifiedByActorId);
     }
 }
