@@ -1,5 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+
+using ProjectAtmaca.Domain.Actors;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 using ProjectAtmaca.Domain.AtmacaCards;
@@ -163,19 +166,43 @@ public sealed class ParticipationConfiguration
         builder.Property<string?>("LastModifiedBy")
             .HasColumnName("LastModifiedBy")
             .HasMaxLength(200);
+        ValueConverter<ActorId, Guid> actorIdConverter =
+            new(
+                actorId =>
+                    actorId.Value,
+                value =>
+                    ActorId.From(
+                        value));
+
+        builder.Property(
+                participation =>
+                    participation.CreatedByActorId)
+            .HasConversion(
+                actorIdConverter)
+            .HasColumnName(
+                "CreatedByActorId")
+            .HasColumnType(
+                "uniqueidentifier")
+            .IsRequired(
+                false);
+
+        builder.Property(
+                participation =>
+                    participation.LastModifiedByActorId)
+            .HasConversion(
+                actorIdConverter)
+            .HasColumnName(
+                "LastModifiedByActorId")
+            .HasColumnType(
+                "uniqueidentifier")
+            .IsRequired(
+                false);
     }
 
     private static void ConfigureConcurrency(
         EntityTypeBuilder<Participation> builder)
     {
-        // Canonical actor audit persistence is introduced by Gate 5.7.3.
-        builder.Ignore(
-            participation =>
-                participation.CreatedByActorId);
 
-        builder.Ignore(
-            participation =>
-                participation.LastModifiedByActorId);
 
         builder.Property<byte[]>("RowVersion")
             .IsRowVersion()
