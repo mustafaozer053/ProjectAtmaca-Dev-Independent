@@ -1,40 +1,72 @@
-﻿namespace ProjectAtmaca.Domain.Common;
+﻿using ProjectAtmaca.Domain.Actors;
+
+namespace ProjectAtmaca.Domain.Common;
 
 public abstract class AuditableAggregateRoot : AggregateRoot
 {
     public DateTime CreatedAtUtc { get; private set; }
 
-    public string? CreatedBy { get; private set; }
+    public ActorId? CreatedByActorId { get; private set; }
 
     public DateTime? LastModifiedAtUtc { get; private set; }
 
-    public string? LastModifiedBy { get; private set; }
+    public ActorId? LastModifiedByActorId { get; private set; }
 
     protected AuditableAggregateRoot()
     {
-        CreatedAtUtc = DateTime.UtcNow;
+        CreatedAtUtc =
+            DateTime.UtcNow;
     }
 
-    protected AuditableAggregateRoot(Guid id)
-        : base(id)
+    protected AuditableAggregateRoot(
+        Guid id)
+        : base(
+            id)
     {
-        CreatedAtUtc = DateTime.UtcNow;
+        CreatedAtUtc =
+            DateTime.UtcNow;
     }
 
-    public void SetCreatedBy(string createdBy)
+    public void SetCreatedBy(
+        ActorId createdByActorId)
     {
-        if (string.IsNullOrWhiteSpace(createdBy))
-            throw new ArgumentException("Created by cannot be empty.");
+        EnsureActorIdIsNotEmpty(
+            createdByActorId,
+            nameof(createdByActorId));
 
-        CreatedBy = createdBy.Trim();
+        if (CreatedByActorId.HasValue)
+        {
+            throw new InvalidOperationException(
+                "Creation actor cannot be replaced.");
+        }
+
+        CreatedByActorId =
+            createdByActorId;
     }
 
-    public void MarkAsModified(string modifiedBy)
+    public void MarkAsModified(
+        ActorId modifiedByActorId)
     {
-        if (string.IsNullOrWhiteSpace(modifiedBy))
-            throw new ArgumentException("Modified by cannot be empty.");
+        EnsureActorIdIsNotEmpty(
+            modifiedByActorId,
+            nameof(modifiedByActorId));
 
-        LastModifiedAtUtc = DateTime.UtcNow;
-        LastModifiedBy = modifiedBy.Trim();
+        LastModifiedAtUtc =
+            DateTime.UtcNow;
+
+        LastModifiedByActorId =
+            modifiedByActorId;
+    }
+
+    private static void EnsureActorIdIsNotEmpty(
+        ActorId actorId,
+        string parameterName)
+    {
+        if (actorId.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Actor id cannot be empty.",
+                parameterName);
+        }
     }
 }

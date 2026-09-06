@@ -153,14 +153,14 @@ public sealed class ParticipationConfiguration
             .HasColumnName("CreatedAtUtc")
             .IsRequired();
 
-        builder.Property(x => x.CreatedBy)
+        builder.Property<string?>("CreatedBy")
             .HasColumnName("CreatedBy")
             .HasMaxLength(200);
 
         builder.Property(x => x.LastModifiedAtUtc)
             .HasColumnName("LastModifiedAtUtc");
 
-        builder.Property(x => x.LastModifiedBy)
+        builder.Property<string?>("LastModifiedBy")
             .HasColumnName("LastModifiedBy")
             .HasMaxLength(200);
     }
@@ -228,5 +228,14 @@ public sealed class ParticipationConfiguration
         throw new InvalidOperationException(
             $"Unsupported persisted activity type " +
             $"'{activityTypeCode}'.");
+
+        // Canonical actor audit persistence is introduced by Gate 5.7.3.
+        builder.Ignore(
+            participation =>
+                participation.CreatedByActorId);
+
+        builder.Ignore(
+            participation =>
+                participation.LastModifiedByActorId);
     }
 }
