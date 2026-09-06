@@ -1,12 +1,15 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 using ProjectAtmaca.Api.Security;
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,6 +74,17 @@ builder.Services
                     ValidateLifetime = true
                 };
         });
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.Replace(
+    ServiceDescriptor.Scoped<
+        IClaimsTransformation,
+        ActorClaimsTransformation>());
+
+builder.Services.AddScoped<
+    ICurrentActor,
+    HttpContextCurrentActor>();
 
 builder.Services
     .AddOptions<JwtBearerOptions>(
