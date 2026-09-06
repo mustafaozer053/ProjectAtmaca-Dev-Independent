@@ -104,6 +104,11 @@ builder.Services
     .SetFallbackPolicy(
         new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
+            .RequireAssertion(
+                static context =>
+                    ResolvedActorPrincipal.TryGetActorId(
+                        context.User,
+                        out _))
             .Build());
 
 builder.Services.AddApplication();

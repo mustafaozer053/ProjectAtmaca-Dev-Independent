@@ -34,46 +34,18 @@ public sealed class HttpContextCurrentActor
                     .HttpContext?
                     .User;
 
-            Claim[] actorClaims =
-                principal?
-                    .Identities
-                    .Where(
-                        identity =>
-                            string.Equals(
-                                identity.AuthenticationType,
-                                ActorClaimTypes
-                                    .ResolutionAuthenticationType,
-                                StringComparison.Ordinal))
-                    .SelectMany(
-                        identity =>
-                            identity.FindAll(
-                                ActorClaimTypes.ActorId))
-                    .ToArray()
-                ?? [];
+            bool resolved =
+                ResolvedActorPrincipal.TryGetActorId(
+                    principal,
+                    out ActorId actorId);
 
-            if (actorClaims.Length != 1)
+            if (!resolved)
             {
                 throw new InvalidOperationException(
                     MissingOrInvalidActorMessage);
             }
 
-            bool parsed =
-                Guid.TryParseExact(
-                    actorClaims[0].Value,
-                    "D",
-                    out Guid actorIdValue);
-
-            if (
-                !parsed ||
-                actorIdValue == Guid.Empty)
-            {
-                throw new InvalidOperationException(
-                    MissingOrInvalidActorMessage);
-            }
-
-            return global::ProjectAtmaca.Domain.Actors
-                .ActorId.From(
-                    actorIdValue);
+            return actorId;
         }
     }
 }
