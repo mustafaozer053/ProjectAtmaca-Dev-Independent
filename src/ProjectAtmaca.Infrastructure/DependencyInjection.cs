@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProjectAtmaca.Application.Abstractions.Persistence;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Domain.Decisions;
 using ProjectAtmaca.Domain.Participations;
@@ -9,6 +10,7 @@ using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Decisions;
 using ProjectAtmaca.Infrastructure.Persistence.Readers;
 using ProjectAtmaca.Infrastructure.Persistence.Repositories;
+using ProjectAtmaca.Infrastructure.Persistence.Security;
 using ProjectAtmaca.Application.Decisions;
 
 namespace ProjectAtmaca.Infrastructure;
@@ -71,6 +73,10 @@ public static class DependencyInjection
         services.AddScoped<
             IDecisionApplicationOperationStore,
             DecisionApplicationOperationStore>();
+
+        services.AddScoped<
+            IActorIdentityResolver,
+            ActorIdentityResolver>();
 
         return services;
     }
