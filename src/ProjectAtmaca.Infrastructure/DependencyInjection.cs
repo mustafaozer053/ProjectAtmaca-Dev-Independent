@@ -87,6 +87,10 @@ public static class DependencyInjection
             IActorIdentityResolver,
             ActorIdentityResolver>();
 
+        services.AddScoped<
+            IActorPermissionEvaluator,
+            ActorPermissionEvaluator>();
+
         return services;
     }
 }
