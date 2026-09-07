@@ -122,6 +122,8 @@ public sealed class GetParticipationSummaryByActivityIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 

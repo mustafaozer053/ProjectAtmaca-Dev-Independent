@@ -45,6 +45,8 @@ public sealed class CreateParticipationIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 

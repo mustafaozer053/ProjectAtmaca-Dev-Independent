@@ -65,6 +65,8 @@ public sealed class MarkParticipationPresentIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 

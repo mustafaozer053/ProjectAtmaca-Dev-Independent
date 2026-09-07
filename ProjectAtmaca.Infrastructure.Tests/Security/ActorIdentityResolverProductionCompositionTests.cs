@@ -41,6 +41,8 @@ public sealed class ActorIdentityResolverProductionCompositionTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 

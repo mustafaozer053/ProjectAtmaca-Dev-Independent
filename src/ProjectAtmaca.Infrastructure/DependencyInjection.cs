@@ -7,6 +7,7 @@ using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Domain.Decisions;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Infrastructure.Persistence;
+using ProjectAtmaca.Infrastructure.Persistence.Auditing;
 using ProjectAtmaca.Infrastructure.Persistence.Decisions;
 using ProjectAtmaca.Infrastructure.Persistence.Readers;
 using ProjectAtmaca.Infrastructure.Persistence.Repositories;
@@ -28,10 +29,18 @@ public static class DependencyInjection
                 "Connection string " +
                 "'ProjectAtmacaDatabase' was not found.");
 
+        services.AddScoped<
+            AuditableEntitySaveChangesInterceptor>();
+
         services.AddDbContext<ProjectAtmacaDbContext>(
-            options =>
-                options.UseSqlServer(
-                    connectionString));
+            (serviceProvider, options) =>
+                options
+                    .UseSqlServer(
+                        connectionString)
+                    .AddInterceptors(
+                        serviceProvider
+                            .GetRequiredService<
+                                AuditableEntitySaveChangesInterceptor>()));
 
         services.AddHealthChecks()
             .AddDbContextCheck<ProjectAtmacaDbContext>(

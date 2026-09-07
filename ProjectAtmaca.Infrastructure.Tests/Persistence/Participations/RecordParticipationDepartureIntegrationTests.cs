@@ -101,6 +101,8 @@ public sealed class RecordParticipationDepartureIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 

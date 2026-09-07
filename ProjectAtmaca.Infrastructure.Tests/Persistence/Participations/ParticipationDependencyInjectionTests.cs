@@ -42,6 +42,8 @@ public sealed class ParticipationDependencyInjectionTests
         ServiceCollection services =
             new();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(configuration);
 
         await using ServiceProvider serviceProvider =

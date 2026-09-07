@@ -79,6 +79,8 @@ public sealed class RecordParticipationArrivalIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 

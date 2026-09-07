@@ -109,6 +109,8 @@ public sealed class
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -311,6 +313,8 @@ public sealed class
         services.AddLogging();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);
@@ -570,6 +574,8 @@ public sealed class
         services.AddLogging();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);

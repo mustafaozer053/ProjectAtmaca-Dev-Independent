@@ -42,6 +42,8 @@ public sealed class DependencyInjectionResolutionTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -84,6 +86,8 @@ public sealed class DependencyInjectionResolutionTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);
@@ -131,6 +135,8 @@ public sealed class DependencyInjectionResolutionTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -175,6 +181,8 @@ public sealed class DependencyInjectionResolutionTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -218,6 +226,8 @@ public sealed class DependencyInjectionResolutionTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);
@@ -265,6 +275,8 @@ public sealed class DependencyInjectionResolutionTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -310,6 +322,8 @@ public sealed class DependencyInjectionResolutionTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);

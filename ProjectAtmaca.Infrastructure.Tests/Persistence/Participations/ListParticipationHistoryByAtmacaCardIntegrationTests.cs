@@ -164,6 +164,8 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -371,6 +373,8 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -560,6 +564,8 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);
@@ -788,6 +794,8 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);
@@ -1018,6 +1026,8 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);
@@ -1253,6 +1263,8 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -1448,6 +1460,8 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);

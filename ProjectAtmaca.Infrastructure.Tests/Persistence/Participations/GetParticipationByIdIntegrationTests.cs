@@ -61,6 +61,8 @@ public sealed class GetParticipationByIdIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -145,6 +147,8 @@ public sealed class GetParticipationByIdIntegrationTests
             new();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);

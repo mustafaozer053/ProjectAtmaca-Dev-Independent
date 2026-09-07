@@ -43,6 +43,8 @@ public sealed class DecisionApplicationProductionCompositionTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 

@@ -115,6 +115,8 @@ public sealed class ApplyParticipationClassificationIntegrationTests
 
         services.AddApplication();
 
+        services.AddTestCurrentActor();
+
         services.AddInfrastructure(
             configuration);
 
@@ -275,6 +277,8 @@ public sealed class ApplyParticipationClassificationIntegrationTests
         services.AddLogging();
 
         services.AddApplication();
+
+        services.AddTestCurrentActor();
 
         services.AddInfrastructure(
             configuration);
