@@ -5,7 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
+using ProjectAtmaca.Domain.Actors;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.Trainings;
@@ -67,10 +69,19 @@ public sealed class CreateParticipationIntegrationTests
 
         ParticipationId participationId;
 
+        ActorId currentActorId;
+
         await using (
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            ICurrentActor currentActor =
+                scope.ServiceProvider
+                    .GetRequiredService<ICurrentActor>();
+
+            currentActorId =
+                currentActor.ActorId;
+
             CreateParticipationCommandHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
@@ -128,5 +139,13 @@ public sealed class CreateParticipationIntegrationTests
         persistedParticipation.Status
             .Should()
             .Be(ParticipationStatus.NotRecorded);
+
+        persistedParticipation.CreatedByActorId
+            .Should()
+            .Be(currentActorId);
+
+        persistedParticipation.LastModifiedByActorId
+            .Should()
+            .BeNull();
     }
 }

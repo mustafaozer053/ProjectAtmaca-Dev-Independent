@@ -5,7 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.MarkPresent;
+using ProjectAtmaca.Domain.Actors;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
@@ -73,10 +75,19 @@ public sealed class MarkParticipationPresentIntegrationTests
         await using ServiceProvider serviceProvider =
             services.BuildServiceProvider();
 
+        ActorId currentActorId;
+
         await using (
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            ICurrentActor currentActor =
+                scope.ServiceProvider
+                    .GetRequiredService<ICurrentActor>();
+
+            currentActorId =
+                currentActor.ActorId;
+
             MarkParticipationPresentCommandHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
@@ -128,5 +139,15 @@ public sealed class MarkParticipationPresentIntegrationTests
         persistedParticipation.Condition
             .Should()
             .BeNull();
+
+        persistedParticipation.CreatedByActorId
+            .Should()
+            .BeNull(
+                "the direct SQL seed did not pass through " +
+                "production audit composition");
+
+        persistedParticipation.LastModifiedByActorId
+            .Should()
+            .Be(currentActorId);
     }
 }
