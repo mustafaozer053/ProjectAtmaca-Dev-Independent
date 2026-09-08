@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
@@ -35,6 +36,7 @@ public sealed class GetParticipationSummaryByActivityQueryHandlerTests
 
         var handler =
             new GetParticipationSummaryByActivityQueryHandler(
+                new GrantedActorAuthorizationService(),
                 reader);
 
         var query =
@@ -78,6 +80,7 @@ public sealed class GetParticipationSummaryByActivityQueryHandlerTests
 
         var handler =
             new GetParticipationSummaryByActivityQueryHandler(
+                new GrantedActorAuthorizationService(),
                 reader);
 
         var query =
@@ -137,6 +140,7 @@ public sealed class GetParticipationSummaryByActivityQueryHandlerTests
 
         var handler =
             new GetParticipationSummaryByActivityQueryHandler(
+                new GrantedActorAuthorizationService(),
                 reader);
 
         var query =
@@ -163,6 +167,18 @@ public sealed class GetParticipationSummaryByActivityQueryHandlerTests
         reader.CapturedCancellationToken
             .Should()
             .Be(cancellationToken);
+    }
+
+    private sealed class GrantedActorAuthorizationService
+        : IActorAuthorizationService
+    {
+        public Task<Result> AuthorizeAsync(
+            Permission permission,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                Result.Success());
+        }
     }
 
     private sealed class FakeParticipationReader

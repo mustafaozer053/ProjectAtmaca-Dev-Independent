@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -140,6 +141,12 @@ public sealed class GetParticipationSummaryByActivityIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            await scope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .GetSummaryByActivity,
+                    CancellationToken.None);
+
             GetParticipationSummaryByActivityQueryHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
