@@ -1,4 +1,5 @@
 ﻿using ProjectAtmaca.Domain.Common;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations;
 
 namespace ProjectAtmaca.Application
@@ -6,12 +7,19 @@ namespace ProjectAtmaca.Application
 
 public sealed class ListParticipationsByActivityQueryHandler
 {
+    private readonly IActorAuthorizationService
+        _authorizationService;
+
     private readonly IParticipationReader
         _reader;
 
     public ListParticipationsByActivityQueryHandler(
+        IActorAuthorizationService authorizationService,
         IParticipationReader reader)
     {
+        _authorizationService =
+            authorizationService;
+
         _reader =
             reader;
     }
@@ -21,6 +29,18 @@ public sealed class ListParticipationsByActivityQueryHandler
             ListParticipationsByActivityQuery query,
             CancellationToken cancellationToken = default)
     {
+        Result authorizationResult =
+            await _authorizationService.AuthorizeAsync(
+                Permissions.Participations.ListByActivity,
+                cancellationToken);
+
+        if (authorizationResult.IsFailure)
+        {
+            return Result<IReadOnlyList<ParticipationListItem>>
+                .Failure(
+                    authorizationResult.Error!);
+        }
+
         IReadOnlyList<ParticipationListItem> participations =
             await _reader.ListByActivityAsync(
                 query.ActivityReference,

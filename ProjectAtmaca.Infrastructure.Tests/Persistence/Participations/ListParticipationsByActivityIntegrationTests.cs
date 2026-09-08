@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -128,6 +129,11 @@ public sealed class ListParticipationsByActivityIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            await scope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations.ListByActivity,
+                    CancellationToken.None);
+
             ListParticipationsByActivityQueryHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
