@@ -1,5 +1,7 @@
 using ProjectAtmaca.Application
     .Abstractions.Persistence;
+using ProjectAtmaca.Application
+    .Abstractions.Security;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
 
@@ -8,6 +10,9 @@ namespace ProjectAtmaca.Application
 
 public sealed class CreateParticipationCommandHandler
 {
+    private readonly IActorAuthorizationService
+        _authorizationService;
+
     private readonly IParticipationRepository
         _participationRepository;
 
@@ -15,9 +20,13 @@ public sealed class CreateParticipationCommandHandler
         _unitOfWork;
 
     public CreateParticipationCommandHandler(
+        IActorAuthorizationService authorizationService,
         IParticipationRepository participationRepository,
         IUnitOfWork unitOfWork)
     {
+        _authorizationService =
+            authorizationService;
+
         _participationRepository =
             participationRepository;
 
@@ -29,6 +38,17 @@ public sealed class CreateParticipationCommandHandler
         CreateParticipationCommand command,
         CancellationToken cancellationToken = default)
     {
+        Result authorizationResult =
+            await _authorizationService.AuthorizeAsync(
+                Permissions.Participations.Create,
+                cancellationToken);
+
+        if (authorizationResult.IsFailure)
+        {
+            return Result<ParticipationId>.Failure(
+                authorizationResult.Error!);
+        }
+
         bool alreadyExists =
             await _participationRepository.ExistsAsync(
                 command.AtmacaCardId,

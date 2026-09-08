@@ -13,6 +13,7 @@ using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Infrastructure;
 using ProjectAtmaca.Infrastructure.Persistence;
+using ProjectAtmaca.Infrastructure.Persistence.Security;
 using ProjectAtmaca.Infrastructure.Tests.Persistence;
 using Xunit;
 using Xunit.Sdk;
@@ -81,6 +82,41 @@ public sealed class CreateParticipationIntegrationTests
 
             currentActorId =
                 currentActor.ActorId;
+
+            ProjectAtmacaDbContext authorizationContext =
+                scope.ServiceProvider
+                    .GetRequiredService<
+                        ProjectAtmacaDbContext>();
+
+            using CancellationTokenSource authorizationCancellationSource =
+                new();
+
+            CancellationToken authorizationCancellationToken =
+                authorizationCancellationSource.Token;
+
+            bool createPermissionExists =
+                await authorizationContext
+                    .Set<ActorPermissionGrant>()
+                    .AnyAsync(
+                        grant =>
+                            grant.ActorId ==
+                                currentActorId &&
+                            grant.PermissionCode ==
+                                Permissions.Participations.Create.Code,
+                        authorizationCancellationToken);
+
+            if (!createPermissionExists)
+            {
+                authorizationContext
+                    .Set<ActorPermissionGrant>()
+                    .Add(
+                        ActorPermissionGrant.Create(
+                            currentActorId,
+                            Permissions.Participations.Create));
+
+                await authorizationContext.SaveChangesAsync(
+                    authorizationCancellationToken);
+            }
 
             CreateParticipationCommandHandler handler =
                 scope.ServiceProvider
