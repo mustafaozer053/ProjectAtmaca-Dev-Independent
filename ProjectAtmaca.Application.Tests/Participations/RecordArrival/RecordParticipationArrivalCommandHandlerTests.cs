@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using ProjectAtmaca.Application.Abstractions.Persistence;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -40,6 +41,7 @@ public sealed class RecordParticipationArrivalCommandHandlerTests
 
         var handler =
             new RecordParticipationArrivalCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -86,6 +88,7 @@ public sealed class RecordParticipationArrivalCommandHandlerTests
 
         var handler =
             new RecordParticipationArrivalCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -152,6 +155,7 @@ public sealed class RecordParticipationArrivalCommandHandlerTests
 
         var handler =
             new RecordParticipationArrivalCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -218,6 +222,7 @@ public sealed class RecordParticipationArrivalCommandHandlerTests
 
         var handler =
             new RecordParticipationArrivalCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -285,6 +290,7 @@ public sealed class RecordParticipationArrivalCommandHandlerTests
 
         var handler =
             new RecordParticipationArrivalCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -336,6 +342,18 @@ public sealed class RecordParticipationArrivalCommandHandlerTests
             .BeTrue();
 
         return creationResult.Value!;
+    }
+
+    private sealed class GrantedActorAuthorizationService
+        : IActorAuthorizationService
+    {
+        public Task<Result> AuthorizeAsync(
+            Permission permission,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                Result.Success());
+        }
     }
 
     private sealed class FakeParticipationRepository

@@ -1,5 +1,7 @@
 ﻿using ProjectAtmaca.Application
     .Abstractions.Persistence;
+using ProjectAtmaca.Application
+    .Abstractions.Security;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
 
@@ -8,6 +10,9 @@ namespace ProjectAtmaca.Application
 
 public sealed class RecordParticipationArrivalCommandHandler
 {
+    private readonly IActorAuthorizationService
+        _authorizationService;
+
     private readonly IParticipationRepository
         _participationRepository;
 
@@ -15,9 +20,13 @@ public sealed class RecordParticipationArrivalCommandHandler
         _unitOfWork;
 
     public RecordParticipationArrivalCommandHandler(
+        IActorAuthorizationService authorizationService,
         IParticipationRepository participationRepository,
         IUnitOfWork unitOfWork)
     {
+        _authorizationService =
+            authorizationService;
+
         _participationRepository =
             participationRepository;
 
@@ -29,6 +38,16 @@ public sealed class RecordParticipationArrivalCommandHandler
         RecordParticipationArrivalCommand command,
         CancellationToken cancellationToken = default)
     {
+        Result authorizationResult =
+            await _authorizationService.AuthorizeAsync(
+                Permissions.Participations.RecordArrival,
+                cancellationToken);
+
+        if (authorizationResult.IsFailure)
+        {
+            return authorizationResult;
+        }
+
         Participation? participation =
             await _participationRepository.GetByIdAsync(
                 command.ParticipationId,

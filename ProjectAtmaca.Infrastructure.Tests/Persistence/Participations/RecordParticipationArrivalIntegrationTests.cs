@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -91,6 +92,11 @@ public sealed class RecordParticipationArrivalIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            await scope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations.RecordArrival,
+                    CancellationToken.None);
+
             RecordParticipationArrivalCommandHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
