@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.Security;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.MarkPresent;
@@ -18,6 +20,10 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddMetrics();
+
+        services.AddScoped<
+            IActorAuthorizationService,
+            ActorAuthorizationService>();
 
         services.AddSingleton<
             IDecisionApplicationMetrics,
