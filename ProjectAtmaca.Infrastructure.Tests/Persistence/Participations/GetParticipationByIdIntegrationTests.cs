@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -71,6 +72,11 @@ public sealed class GetParticipationByIdIntegrationTests
 
         await using AsyncServiceScope scope =
             serviceProvider.CreateAsyncScope();
+
+        await scope.ServiceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Participations.GetById,
+                CancellationToken.None);
 
         GetParticipationByIdQueryHandler handler =
             scope.ServiceProvider
@@ -158,6 +164,11 @@ public sealed class GetParticipationByIdIntegrationTests
 
         await using AsyncServiceScope scope =
             serviceProvider.CreateAsyncScope();
+
+        await scope.ServiceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Participations.GetById,
+                CancellationToken.None);
 
         GetParticipationByIdQueryHandler handler =
             scope.ServiceProvider
