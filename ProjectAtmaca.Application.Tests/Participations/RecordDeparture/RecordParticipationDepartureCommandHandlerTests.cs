@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using ProjectAtmaca.Application.Abstractions.Persistence;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -33,6 +34,7 @@ public sealed class RecordParticipationDepartureCommandHandlerTests
 
         var handler =
             new RecordParticipationDepartureCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -79,6 +81,7 @@ public sealed class RecordParticipationDepartureCommandHandlerTests
 
         var handler =
             new RecordParticipationDepartureCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -167,6 +170,7 @@ public sealed class RecordParticipationDepartureCommandHandlerTests
 
         var handler =
             new RecordParticipationDepartureCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -220,6 +224,7 @@ public sealed class RecordParticipationDepartureCommandHandlerTests
 
         var handler =
             new RecordParticipationDepartureCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -283,6 +288,7 @@ public sealed class RecordParticipationDepartureCommandHandlerTests
 
         var handler =
             new RecordParticipationDepartureCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -354,6 +360,18 @@ public sealed class RecordParticipationDepartureCommandHandlerTests
             .BeTrue();
 
         return participation;
+    }
+
+    private sealed class GrantedActorAuthorizationService
+        : IActorAuthorizationService
+    {
+        public Task<Result> AuthorizeAsync(
+            Permission permission,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                Result.Success());
+        }
     }
 
     private sealed class FakeParticipationRepository
