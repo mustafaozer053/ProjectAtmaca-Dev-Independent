@@ -81,12 +81,14 @@ public sealed class MarkParticipationPresentIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
-            ICurrentActor currentActor =
-                scope.ServiceProvider
-                    .GetRequiredService<ICurrentActor>();
+            using CancellationTokenSource permissionCancellationSource =
+                new();
 
             currentActorId =
-                currentActor.ActorId;
+                await scope.ServiceProvider
+                    .GrantPermissionToTestCurrentActorAsync(
+                        Permissions.Participations.MarkPresent,
+                        permissionCancellationSource.Token);
 
             MarkParticipationPresentCommandHandler handler =
                 scope.ServiceProvider

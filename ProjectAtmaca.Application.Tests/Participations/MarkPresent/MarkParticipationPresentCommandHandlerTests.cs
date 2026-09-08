@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using ProjectAtmaca.Application.Abstractions.Persistence;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -30,6 +31,7 @@ public sealed class MarkParticipationPresentCommandHandlerTests
 
         var handler =
             new MarkParticipationPresentCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -74,6 +76,7 @@ public sealed class MarkParticipationPresentCommandHandlerTests
 
         var handler =
             new MarkParticipationPresentCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -133,6 +136,7 @@ public sealed class MarkParticipationPresentCommandHandlerTests
 
         var handler =
             new MarkParticipationPresentCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -190,6 +194,7 @@ public sealed class MarkParticipationPresentCommandHandlerTests
 
         var handler =
             new MarkParticipationPresentCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -250,6 +255,7 @@ public sealed class MarkParticipationPresentCommandHandlerTests
 
         var handler =
             new MarkParticipationPresentCommandHandler(
+                new GrantedActorAuthorizationService(),
                 repository,
                 unitOfWork);
 
@@ -302,6 +308,18 @@ public sealed class MarkParticipationPresentCommandHandlerTests
             .BeTrue();
 
         return creationResult.Value!;
+    }
+
+    private sealed class GrantedActorAuthorizationService
+        : IActorAuthorizationService
+    {
+        public Task<Result> AuthorizeAsync(
+            Permission permission,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                Result.Success());
+        }
     }
 
     private sealed class FakeParticipationRepository
