@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
@@ -185,6 +186,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            await scope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler
                 handler =
                 scope.ServiceProvider
@@ -394,6 +401,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            await scope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
@@ -586,6 +599,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            await scope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
@@ -810,6 +829,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope firstScope =
                 serviceProvider.CreateAsyncScope())
         {
+            await firstScope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 firstScope.ServiceProvider
                     .GetRequiredService<
@@ -864,6 +889,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope secondScope =
                 serviceProvider.CreateAsyncScope())
         {
+            await secondScope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 secondScope.ServiceProvider
                     .GetRequiredService<
@@ -1042,6 +1073,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope firstScope =
                 serviceProvider.CreateAsyncScope())
         {
+            await firstScope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 firstScope.ServiceProvider
                     .GetRequiredService<
@@ -1098,6 +1135,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope secondScope =
                 serviceProvider.CreateAsyncScope())
         {
+            await secondScope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 secondScope.ServiceProvider
                     .GetRequiredService<
@@ -1291,6 +1334,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope scope =
                 serviceProvider.CreateAsyncScope())
         {
+            await scope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 scope.ServiceProvider
                     .GetRequiredService<
@@ -1476,6 +1525,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope firstScope =
                 serviceProvider.CreateAsyncScope())
         {
+            await firstScope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 firstScope.ServiceProvider
                     .GetRequiredService<
@@ -1520,6 +1575,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope secondScope =
                 serviceProvider.CreateAsyncScope())
         {
+            await secondScope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 secondScope.ServiceProvider
                     .GetRequiredService<
@@ -1536,6 +1597,12 @@ public sealed class ListParticipationHistoryByAtmacaCardIntegrationTests
             AsyncServiceScope thirdScope =
                 serviceProvider.CreateAsyncScope())
         {
+            await thirdScope.ServiceProvider
+                .GrantPermissionToTestCurrentActorAsync(
+                    Permissions.Participations
+                        .ListHistoryByAtmacaCard,
+                    CancellationToken.None);
+
             ListParticipationHistoryByAtmacaCardQueryHandler handler =
                 thirdScope.ServiceProvider
                     .GetRequiredService<

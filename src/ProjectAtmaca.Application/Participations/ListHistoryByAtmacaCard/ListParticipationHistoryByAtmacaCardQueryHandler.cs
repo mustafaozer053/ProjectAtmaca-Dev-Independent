@@ -1,4 +1,5 @@
-﻿using ProjectAtmaca.Application.Participations;
+﻿using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Domain.Common;
 
 namespace ProjectAtmaca.Application
@@ -13,11 +14,18 @@ public sealed class ListParticipationHistoryByAtmacaCardQueryHandler
     private readonly IParticipationReader
         _reader;
 
+    private readonly IActorAuthorizationService
+        _authorizationService;
+
     public ListParticipationHistoryByAtmacaCardQueryHandler(
+        IActorAuthorizationService authorizationService,
         IParticipationReader reader)
     {
         _reader =
             reader;
+
+        _authorizationService =
+            authorizationService;
     }
 
     public async Task<Result<ParticipationHistoryPage>>
@@ -25,6 +33,19 @@ public sealed class ListParticipationHistoryByAtmacaCardQueryHandler
             ListParticipationHistoryByAtmacaCardQuery query,
             CancellationToken cancellationToken = default)
     {
+        Result authorizationResult =
+            await _authorizationService.AuthorizeAsync(
+                Permissions.Participations
+                    .ListHistoryByAtmacaCard,
+                cancellationToken);
+
+        if (authorizationResult.IsFailure)
+        {
+            return Result<ParticipationHistoryPage>
+                .Failure(
+                    authorizationResult.Error!);
+        }
+
         if (query.PageSize < MinPageSize ||
             query.PageSize > MaxPageSize)
         {
