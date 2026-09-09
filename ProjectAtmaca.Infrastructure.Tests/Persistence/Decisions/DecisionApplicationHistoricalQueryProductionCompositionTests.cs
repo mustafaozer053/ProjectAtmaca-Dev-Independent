@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Decisions
     .ListApplicationHistory;
 using ProjectAtmaca.Domain.Common;
@@ -101,6 +102,12 @@ public sealed class
 
         await using ServiceProvider serviceProvider =
             services.BuildServiceProvider();
+
+        await serviceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Decisions
+                    .ListApplicationHistory,
+                CancellationToken.None);
 
         // Act
         Result<IReadOnlyList<DecisionApplicationHistoryItem>>

@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+using FluentAssertions;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Decisions;
 using ProjectAtmaca.Application.Decisions.ListApplicationHistory;
 using ProjectAtmaca.Domain.Common;
@@ -57,6 +58,7 @@ public sealed class ListDecisionApplicationHistoryQueryHandlerTests
 
         var handler =
             new ListDecisionApplicationHistoryQueryHandler(
+                GrantedActorAuthorizationService.Instance,
                 reader);
 
         var query =
@@ -141,6 +143,27 @@ public sealed class ListDecisionApplicationHistoryQueryHandlerTests
 
             return Task.FromResult(
                 _items);
+        }
+    }
+    private sealed class GrantedActorAuthorizationService
+        : IActorAuthorizationService
+    {
+        public static GrantedActorAuthorizationService Instance
+        {
+            get;
+        } =
+            new();
+
+        private GrantedActorAuthorizationService()
+        {
+        }
+
+        public Task<Result> AuthorizeAsync(
+            Permission permission,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                Result.Success());
         }
     }
 }
