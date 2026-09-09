@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 
 using ProjectAtmaca.Api.Participations.Create;
+using ProjectAtmaca.Api.Participations.GetById;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
+using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
@@ -25,15 +27,26 @@ public sealed class ParticipationsController
     private readonly CreateParticipationCommandHandler
         _createParticipationHandler;
 
+    private readonly GetParticipationByIdQueryHandler
+        _getParticipationByIdHandler;
+
     public ParticipationsController(
         CreateParticipationCommandHandler
-            createParticipationHandler)
+            createParticipationHandler,
+        GetParticipationByIdQueryHandler
+            getParticipationByIdHandler)
     {
         ArgumentNullException.ThrowIfNull(
             createParticipationHandler);
 
+        ArgumentNullException.ThrowIfNull(
+            getParticipationByIdHandler);
+
         _createParticipationHandler =
             createParticipationHandler;
+
+        _getParticipationByIdHandler =
+            getParticipationByIdHandler;
     }
 
     [HttpPost]
@@ -96,11 +109,65 @@ public sealed class ParticipationsController
                 participationId.Value));
     }
 
+    [HttpGet("{participationId}")]
+    public async Task<ActionResult<GetParticipationByIdResponse>>
+        GetById(
+            string participationId,
+            CancellationToken cancellationToken)
+    {
+        if (
+            !Guid.TryParseExact(
+                participationId,
+                "D",
+                out Guid parsedParticipationId) ||
+            parsedParticipationId == Guid.Empty
+        )
+        {
+            return ToProblem(
+                GetParticipationByIdEndpointErrors
+                    .InvalidParticipationId);
+        }
+
+        GetParticipationByIdQuery query =
+            new(
+                parsedParticipationId);
+
+        Result<ParticipationDetails> result =
+            await _getParticipationByIdHandler.Handle(
+                query,
+                cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ToProblem(
+                result.Error!);
+        }
+
+        ParticipationDetails details =
+            result.Value!;
+
+        GetParticipationByIdResponse response =
+            new(
+                details.Id,
+                details.AtmacaCardId,
+                details.ActivityTypeCode,
+                details.ActivityId,
+                GetParticipationStatusCode(
+                    details.Status),
+                details.ConditionCode,
+                details.JoinedAt,
+                details.LeftAt,
+                details.Note);
+
+        return Ok(
+            response);
+    }
+
     private ObjectResult ToProblem(
         Error error)
     {
         int statusCode =
-            GetStatusCode(
+            GetErrorStatusCode(
                 error);
 
         ProblemDetails problemDetails =
@@ -127,7 +194,7 @@ public sealed class ParticipationsController
         return result;
     }
 
-    private static int GetStatusCode(
+    private static int GetErrorStatusCode(
         Error error)
     {
         if (
@@ -143,6 +210,16 @@ public sealed class ParticipationsController
         if (
             string.Equals(
                 error.Code,
+                GetParticipationByIdErrors.NotFound.Code,
+                StringComparison.Ordinal)
+        )
+        {
+            return StatusCodes.Status404NotFound;
+        }
+
+        if (
+            string.Equals(
+                error.Code,
                 CreateParticipationErrors.AlreadyExists.Code,
                 StringComparison.Ordinal)
         )
@@ -151,5 +228,25 @@ public sealed class ParticipationsController
         }
 
         return StatusCodes.Status400BadRequest;
+    }
+
+    private static string GetParticipationStatusCode(
+        ParticipationStatus status)
+    {
+        return status switch
+        {
+            ParticipationStatus.NotRecorded =>
+                "NOT_RECORDED",
+
+            ParticipationStatus.Present =>
+                "PRESENT",
+
+            ParticipationStatus.Absent =>
+                "ABSENT",
+
+            _ =>
+                throw new InvalidOperationException(
+                    $"Unsupported participation status '{status}'.")
+        };
     }
 }

@@ -14,11 +14,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using ProjectAtmaca.Api.Participations.Create;
+using ProjectAtmaca.Api.Participations.GetById;
 using ProjectAtmaca.Api.Tests.Infrastructure;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Domain.Actors;
-using ProjectAtmaca.Domain.AtmacaCards;
-using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Security;
 
@@ -27,22 +26,22 @@ using Xunit;
 namespace ProjectAtmaca.Api.Tests.Participations;
 
 public sealed class
-    CreateParticipationEndpointSqlIntegrationTests
+    GetParticipationByIdEndpointSqlIntegrationTests
 {
     private const string TestAuthenticationScheme =
-        "CreateParticipationSqlIntegration";
+        "GetParticipationByIdSqlIntegration";
 
     internal const string ExternalSubject =
-        "create-participation-sql-subject";
+        "get-participation-by-id-sql-subject";
 
     [Fact]
-    public async Task Post_Should_PersistThroughCanonicalProductionSecurityAndAuditPipeline()
+    public async Task Get_Should_ResolveCreatedLocationThroughCanonicalProductionSecurityAndReaderPipeline()
     {
         CancellationToken cancellationToken =
             TestContext.Current.CancellationToken;
 
         string databaseName =
-            $"ProjectAtmaca_Api_Create_{Guid.NewGuid():N}";
+            $"ProjectAtmaca_Api_GetById_{Guid.NewGuid():N}";
 
         string connectionString =
             "Server=(localdb)\\mssqllocaldb;" +
@@ -53,10 +52,10 @@ public sealed class
         ActorId expectedActorId =
             ActorId.New();
 
-        Guid activityIdValue =
+        Guid activityId =
             Guid.NewGuid();
 
-        Guid atmacaCardIdValue =
+        Guid atmacaCardId =
             Guid.NewGuid();
 
         using ProjectAtmacaApiFactory rootFactory =
@@ -112,6 +111,13 @@ public sealed class
                             expectedActorId,
                             Permissions.Participations.Create));
 
+                setupContext
+                    .Set<ActorPermissionGrant>()
+                    .Add(
+                        ActorPermissionGrant.Create(
+                            expectedActorId,
+                            Permissions.Participations.GetById));
+
                 await setupContext.SaveChangesAsync(
                     cancellationToken);
             }
@@ -123,102 +129,114 @@ public sealed class
                         AllowAutoRedirect = false
                     });
 
-            CreateParticipationRequest request =
+            CreateParticipationRequest createRequest =
                 new(
                     "TRAINING",
-                    activityIdValue,
-                    atmacaCardIdValue);
+                    activityId,
+                    atmacaCardId);
 
-            using HttpResponseMessage response =
+            using HttpResponseMessage createResponse =
                 await client.PostAsJsonAsync(
                     "/api/participations",
-                    request,
+                    createRequest,
                     cancellationToken);
 
-            response.StatusCode
+            createResponse.StatusCode
                 .Should()
                 .Be(HttpStatusCode.Created);
 
-            CreateParticipationResponse? responseBody =
-                await response.Content
+            CreateParticipationResponse? nullableCreatedParticipation =
+                await createResponse.Content
                     .ReadFromJsonAsync<
                         CreateParticipationResponse>(
                         cancellationToken);
 
-            responseBody
+            nullableCreatedParticipation
                 .Should()
                 .NotBeNull();
 
-            response.Headers.Location
+            CreateParticipationResponse createdParticipation =
+                nullableCreatedParticipation!;
+
+            createResponse.Headers.Location
                 .Should()
                 .NotBeNull();
 
-            response.Headers.Location!
+            Uri createdLocation =
+                createResponse.Headers.Location!;
+
+            createdLocation
                 .OriginalString
                 .Should()
                 .Be(
                     "/api/participations/" +
-                    responseBody!.ParticipationId
+                    createdParticipation
+                        .ParticipationId
                         .ToString("D"));
 
-            await using (
-                AsyncServiceScope verificationScope =
-                    factory.Services.CreateAsyncScope())
-            {
-                ProjectAtmacaDbContext verificationContext =
-                    verificationScope.ServiceProvider
-                        .GetRequiredService<
-                            ProjectAtmacaDbContext>();
+            using HttpResponseMessage getResponse =
+                await client.GetAsync(
+                    createdLocation,
+                    cancellationToken);
 
-                Participation? persistedParticipation =
-                    await verificationContext.Participations
-                        .AsNoTracking()
-                        .SingleOrDefaultAsync(
-                            participation =>
-                                participation.Id ==
-                                responseBody.ParticipationId,
-                            cancellationToken);
+            getResponse.StatusCode
+                .Should()
+                .Be(HttpStatusCode.OK);
 
-                persistedParticipation
-                    .Should()
-                    .NotBeNull();
+            getResponse.Content.Headers.ContentType
+                ?.MediaType
+                .Should()
+                .Be("application/json");
 
-                persistedParticipation!
-                    .ActivityReference
-                    .ActivityType
-                    .Value
-                    .Should()
-                    .Be("TRAINING");
+            GetParticipationByIdResponse? nullableDetails =
+                await getResponse.Content
+                    .ReadFromJsonAsync<
+                        GetParticipationByIdResponse>(
+                        cancellationToken);
 
-                persistedParticipation
-                    .ActivityReference
-                    .ActivityId
-                    .Should()
-                    .Be(activityIdValue);
+            nullableDetails
+                .Should()
+                .NotBeNull();
 
-                persistedParticipation
-                    .AtmacaCardId
-                    .Should()
-                    .Be(
-                        AtmacaCardId.From(
-                            atmacaCardIdValue));
+            GetParticipationByIdResponse details =
+                nullableDetails!;
 
-                persistedParticipation
-                    .Status
-                    .Should()
-                    .Be(
-                        ParticipationStatus.NotRecorded);
+            details.ParticipationId
+                .Should()
+                .Be(
+                    createdParticipation.ParticipationId);
 
-                persistedParticipation
-                    .CreatedByActorId
-                    .Should()
-                    .Be(expectedActorId);
+            details.AtmacaCardId
+                .Should()
+                .Be(atmacaCardId);
 
-                persistedParticipation
-                    .LastModifiedByActorId
-                    .Should()
-                    .BeNull();
-            }
+            details.ActivityTypeCode
+                .Should()
+                .Be("TRAINING");
+
+            details.ActivityId
+                .Should()
+                .Be(activityId);
+
+            details.Status
+                .Should()
+                .Be("NOT_RECORDED");
+
+            details.ConditionCode
+                .Should()
+                .BeNull();
+
+            details.JoinedAt
+                .Should()
+                .BeNull();
+
+            details.LeftAt
+                .Should()
+                .BeNull();
+
+            details.Note
+                .Should()
+                .BeNull();
         }
         finally
         {
@@ -270,7 +288,7 @@ public sealed class
                                 })
                             .AddScheme<
                                 AuthenticationSchemeOptions,
-                                CreateParticipationSqlTestAuthenticationHandler>(
+                                GetParticipationByIdSqlTestAuthenticationHandler>(
                                 TestAuthenticationScheme,
                                 _ =>
                                 {
@@ -281,10 +299,10 @@ public sealed class
 }
 
 public sealed class
-    CreateParticipationSqlTestAuthenticationHandler
+    GetParticipationByIdSqlTestAuthenticationHandler
     : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    public CreateParticipationSqlTestAuthenticationHandler(
+    public GetParticipationByIdSqlTestAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder)
@@ -307,7 +325,7 @@ public sealed class
                             .AuthenticationAuthority),
                     new Claim(
                         "sub",
-                        CreateParticipationEndpointSqlIntegrationTests
+                        GetParticipationByIdEndpointSqlIntegrationTests
                             .ExternalSubject)
                 ],
                 Scheme.Name);
