@@ -108,15 +108,9 @@ public sealed class DecisionConfiguration
                 var activityReferenceComparer =
                     new ValueComparer<ActivityReference>(
                         (left, right) =>
-                            left.ActivityType.Value ==
-                                right.ActivityType.Value &&
-                            left.ActivityId ==
-                                right.ActivityId,
+                            left == right,
 
-                        value =>
-                            HashCode.Combine(
-                                value.ActivityType.Value,
-                                value.ActivityId),
+                        value => value.GetHashCode(),
 
                         value => value);
 
