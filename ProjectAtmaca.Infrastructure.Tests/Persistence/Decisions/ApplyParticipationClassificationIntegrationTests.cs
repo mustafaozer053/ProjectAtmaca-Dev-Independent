@@ -1,9 +1,10 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Decisions
     .ApplyParticipationClassification;
 using ProjectAtmaca.Domain.AtmacaCards;
@@ -122,6 +123,12 @@ public sealed class ApplyParticipationClassificationIntegrationTests
 
         await using ServiceProvider serviceProvider =
             services.BuildServiceProvider();
+
+        await serviceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Decisions
+                    .ApplyParticipationClassification,
+                CancellationToken.None);
 
         await using (
             AsyncServiceScope scope =
@@ -285,6 +292,12 @@ public sealed class ApplyParticipationClassificationIntegrationTests
 
         await using ServiceProvider serviceProvider =
             services.BuildServiceProvider();
+
+        await serviceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Decisions
+                    .ApplyParticipationClassification,
+                CancellationToken.None);
 
         var command =
             new ApplyParticipationClassificationCommand(

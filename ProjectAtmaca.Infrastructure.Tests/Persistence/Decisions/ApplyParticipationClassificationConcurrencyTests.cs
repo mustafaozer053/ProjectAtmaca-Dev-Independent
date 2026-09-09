@@ -1,10 +1,11 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using ProjectAtmaca.Application;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Decisions
     .ApplyParticipationClassification;
@@ -147,6 +148,12 @@ public sealed class
 
         await using ServiceProvider serviceProvider =
             services.BuildServiceProvider();
+
+        await serviceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Decisions
+                    .ApplyParticipationClassification,
+                CancellationToken.None);
 
         var command =
             new ApplyParticipationClassificationCommand(
@@ -350,6 +357,12 @@ public sealed class
 
         await using ServiceProvider serviceProvider =
             services.BuildServiceProvider();
+
+        await serviceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Decisions
+                    .ApplyParticipationClassification,
+                CancellationToken.None);
 
         var firstCommand =
             new ApplyParticipationClassificationCommand(
@@ -582,6 +595,12 @@ public sealed class
 
         await using ServiceProvider serviceProvider =
             services.BuildServiceProvider();
+
+        await serviceProvider
+            .GrantPermissionToTestCurrentActorAsync(
+                Permissions.Decisions
+                    .ApplyParticipationClassification,
+                CancellationToken.None);
 
         var firstCommand =
             new ApplyParticipationClassificationCommand(

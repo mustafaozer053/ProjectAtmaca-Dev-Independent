@@ -78,6 +78,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationRepository,
                 decisionRepository,
@@ -200,6 +201,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -367,6 +369,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -485,6 +488,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -604,6 +608,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -768,6 +773,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -1000,6 +1006,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 outcomeMetrics,
                 operationStore,
                 decisionRepository,
@@ -1179,6 +1186,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -1272,6 +1280,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -1456,6 +1465,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -1561,6 +1571,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -1665,6 +1676,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -1822,6 +1834,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -1934,6 +1947,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2019,6 +2033,7 @@ public sealed class
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2118,6 +2133,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2206,6 +2222,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2308,6 +2325,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2422,6 +2440,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2573,6 +2592,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2703,6 +2723,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -2839,6 +2860,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -3033,6 +3055,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -3172,6 +3195,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,
@@ -3302,6 +3326,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 new FakeDecisionRepository(),
@@ -3514,6 +3539,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 outcomeMetrics,
                 operationStore,
                 decisionRepository,
@@ -3695,6 +3721,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 outcomeMetrics,
                 operationStore,
                 decisionRepository,
@@ -3852,6 +3879,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 outcomeMetrics,
                 operationStore,
                 decisionRepository,
@@ -3963,6 +3991,7 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
 
         var handler =
             new ApplyParticipationClassificationCommandHandler(
+                GrantedActorAuthorizationService.Instance,
                 NullDecisionApplicationMetrics.Instance,
                 operationStore,
                 decisionRepository,

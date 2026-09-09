@@ -1,5 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using ProjectAtmaca.Application.Abstractions.Persistence;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Decisions;
 using ProjectAtmaca.Domain.Decisions.Effects.Participations;
@@ -10,6 +11,9 @@ namespace ProjectAtmaca.Application.Decisions
 
 public sealed class ApplyParticipationClassificationCommandHandler
 {
+    private readonly IActorAuthorizationService
+        _authorizationService;
+
     private readonly ILogger<
         ApplyParticipationClassificationCommandHandler> _logger;
 
@@ -32,6 +36,7 @@ public sealed class ApplyParticipationClassificationCommandHandler
     _decisionApplicationOperationStore;
 
     public ApplyParticipationClassificationCommandHandler(
+        IActorAuthorizationService authorizationService,
         IDecisionApplicationMetrics decisionApplicationMetrics,
         IDecisionApplicationOperationStore decisionApplicationOperationStore,
         IDecisionRepository decisionRepository,
@@ -40,6 +45,11 @@ public sealed class ApplyParticipationClassificationCommandHandler
         IDecisionAuthorityCommitter decisionAuthorityCommitter,
         ILogger<ApplyParticipationClassificationCommandHandler> logger)
     {
+        _authorizationService =
+            authorizationService
+            ?? throw new ArgumentNullException(
+                nameof(authorizationService));
+
         _decisionApplicationMetrics =
             decisionApplicationMetrics
             ?? throw new ArgumentNullException(
@@ -70,6 +80,17 @@ public sealed class ApplyParticipationClassificationCommandHandler
         ApplyParticipationClassificationCommand command,
         CancellationToken cancellationToken = default)
     {
+        Result authorizationResult =
+            await _authorizationService.AuthorizeAsync(
+                Permissions.Decisions
+                    .ApplyParticipationClassification,
+                cancellationToken);
+
+        if (authorizationResult.IsFailure)
+        {
+            return authorizationResult;
+        }
+
         DecisionApplicationOperation? completedOperation =
             await _decisionApplicationOperationStore.GetByIdAsync(
                 command.OperationId,
