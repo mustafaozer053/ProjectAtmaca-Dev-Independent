@@ -6,11 +6,13 @@ using ProjectAtmaca.Api.Participations.Create;
 using ProjectAtmaca.Api.Participations.GetById;
 using ProjectAtmaca.Api.Participations.MarkPresent;
 using ProjectAtmaca.Api.Participations.RecordArrival;
+using ProjectAtmaca.Api.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
+using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
@@ -40,6 +42,9 @@ public sealed class ParticipationsController
     private readonly RecordParticipationArrivalCommandHandler
         _recordParticipationArrivalHandler;
 
+    private readonly RecordParticipationDepartureCommandHandler
+        _recordParticipationDepartureHandler;
+
     public ParticipationsController(
         CreateParticipationCommandHandler
             createParticipationHandler,
@@ -48,7 +53,9 @@ public sealed class ParticipationsController
         MarkParticipationPresentCommandHandler
             markParticipationPresentHandler,
         RecordParticipationArrivalCommandHandler
-            recordParticipationArrivalHandler)
+            recordParticipationArrivalHandler,
+        RecordParticipationDepartureCommandHandler
+            recordParticipationDepartureHandler)
     {
         ArgumentNullException.ThrowIfNull(
             createParticipationHandler);
@@ -62,6 +69,9 @@ public sealed class ParticipationsController
         ArgumentNullException.ThrowIfNull(
             recordParticipationArrivalHandler);
 
+        ArgumentNullException.ThrowIfNull(
+            recordParticipationDepartureHandler);
+
         _createParticipationHandler =
             createParticipationHandler;
 
@@ -73,6 +83,9 @@ public sealed class ParticipationsController
 
         _recordParticipationArrivalHandler =
             recordParticipationArrivalHandler;
+
+        _recordParticipationDepartureHandler =
+            recordParticipationDepartureHandler;
     }
 
     [HttpPost]
@@ -286,6 +299,45 @@ public sealed class ParticipationsController
         return NoContent();
     }
 
+    [HttpPost("{participationId}/record-departure")]
+    public async Task<IActionResult> RecordDeparture(
+        string participationId,
+        [FromBody] RecordParticipationDepartureRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (
+            !Guid.TryParseExact(
+                participationId,
+                "D",
+                out Guid parsedParticipationId) ||
+            parsedParticipationId == Guid.Empty
+        )
+        {
+            return ToProblem(
+                ParticipationEndpointErrors
+                    .InvalidParticipationId);
+        }
+
+        RecordParticipationDepartureCommand command =
+            new(
+                ParticipationId.From(
+                    parsedParticipationId),
+                request.LeftAt);
+
+        Result result =
+            await _recordParticipationDepartureHandler.Handle(
+                command,
+                cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ToProblem(
+                result.Error!);
+        }
+
+        return NoContent();
+    }
+
     private ObjectResult ToProblem(
         Error error)
     {
@@ -342,6 +394,10 @@ public sealed class ParticipationsController
             string.Equals(
                 error.Code,
                 RecordParticipationArrivalErrors.NotFound.Code,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                error.Code,
+                RecordParticipationDepartureErrors.NotFound.Code,
                 StringComparison.Ordinal)
         )
         {
@@ -364,6 +420,12 @@ public sealed class ParticipationsController
                 error.Code,
                 ParticipationErrors
                     .ArrivalCorrectionRequired.Code,
+                StringComparison.Ordinal)
+            ||
+            string.Equals(
+                error.Code,
+                ParticipationErrors
+                    .DepartureCorrectionRequired.Code,
                 StringComparison.Ordinal)
         )
         {
