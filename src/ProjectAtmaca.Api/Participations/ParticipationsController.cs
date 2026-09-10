@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.WebUtilities;
 
 using ProjectAtmaca.Api.Participations.Create;
 using ProjectAtmaca.Api.Participations.GetById;
+using ProjectAtmaca.Api.Participations.MarkPresent;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.GetById;
+using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
@@ -30,11 +32,16 @@ public sealed class ParticipationsController
     private readonly GetParticipationByIdQueryHandler
         _getParticipationByIdHandler;
 
+    private readonly MarkParticipationPresentCommandHandler
+        _markParticipationPresentHandler;
+
     public ParticipationsController(
         CreateParticipationCommandHandler
             createParticipationHandler,
         GetParticipationByIdQueryHandler
-            getParticipationByIdHandler)
+            getParticipationByIdHandler,
+        MarkParticipationPresentCommandHandler
+            markParticipationPresentHandler)
     {
         ArgumentNullException.ThrowIfNull(
             createParticipationHandler);
@@ -42,11 +49,17 @@ public sealed class ParticipationsController
         ArgumentNullException.ThrowIfNull(
             getParticipationByIdHandler);
 
+        ArgumentNullException.ThrowIfNull(
+            markParticipationPresentHandler);
+
         _createParticipationHandler =
             createParticipationHandler;
 
         _getParticipationByIdHandler =
             getParticipationByIdHandler;
+
+        _markParticipationPresentHandler =
+            markParticipationPresentHandler;
     }
 
     [HttpPost]
@@ -124,7 +137,7 @@ public sealed class ParticipationsController
         )
         {
             return ToProblem(
-                GetParticipationByIdEndpointErrors
+                ParticipationEndpointErrors
                     .InvalidParticipationId);
         }
 
@@ -163,6 +176,63 @@ public sealed class ParticipationsController
             response);
     }
 
+    [HttpPost("{participationId}/mark-present")]
+    public async Task<IActionResult> MarkPresent(
+        string participationId,
+        [FromBody] MarkParticipationPresentRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (
+            !Guid.TryParseExact(
+                participationId,
+                "D",
+                out Guid parsedParticipationId) ||
+            parsedParticipationId == Guid.Empty
+        )
+        {
+            return ToProblem(
+                ParticipationEndpointErrors
+                    .InvalidParticipationId);
+        }
+
+        ParticipationCondition? condition =
+            null;
+
+        if (request.ConditionCode is not null)
+        {
+            Result<ParticipationCondition> conditionResult =
+                ParticipationCondition.Create(
+                    request.ConditionCode);
+
+            if (conditionResult.IsFailure)
+            {
+                return ToProblem(
+                    conditionResult.Error!);
+            }
+
+            condition =
+                conditionResult.Value!;
+        }
+
+        MarkParticipationPresentCommand command =
+            new(
+                ParticipationId.From(
+                    parsedParticipationId),
+                condition);
+
+        Result result =
+            await _markParticipationPresentHandler.Handle(
+                command,
+                cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ToProblem(
+                result.Error!);
+        }
+
+        return NoContent();
+    }
     private ObjectResult ToProblem(
         Error error)
     {
@@ -211,6 +281,10 @@ public sealed class ParticipationsController
             string.Equals(
                 error.Code,
                 GetParticipationByIdErrors.NotFound.Code,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                error.Code,
+                MarkParticipationPresentErrors.NotFound.Code,
                 StringComparison.Ordinal)
         )
         {
@@ -221,6 +295,12 @@ public sealed class ParticipationsController
             string.Equals(
                 error.Code,
                 CreateParticipationErrors.AlreadyExists.Code,
+                StringComparison.Ordinal)
+            ||
+            string.Equals(
+                error.Code,
+                ParticipationErrors
+                    .ClassificationCorrectionRequired.Code,
                 StringComparison.Ordinal)
         )
         {

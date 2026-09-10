@@ -1,8 +1,8 @@
 using ProjectAtmaca.Domain.Common;
 
-namespace ProjectAtmaca.Api.Participations.GetById;
+namespace ProjectAtmaca.Api.Participations;
 
-internal static class GetParticipationByIdEndpointErrors
+internal static class ParticipationEndpointErrors
 {
     public static readonly Error InvalidParticipationId =
         Error.Create(
