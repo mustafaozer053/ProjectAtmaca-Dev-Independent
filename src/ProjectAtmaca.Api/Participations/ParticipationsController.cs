@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.WebUtilities;
 using ProjectAtmaca.Api.Participations.Create;
 using ProjectAtmaca.Api.Participations.GetById;
 using ProjectAtmaca.Api.Participations.MarkPresent;
+using ProjectAtmaca.Api.Participations.RecordArrival;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.MarkPresent;
+using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
@@ -35,13 +37,18 @@ public sealed class ParticipationsController
     private readonly MarkParticipationPresentCommandHandler
         _markParticipationPresentHandler;
 
+    private readonly RecordParticipationArrivalCommandHandler
+        _recordParticipationArrivalHandler;
+
     public ParticipationsController(
         CreateParticipationCommandHandler
             createParticipationHandler,
         GetParticipationByIdQueryHandler
             getParticipationByIdHandler,
         MarkParticipationPresentCommandHandler
-            markParticipationPresentHandler)
+            markParticipationPresentHandler,
+        RecordParticipationArrivalCommandHandler
+            recordParticipationArrivalHandler)
     {
         ArgumentNullException.ThrowIfNull(
             createParticipationHandler);
@@ -52,6 +59,9 @@ public sealed class ParticipationsController
         ArgumentNullException.ThrowIfNull(
             markParticipationPresentHandler);
 
+        ArgumentNullException.ThrowIfNull(
+            recordParticipationArrivalHandler);
+
         _createParticipationHandler =
             createParticipationHandler;
 
@@ -60,6 +70,9 @@ public sealed class ParticipationsController
 
         _markParticipationPresentHandler =
             markParticipationPresentHandler;
+
+        _recordParticipationArrivalHandler =
+            recordParticipationArrivalHandler;
     }
 
     [HttpPost]
@@ -233,6 +246,46 @@ public sealed class ParticipationsController
 
         return NoContent();
     }
+
+    [HttpPost("{participationId}/record-arrival")]
+    public async Task<IActionResult> RecordArrival(
+        string participationId,
+        [FromBody] RecordParticipationArrivalRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (
+            !Guid.TryParseExact(
+                participationId,
+                "D",
+                out Guid parsedParticipationId) ||
+            parsedParticipationId == Guid.Empty
+        )
+        {
+            return ToProblem(
+                ParticipationEndpointErrors
+                    .InvalidParticipationId);
+        }
+
+        RecordParticipationArrivalCommand command =
+            new(
+                ParticipationId.From(
+                    parsedParticipationId),
+                request.JoinedAt);
+
+        Result result =
+            await _recordParticipationArrivalHandler.Handle(
+                command,
+                cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ToProblem(
+                result.Error!);
+        }
+
+        return NoContent();
+    }
+
     private ObjectResult ToProblem(
         Error error)
     {
@@ -285,6 +338,10 @@ public sealed class ParticipationsController
             string.Equals(
                 error.Code,
                 MarkParticipationPresentErrors.NotFound.Code,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                error.Code,
+                RecordParticipationArrivalErrors.NotFound.Code,
                 StringComparison.Ordinal)
         )
         {
@@ -301,6 +358,12 @@ public sealed class ParticipationsController
                 error.Code,
                 ParticipationErrors
                     .ClassificationCorrectionRequired.Code,
+                StringComparison.Ordinal)
+            ||
+            string.Equals(
+                error.Code,
+                ParticipationErrors
+                    .ArrivalCorrectionRequired.Code,
                 StringComparison.Ordinal)
         )
         {
