@@ -8,4 +8,9 @@ internal static class ParticipationEndpointErrors
         Error.Create(
             "Participation.Id.Invalid",
             "Participation id must be a non-empty GUID in D format.");
+
+    public static readonly Error InvalidActivityId =
+        Error.Create(
+            "Participation.ActivityId.Invalid",
+            "Activity id must be a non-empty GUID in D format.");
 }

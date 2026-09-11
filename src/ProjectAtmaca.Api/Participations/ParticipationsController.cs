@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.WebUtilities;
 
 using ProjectAtmaca.Api.Participations.Create;
 using ProjectAtmaca.Api.Participations.GetById;
+using ProjectAtmaca.Api.Participations.ListByActivity;
 using ProjectAtmaca.Api.Participations.MarkPresent;
 using ProjectAtmaca.Api.Participations.RecordArrival;
 using ProjectAtmaca.Api.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.GetById;
+using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
@@ -36,6 +38,9 @@ public sealed class ParticipationsController
     private readonly GetParticipationByIdQueryHandler
         _getParticipationByIdHandler;
 
+    private readonly ListParticipationsByActivityQueryHandler
+        _listParticipationsByActivityHandler;
+
     private readonly MarkParticipationPresentCommandHandler
         _markParticipationPresentHandler;
 
@@ -50,6 +55,8 @@ public sealed class ParticipationsController
             createParticipationHandler,
         GetParticipationByIdQueryHandler
             getParticipationByIdHandler,
+        ListParticipationsByActivityQueryHandler
+            listParticipationsByActivityHandler,
         MarkParticipationPresentCommandHandler
             markParticipationPresentHandler,
         RecordParticipationArrivalCommandHandler
@@ -62,6 +69,9 @@ public sealed class ParticipationsController
 
         ArgumentNullException.ThrowIfNull(
             getParticipationByIdHandler);
+
+        ArgumentNullException.ThrowIfNull(
+            listParticipationsByActivityHandler);
 
         ArgumentNullException.ThrowIfNull(
             markParticipationPresentHandler);
@@ -77,6 +87,9 @@ public sealed class ParticipationsController
 
         _getParticipationByIdHandler =
             getParticipationByIdHandler;
+
+        _listParticipationsByActivityHandler =
+            listParticipationsByActivityHandler;
 
         _markParticipationPresentHandler =
             markParticipationPresentHandler;
@@ -197,6 +210,76 @@ public sealed class ParticipationsController
                 details.JoinedAt,
                 details.LeftAt,
                 details.Note);
+
+        return Ok(
+            response);
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<
+        IReadOnlyList<ParticipationListItemResponse>>>
+        ListByActivity(
+            [FromQuery] string? activityTypeCode,
+            [FromQuery] string? activityId,
+            CancellationToken cancellationToken)
+    {
+        Result<ActivityTypeCode> activityTypeResult =
+            ActivityTypeCode.Create(
+                activityTypeCode ??
+                    string.Empty);
+
+        if (activityTypeResult.IsFailure)
+        {
+            return ToProblem(
+                activityTypeResult.Error!);
+        }
+
+        if (
+            !Guid.TryParseExact(
+                activityId,
+                "D",
+                out Guid parsedActivityId) ||
+            parsedActivityId == Guid.Empty
+        )
+        {
+            return ToProblem(
+                ParticipationEndpointErrors
+                    .InvalidActivityId);
+        }
+
+        ActivityReference activityReference =
+            ActivityReference.ForTraining(
+                TrainingId.From(
+                    parsedActivityId));
+
+        ListParticipationsByActivityQuery query =
+            new(
+                activityReference);
+
+        Result<IReadOnlyList<ParticipationListItem>> result =
+            await _listParticipationsByActivityHandler.Handle(
+                query,
+                cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ToProblem(
+                result.Error!);
+        }
+
+        IReadOnlyList<ParticipationListItemResponse> response =
+            result.Value!
+                .Select(
+                    item =>
+                        new ParticipationListItemResponse(
+                            item.Id,
+                            item.AtmacaCardId,
+                            GetParticipationStatusCode(
+                                item.Status),
+                            item.ConditionCode,
+                            item.JoinedAt,
+                            item.LeftAt))
+                .ToList();
 
         return Ok(
             response);
