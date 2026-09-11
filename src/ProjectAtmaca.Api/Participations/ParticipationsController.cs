@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 using ProjectAtmaca.Api.Participations.Create;
 using ProjectAtmaca.Api.Participations.GetById;
+using ProjectAtmaca.Api.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Api.Participations.ListByActivity;
 using ProjectAtmaca.Api.Participations.MarkPresent;
 using ProjectAtmaca.Api.Participations.RecordArrival;
@@ -11,6 +12,7 @@ using ProjectAtmaca.Api.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.GetById;
+using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
@@ -38,6 +40,9 @@ public sealed class ParticipationsController
     private readonly GetParticipationByIdQueryHandler
         _getParticipationByIdHandler;
 
+    private readonly GetParticipationSummaryByActivityQueryHandler
+        _getParticipationSummaryByActivityHandler;
+
     private readonly ListParticipationsByActivityQueryHandler
         _listParticipationsByActivityHandler;
 
@@ -55,6 +60,8 @@ public sealed class ParticipationsController
             createParticipationHandler,
         GetParticipationByIdQueryHandler
             getParticipationByIdHandler,
+        GetParticipationSummaryByActivityQueryHandler
+            getParticipationSummaryByActivityHandler,
         ListParticipationsByActivityQueryHandler
             listParticipationsByActivityHandler,
         MarkParticipationPresentCommandHandler
@@ -69,6 +76,9 @@ public sealed class ParticipationsController
 
         ArgumentNullException.ThrowIfNull(
             getParticipationByIdHandler);
+
+        ArgumentNullException.ThrowIfNull(
+            getParticipationSummaryByActivityHandler);
 
         ArgumentNullException.ThrowIfNull(
             listParticipationsByActivityHandler);
@@ -87,6 +97,9 @@ public sealed class ParticipationsController
 
         _getParticipationByIdHandler =
             getParticipationByIdHandler;
+
+        _getParticipationSummaryByActivityHandler =
+            getParticipationSummaryByActivityHandler;
 
         _listParticipationsByActivityHandler =
             listParticipationsByActivityHandler;
@@ -215,6 +228,72 @@ public sealed class ParticipationsController
             response);
     }
 
+    [HttpGet("summary")]
+    public async Task<ActionResult<
+        ParticipationActivitySummaryResponse>>
+        GetSummaryByActivity(
+            [FromQuery] string? activityTypeCode,
+            [FromQuery] string? activityId,
+            CancellationToken cancellationToken)
+    {
+        Result<ActivityTypeCode> activityTypeResult =
+            ActivityTypeCode.Create(
+                activityTypeCode ??
+                    string.Empty);
+
+        if (activityTypeResult.IsFailure)
+        {
+            return ToProblem(
+                activityTypeResult.Error!);
+        }
+
+        if (
+            !Guid.TryParseExact(
+                activityId,
+                "D",
+                out Guid parsedActivityId) ||
+            parsedActivityId == Guid.Empty
+        )
+        {
+            return ToProblem(
+                ParticipationEndpointErrors
+                    .InvalidActivityId);
+        }
+
+        ActivityReference activityReference =
+            ActivityReference.ForTraining(
+                TrainingId.From(
+                    parsedActivityId));
+
+        GetParticipationSummaryByActivityQuery query =
+            new(
+                activityReference);
+
+        Result<ParticipationActivitySummary> result =
+            await _getParticipationSummaryByActivityHandler
+                .Handle(
+                    query,
+                    cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ToProblem(
+                result.Error!);
+        }
+
+        ParticipationActivitySummary summary =
+            result.Value!;
+
+        ParticipationActivitySummaryResponse response =
+            new(
+                summary.Total,
+                summary.NotRecorded,
+                summary.Present,
+                summary.Absent);
+
+        return Ok(
+            response);
+    }
     [HttpGet]
     public async Task<ActionResult<
         IReadOnlyList<ParticipationListItemResponse>>>
