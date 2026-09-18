@@ -108,6 +108,8 @@ public sealed class PermissionContractTests
             Permissions.Participations
                 .RecordArrival,
 
+            Permissions.Persons.RegisterWithAtmacaCard,
+
             Permissions.Participations
                 .RecordDeparture
         };
@@ -123,6 +125,7 @@ public sealed class PermissionContractTests
             "Participations.ListHistoryByAtmacaCard",
             "Participations.MarkPresent",
             "Participations.RecordArrival",
+            "Persons.RegisterWithAtmacaCard",
             "Participations.RecordDeparture"
         };
 

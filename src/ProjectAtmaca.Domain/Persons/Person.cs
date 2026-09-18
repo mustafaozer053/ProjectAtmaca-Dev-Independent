@@ -8,17 +8,15 @@ public sealed class Person : AuditableAggregateRoot
 {
     public PersonName Name { get; private set; }
 
-    public IdentityNumber IdentityNumber { get; private set; }
-
-    public Country Nationality { get; private set; }
+    public Country BirthCountry { get; private set; }
 
     public BirthDate BirthDate { get; private set; }
 
-    public Location BirthPlace { get; private set; }
+    public Location? BirthPlace { get; private set; }
 
-    public PersonName MotherName { get; private set; }
+    public PersonName? MotherName { get; private set; }
 
-    public PersonName FatherName { get; private set; }
+    public PersonName? FatherName { get; private set; }
 
     public BloodType BloodType { get; private set; }
 
@@ -32,12 +30,11 @@ public sealed class Person : AuditableAggregateRoot
 
     private Person(
         PersonName name,
-        IdentityNumber identityNumber,
-        Country nationality,
         BirthDate birthDate,
-        Location birthPlace,
-        PersonName motherName,
-        PersonName fatherName,
+        Country birthCountry,
+        Location? birthPlace,
+        PersonName? motherName,
+        PersonName? fatherName,
         BloodType bloodType,
         Email? email,
         PhoneNumber? primaryPhoneNumber,
@@ -45,8 +42,7 @@ public sealed class Person : AuditableAggregateRoot
         Address? address)
     {
         Name = name;
-        IdentityNumber = identityNumber;
-        Nationality = nationality;
+        BirthCountry = birthCountry;
         BirthDate = birthDate;
         BirthPlace = birthPlace;
         MotherName = motherName;
@@ -60,12 +56,11 @@ public sealed class Person : AuditableAggregateRoot
 
     public static Result<Person> Create(
         PersonName name,
-        IdentityNumber identityNumber,
-        Country nationality,
         BirthDate birthDate,
-        Location birthPlace,
-        PersonName motherName,
-        PersonName fatherName,
+        Country birthCountry,
+        Location? birthPlace = null,
+        PersonName? motherName = null,
+        PersonName? fatherName = null,
         BloodType bloodType = BloodType.Unknown,
         Email? email = null,
         PhoneNumber? primaryPhoneNumber = null,
@@ -75,29 +70,19 @@ public sealed class Person : AuditableAggregateRoot
         if (name is null)
             return Result<Person>.Failure(Error.Create("PERSON_NAME_REQUIRED", "Person name is required."));
 
-        if (identityNumber is null)
-            return Result<Person>.Failure(Error.Create("PERSON_IDENTITY_REQUIRED", "Identity number is required."));
-
-        if (nationality is null)
-            return Result<Person>.Failure(Error.Create("PERSON_NATIONALITY_REQUIRED", "Nationality is required."));
+        if (birthCountry is null)
+            return Result<Person>.Failure(Error.Create("PERSON_BIRTH_COUNTRY_REQUIRED", "Birth country is required."));
 
         if (birthDate is null)
             return Result<Person>.Failure(Error.Create("PERSON_BIRTH_DATE_REQUIRED", "Birth date is required."));
 
-        if (birthPlace is null)
-            return Result<Person>.Failure(Error.Create("PERSON_BIRTH_PLACE_REQUIRED", "Birth place is required."));
-
-        if (motherName is null)
-            return Result<Person>.Failure(Error.Create("PERSON_MOTHER_NAME_REQUIRED", "Mother name is required."));
-
-        if (fatherName is null)
-            return Result<Person>.Failure(Error.Create("PERSON_FATHER_NAME_REQUIRED", "Father name is required."));
+        if (birthPlace is not null && !birthPlace.Country.Equals(birthCountry))
+            return Result<Person>.Failure(Error.Create("PERSON_BIRTH_PLACE_COUNTRY_MISMATCH", "Birth place must belong to the birth country."));
 
         var person = new Person(
             name,
-            identityNumber,
-            nationality,
             birthDate,
+            birthCountry,
             birthPlace,
             motherName,
             fatherName,
@@ -118,18 +103,13 @@ public sealed class Person : AuditableAggregateRoot
         Name = name;
     }
 
-    public void ChangeNationality(Country nationality)
-    {
-        if (nationality is null)
-            throw new ArgumentException("Nationality cannot be null.");
-
-        Nationality = nationality;
-    }
-
     public void ChangeBirthPlace(Location birthPlace)
     {
         if (birthPlace is null)
             throw new ArgumentException("Birth place cannot be null.");
+
+        if (!birthPlace.Country.Equals(BirthCountry))
+            throw new ArgumentException("Birth place must belong to the birth country.", nameof(birthPlace));
 
         BirthPlace = birthPlace;
     }

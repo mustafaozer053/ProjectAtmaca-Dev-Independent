@@ -45,6 +45,13 @@ public sealed class DecisionApplicationConfiguration
                 "DecisionId")
             .IsRequired();
 
+        // TargetType/TargetId INCLUDE columns are migration-managed: EF 8 rejects complex-property paths.
+        // See docs/decision-history-sql-maliyeti.md and DecisionHistoryIndexMigrationTests.
+        builder.HasIndex(nameof(DecisionApplication.DecisionId), nameof(DecisionApplication.AppliedAtUtc), nameof(DecisionApplication.Id))
+            .IsDescending(false, true, true)
+            .IncludeProperties(nameof(DecisionApplication.AppliedDecisionRevision))
+            .HasDatabaseName("IX_DecisionApplications_Decision_AppliedAt_Id");
+
         builder.ComplexProperty(
             x => x.Target,
             target =>

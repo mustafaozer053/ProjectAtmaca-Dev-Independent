@@ -1,0 +1,404 @@
+{
+  "reviewDate": "2026-09-16",
+  "dateBasis": "UTC dates from source turns",
+  "method": "Codex app read_thread; all returned pages; maxOutputCharsPerItem=20000; attachment bodies not read",
+  "shareToOriginalMapping": "Not verified one-to-one; T identifiers are original threads, S identifiers are shared URLs.",
+  "scopeLimit": "Two further conversations mentioned by the user are not included. Truncated message tails and attachments are not reconstructed.",
+  "shares": [
+    {
+      "id": "S01",
+      "url": "https://chatgpt.com/share/6aa8ee04-7cdc-83ed-872a-5f750585ef18",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S02",
+      "url": "https://chatgpt.com/share/6aa90455-357c-83ed-9d70-8a6b70ad6a4e",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S03",
+      "url": "https://chatgpt.com/share/6aa90541-c5e8-83eb-8306-d4d4a03b8cef",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S04",
+      "url": "https://chatgpt.com/share/6aa9055f-9998-83eb-bfd1-f8cd4960513b",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S05",
+      "url": "https://chatgpt.com/share/6aa90579-f934-83ed-8410-9002bb7d67f7",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S06",
+      "url": "https://chatgpt.com/share/6aa90591-05ec-83eb-ac50-aee7c190df86",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S07",
+      "url": "https://chatgpt.com/share/6aa905ab-8028-83eb-8a14-b0eb98711246",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S08",
+      "url": "https://chatgpt.com/share/6a70b630-5824-83eb-9a61-897455fa901f",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S09",
+      "url": "https://chatgpt.com/share/6aa90750-e304-83eb-a50c-dd5da74873dc",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S10",
+      "url": "https://chatgpt.com/share/6aa907a2-f088-83eb-8813-f4a69ecc705c",
+      "directWebResult": "No usable conversation content returned"
+    },
+    {
+      "id": "S11",
+      "url": "https://chatgpt.com/share/6aa91020-9f50-83eb-adf3-8910389a3b61",
+      "directWebResult": "No usable conversation content returned"
+    }
+  ],
+  "sources": [
+    {
+      "id": "T01",
+      "title": "Çaykur Rizespor Akademi",
+      "threadId": "6a3e5fb5-b99c-83eb-a630-522fae40e2b7",
+      "url": "https://chatgpt.com/c/6a3e5fb5-b99c-83eb-a630-522fae40e2b7",
+      "pages": 75,
+      "turns": 745,
+      "firstDate": "2026-06-26",
+      "lastDate": "2026-08-01",
+      "hasMore": false,
+      "truncatedTurns": [
+        {
+          "turnId": "d9ca8c9e-613f-4dff-a4a2-e80d52f0ee7f",
+          "date": "2026-07-13",
+          "itemIds": [
+            "e9db5fd0-169f-427f-991e-2024bfdcf1ee"
+          ]
+        },
+        {
+          "turnId": "7a165e0f-1a28-48c1-8ee7-795b14f6ba6d",
+          "date": "2026-07-30",
+          "itemIds": [
+            "53b17203-29df-438c-9dc9-3f75200c9264"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "Project Atmaca Başlangıç",
+      "threadId": "6a685969-5008-83eb-84e4-0f35583cdcb3",
+      "url": "https://chatgpt.com/c/6a685969-5008-83eb-84e4-0f35583cdcb3",
+      "pages": 1,
+      "turns": 1,
+      "firstDate": "2026-07-28",
+      "lastDate": "2026-07-28",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T03",
+      "title": "Mimari İlkeler",
+      "threadId": "6a6c4bb2-ec5c-83eb-8b10-6306d273b563",
+      "url": "https://chatgpt.com/c/6a6c4bb2-ec5c-83eb-8b10-6306d273b563",
+      "pages": 1,
+      "turns": 1,
+      "firstDate": "2026-07-31",
+      "lastDate": "2026-07-31",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T04",
+      "title": "Bağlam Haritası Açıklaması",
+      "threadId": "6a6c4bfb-5780-83eb-81c7-dd0102a5b7cf",
+      "url": "https://chatgpt.com/c/6a6c4bfb-5780-83eb-81c7-dd0102a5b7cf",
+      "pages": 1,
+      "turns": 1,
+      "firstDate": "2026-07-31",
+      "lastDate": "2026-07-31",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T05",
+      "title": "Ubiquitous Language",
+      "threadId": "6a6c4c3f-2650-83eb-bedb-0c8202d88aa3",
+      "url": "https://chatgpt.com/c/6a6c4c3f-2650-83eb-bedb-0c8202d88aa3",
+      "pages": 1,
+      "turns": 1,
+      "firstDate": "2026-07-31",
+      "lastDate": "2026-07-31",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T06",
+      "title": "ADR İndeksi Açıklaması",
+      "threadId": "6a6c4c9a-c310-83eb-b6b1-378c05e2f5a0",
+      "url": "https://chatgpt.com/c/6a6c4c9a-c310-83eb-b6b1-378c05e2f5a0",
+      "pages": 1,
+      "turns": 1,
+      "firstDate": "2026-07-31",
+      "lastDate": "2026-07-31",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T07",
+      "title": "Aggregate Contract Standard",
+      "threadId": "6a6c8787-3550-83ed-a80f-3c8bf873a246",
+      "url": "https://chatgpt.com/c/6a6c8787-3550-83ed-a80f-3c8bf873a246",
+      "pages": 1,
+      "turns": 1,
+      "firstDate": "2026-07-31",
+      "lastDate": "2026-07-31",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T08",
+      "title": "Training Aggregate Blueprint",
+      "threadId": "6a6c6817-8020-83eb-b733-0ccce7ecdeca",
+      "url": "https://chatgpt.com/c/6a6c6817-8020-83eb-b733-0ccce7ecdeca",
+      "pages": 1,
+      "turns": 1,
+      "firstDate": "2026-07-31",
+      "lastDate": "2026-07-31",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T09",
+      "title": "Training Reference Implementation",
+      "threadId": "6a6dab14-3a98-83eb-b093-a70e902c5455",
+      "url": "https://chatgpt.com/c/6a6dab14-3a98-83eb-b093-a70e902c5455",
+      "pages": 29,
+      "turns": 285,
+      "firstDate": "2026-08-01",
+      "lastDate": "2026-08-08",
+      "hasMore": false,
+      "truncatedTurns": []
+    },
+    {
+      "id": "T10",
+      "title": "Participation Aggregate Blueprint",
+      "threadId": "6a71f13d-ce14-83eb-9a33-02f9201769ee",
+      "url": "https://chatgpt.com/c/6a71f13d-ce14-83eb-9a33-02f9201769ee",
+      "pages": 98,
+      "turns": 979,
+      "firstDate": "2026-08-04",
+      "lastDate": "2026-09-02",
+      "hasMore": false,
+      "truncatedTurns": [
+        {
+          "turnId": "09de8d20-7799-4bb8-90fd-b0628f270a58",
+          "date": "2026-08-10",
+          "itemIds": [
+            "72aa7090-1488-43b6-9fc8-629e9a66c317"
+          ]
+        },
+        {
+          "turnId": "d892ba7a-c317-4b5b-aa46-56ee7f711b2a",
+          "date": "2026-08-10",
+          "itemIds": [
+            "d4837021-2033-48e4-9b95-642b46983334"
+          ]
+        },
+        {
+          "turnId": "73abe510-a9e1-4e6b-89d8-88bc5c153857",
+          "date": "2026-08-10",
+          "itemIds": [
+            "0e5b49a5-3dd6-43a4-b96d-eb2f4c1ef855"
+          ]
+        },
+        {
+          "turnId": "25d84908-3e82-438b-b809-9406696b68f6",
+          "date": "2026-08-10",
+          "itemIds": [
+            "704778a3-d208-4fc6-9b95-23a06469bd32"
+          ]
+        },
+        {
+          "turnId": "0a11130b-4168-4802-a1e3-751814e1b750",
+          "date": "2026-08-10",
+          "itemIds": [
+            "bc6826d1-fa8d-433b-9b3e-8be847f0230e"
+          ]
+        },
+        {
+          "turnId": "234313a9-b9ec-4b98-9a36-c60e0a1395a7",
+          "date": "2026-08-10",
+          "itemIds": [
+            "9a2baf24-4b4f-45bf-b15b-637278c837ad"
+          ]
+        },
+        {
+          "turnId": "473840e9-24aa-4f52-93ff-b6f0758d792c",
+          "date": "2026-08-10",
+          "itemIds": [
+            "905496e5-9c4d-43e1-aea4-3a68c877bdf5"
+          ]
+        },
+        {
+          "turnId": "05f40fa1-759a-458e-a6e7-3c8d77af2597",
+          "date": "2026-08-10",
+          "itemIds": [
+            "070d2bca-79af-4f45-a674-9b0b3f82c5ec"
+          ]
+        },
+        {
+          "turnId": "08f2394f-f481-4876-81ec-dc381c413e47",
+          "date": "2026-08-10",
+          "itemIds": [
+            "5da34be2-171d-4dc0-b113-08ef0dcef171"
+          ]
+        },
+        {
+          "turnId": "43d1f432-5ef5-4cc7-8ad9-b82161bdda45",
+          "date": "2026-08-10",
+          "itemIds": [
+            "7df25a84-6430-4e7d-862a-4536761d4d1d"
+          ]
+        },
+        {
+          "turnId": "28d99498-d933-4d59-9a43-e5970fab93ec",
+          "date": "2026-08-11",
+          "itemIds": [
+            "c992a36f-2fab-43bd-804b-f24eb4519390"
+          ]
+        },
+        {
+          "turnId": "6fd8fc36-5f55-4511-a1a5-0a9b697498fa",
+          "date": "2026-08-17",
+          "itemIds": [
+            "e2dfbf00-e436-4cee-bfad-ad1dd78c06d7"
+          ]
+        },
+        {
+          "turnId": "7992d252-cbec-41c3-9c7d-8e16d65eb4f4",
+          "date": "2026-08-18",
+          "itemIds": [
+            "673a0320-ff21-41bf-89f0-a0e39fb7f64a"
+          ]
+        },
+        {
+          "turnId": "a54e311d-d476-4263-84a8-755ccf27287c",
+          "date": "2026-08-20",
+          "itemIds": [
+            "b775164e-62ed-4bc8-b9b9-56e9700ad549"
+          ]
+        },
+        {
+          "turnId": "17a618b9-b5d2-4ea8-839e-baccc3c4fd66",
+          "date": "2026-08-20",
+          "itemIds": [
+            "85dfb911-f022-407f-9ad9-6149a0170879"
+          ]
+        },
+        {
+          "turnId": "1dbca088-2770-4529-89cd-af024d0afd6e",
+          "date": "2026-08-29",
+          "itemIds": [
+            "c4f3acf7-fe47-4477-a5de-0c1289bd7998"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Decision Architecture Blueprint",
+      "threadId": "6a771642-fee0-83eb-a663-5f8bd1cba91d",
+      "url": "https://chatgpt.com/c/6a771642-fee0-83eb-a663-5f8bd1cba91d",
+      "pages": 2,
+      "turns": 17,
+      "firstDate": "2026-08-08",
+      "lastDate": "2026-08-08",
+      "hasMore": false,
+      "truncatedTurns": [
+        {
+          "turnId": "f6e9795d-06ca-4835-880d-f3fd6f465b59",
+          "date": "2026-08-08",
+          "itemIds": [
+            "2ab87a06-9d48-4211-91e2-fd0dfaec3778"
+          ]
+        },
+        {
+          "turnId": "7c11697b-c921-4ceb-bbcb-b1b39d194f8b",
+          "date": "2026-08-08",
+          "itemIds": [
+            "23842825-189c-4f47-a70a-b36c8f7808a3"
+          ]
+        },
+        {
+          "turnId": "d464ddaa-40c9-4f33-a246-ebb2de6f5a85",
+          "date": "2026-08-08",
+          "itemIds": [
+            "068b45c8-7997-43e3-809b-bbe71e31cffb"
+          ]
+        },
+        {
+          "turnId": "5fdbfe74-a6de-4b92-bc43-f2e222c7038a",
+          "date": "2026-08-08",
+          "itemIds": [
+            "bd6ccd40-0a77-4359-a36b-5dceb1a053a3"
+          ]
+        },
+        {
+          "turnId": "0c4f13e0-14aa-4c4d-8bba-f0c9e6ac6e12",
+          "date": "2026-08-08",
+          "itemIds": [
+            "9158bb3d-1544-4c72-ab04-1d602b0534ef"
+          ]
+        },
+        {
+          "turnId": "7207c08b-44fc-45e3-9472-fe6b02555179",
+          "date": "2026-08-08",
+          "itemIds": [
+            "74981ec5-b6ab-4a5d-b501-ba7bb8d1483c"
+          ]
+        },
+        {
+          "turnId": "e699d346-be0e-45a9-9b0f-97be248be2c1",
+          "date": "2026-08-08",
+          "itemIds": [
+            "61777ffe-774a-4666-a69d-639bbae33672"
+          ]
+        },
+        {
+          "turnId": "5d5fd61c-2b42-4af8-b1dd-b1807b9fa528",
+          "date": "2026-08-08",
+          "itemIds": [
+            "15c8cc27-ca76-4b9e-967c-ae4433292cb4"
+          ]
+        },
+        {
+          "turnId": "27a23af6-1a6c-4db6-b44b-f7c2f0fdca32",
+          "date": "2026-08-08",
+          "itemIds": [
+            "ff79d67a-cc3e-406b-8c84-89e4e69a419a"
+          ]
+        },
+        {
+          "turnId": "811982d4-89ca-417f-afa8-a91c5524a2a4",
+          "date": "2026-08-08",
+          "itemIds": [
+            "567f4064-adf8-41b0-a393-915941e7bc8e"
+          ]
+        },
+        {
+          "turnId": "f423ee4e-7b68-46e6-9082-b2a273bb4b0b",
+          "date": "2026-08-08",
+          "itemIds": [
+            "36919fb9-f2da-4512-8fef-1f10fe09baa9"
+          ]
+        }
+      ]
+    }
+  ]
+}

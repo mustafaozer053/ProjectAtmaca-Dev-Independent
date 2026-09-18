@@ -13,24 +13,20 @@ public sealed class AtmacaCard : AuditableAggregateRoot
 
     public DateTime IssuedAtUtc { get; private set; }
 
-    public string IssuedBy { get; private set; }
-
     private AtmacaCard(
         Guid personId,
         AtmacaCardNumber cardNumber,
-        DateTime issuedAtUtc,
-        string issuedBy)
+        DateTime issuedAtUtc)
     {
         PersonId = personId;
         CardNumber = cardNumber;
         IssuedAtUtc = issuedAtUtc;
-        IssuedBy = issuedBy;
     }
 
     public static Result<AtmacaCard> Issue(
         Guid personId,
         AtmacaCardNumber cardNumber,
-        string issuedBy)
+        DateTime issuedAtUtc)
     {
         if (personId == Guid.Empty)
             return Result<AtmacaCard>.Failure(Error.Create("ATMACA_CARD_PERSON_REQUIRED", "Person id is required."));
@@ -43,14 +39,22 @@ public sealed class AtmacaCard : AuditableAggregateRoot
                     "AtmacaCard number is required."));
         }
 
-        if (string.IsNullOrWhiteSpace(issuedBy))
-            return Result<AtmacaCard>.Failure(Error.Create("ATMACA_CARD_ISSUED_BY_REQUIRED", "Issued by is required."));
+        if (issuedAtUtc == default)
+        {
+            return Result<AtmacaCard>.Failure(
+                Error.Create("ATMACA_CARD_ISSUED_AT_REQUIRED", "Issuance time is required."));
+        }
+
+        if (issuedAtUtc.Kind != DateTimeKind.Utc)
+        {
+            return Result<AtmacaCard>.Failure(
+                Error.Create("ATMACA_CARD_ISSUED_AT_UTC_REQUIRED", "Issuance time must be UTC."));
+        }
 
         var card = new AtmacaCard(
             personId,
             cardNumber,
-            DateTime.UtcNow,
-            issuedBy.Trim());
+            issuedAtUtc);
 
         return Result<AtmacaCard>.Success(card);
     }

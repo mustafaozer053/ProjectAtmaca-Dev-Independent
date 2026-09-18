@@ -2,6 +2,12 @@ namespace ProjectAtmaca.Application.Abstractions.Security;
 
 public static class Permissions
 {
+    public static class Persons
+    {
+        public static readonly Permission RegisterWithAtmacaCard =
+            Permission.Create("Persons.RegisterWithAtmacaCard");
+    }
+
     public static class Decisions
     {
         public static readonly Permission
@@ -71,6 +77,7 @@ public static class Permissions
                     Participations.ListHistoryByAtmacaCard,
                     Participations.MarkPresent,
                     Participations.RecordArrival,
+                    Persons.RegisterWithAtmacaCard,
                     Participations.RecordDeparture
                 });
 

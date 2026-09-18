@@ -1,0 +1,203 @@
+1. Mühürlenen temel
+Alan	Durum
+📜 00 — Project Constitution	Mühürlü
+📜 01 — Architecture Principles	Mühürlü
+📜 02 — Context Map	Mühürlü
+📜 03 — Ubiquitous Language	Mühürlü
+📜 04 — ADR Index	Mühürlü
+📜 05 — Aggregate Contract Standard	Mühürlü
+📘 10 — Training Aggregate Blueprint	Mühürlü
+📘 11 — Participation Aggregate Blueprint	Mühürlü
+📘 12 — Decision Architecture Blueprint	Mühürlü
+
+Bu temel şu prensipleri kalıcılaştırdı:
+
+İş kurallarının sahibi Domain’dir.
+Application orkestrasyon ve yetkilendirme sınırıdır.
+Infrastructure; EF Core, SQL, repository ve transaction ayrıntılarının sahibidir.
+API yalnızca taşıma ve dış dünya sınırıdır.
+Aggregate invariant’ları aggregate içinde korunur.
+Fiziksel silme yerine pasifleştirme esastır.
+UTC, revision, provenance ve tarihsel gerçeklik açıkça modellenir.
+Bounded context’ler birbirlerinin veritabanlarına doğrudan erişmez.
+Referans veriler enum’larla dondurulmaz.
+2. Derinlemesine tamamlanan referans dilim
+
+Training, Participation ve Decision çevresinde yalnızca domain nesneleri değil, uçtan uca production mimarisi kuruldu.
+
+Participation tarafında:
+
+Participation oluşturma
+Katılımı Present işaretleme
+Geliş kaydetme
+Ayrılış kaydetme
+Kimlik üzerinden getirme
+Aktivite özeti
+Aktiviteye göre listeleme
+Atmaca Kart üzerinden tarihsel sorgulama
+Deterministik cursor ve tarihsel süreklilik
+
+Decision tarafında:
+
+Decision, revision ve snapshot ayrımı
+Participation classification uygulama
+Immutable ve append-only DecisionApplication
+Tarihsel provenance
+İdempotency ve replay
+Kalıcı operation record
+Participation effect + DecisionApplication + operation record için atomik commit
+Rollback ve concurrency davranışları
+Decision application history sorgusu
+Applied, Rejected ve Replay sonuçlarının gözlemlenmesi
+
+Bunlar Application, Infrastructure, SQL Server, transaction, DI ve production-composition seviyelerinde doğrulandı.
+
+3. X.21 ve X.22 ile eklenen güvence katmanları
+
+X.21 kapsamında outcome observability tamamlandı:
+
+Başarılı sonuç yalnızca durable commit sonrasında gözlemleniyor.
+Rejected ve Replay sonuçları ayrıştırılıyor.
+NotFound, revision mismatch, operation conflict ve concurrent replay senaryoları kanıtlandı.
+Log ve metric noktaları merkezi davranışla hizalandı.
+
+X.22.2 kapsamında güvenlik ve audit zinciri kuruldu:
+
+Kanonik ActorId
+Dış kimlik → kanonik actor çözümlemesi
+ICurrentActor
+Authentication ve fallback authorization
+10 kanonik permission
+Kalıcı actor permission grant modeli
+Fail-closed permission evaluator
+Application authorization service
+10 production handler’ın tamamında veri erişiminden önce yetkilendirme
+Typed CreatedByActorId ve LastModifiedByActorId
+SaveChanges audit interceptor
+Audit SQL persistence ve propagation kanıtları
+-- Production DI composition
+Test-helper ve DbContext bypass korumaları
+4. Bugünkü kesin checkpoint
+
+Son güvenli durumumuz:
+
+HEAD: 0d83b72
+Son commit: fix(infrastructure): use canonical activity reference equality
+Testler: 392/392 GREEN
+Domain: 120
+Application: 110
+Infrastructure: 129
+API: 33
+Infrastructure warning-as-error: GREEN
+Compiler warnings: 0
+Migration snapshot: ALIGNED
+Implementation gap — X.22.2 kapsamında: 0
+Drift — X.22.2 kapsamında: 0
+Working tree: CLEAN
+Aktif veya mühürlenmemiş çalışma kapsamı: yok
+
+Bu, yeni bölüme geçmek için ideal checkpoint’tir.
+
+5. Kalan yolumuz
+
+Planımızın bundan sonraki ana akışı şu şekilde:
+
+1. X.23 — Kapsam ve production yüzeyi keşfi
+
+Önce salt okunur envanter çıkaracağız:
+
+Mevcut use-case’lerin API üzerinden ne kadarı erişilebilir?
+Endpoint, request/response contract ve hata eşlemelerinde hangi boşluklar var?
+Authentication ile Application authorization arasındaki taşıma zinciri tam mı?
+Validation, cancellation ve ProblemDetails davranışları hizalı mı?
+Production’da kalan intentional seam, implementation gap veya drift var mı?
+
+Bu inceleme sonucunda X.23’ün kesin başlığını ve kapılarını belirleyeceğiz.
+
+2. Mevcut referans dilimin production API’ye tamamlanması
+
+Envanterin sonucuna göre Participation ve Decision yetenekleri:
+
+Güvenli endpoint’lere
+Kararlı API sözleşmelerine
+Doğru HTTP hata eşlemelerine
+Yetki reddi davranışlarına
+Integration/production-host testlerine
+
+uçtan uca bağlanacak. Mevcut davranışların API’de zaten bulunan kısımları yeniden yazılmayacak; yalnızca kanıtlanmamış veya eksik sınırlar tamamlanacak.
+
+3. Akademinin çekirdek veri omurgası
+
+Referans dilimden sonra domain kapsamı genişletilecek:
+
+Person
+Atmaca Kart
+Sezon
+Organizasyon
+Sezon grup kadrosu/takım üyeliği
+Pozisyonlar
+Yaş grupları
+Training ile kadro ve katılım bağlantıları
+Onboarding ve reaktivasyon akışları
+
+ReferenceData üst klasörüne geçiş de yeterli sayıda referans aggregate oluştuğunda değerlendirilecek; erken refactoring yapılmayacak.
+
+4. Diğer iş modüllerinin kontrollü genişlemesi
+
+Bağımlılıklar netleştikçe şu ürün alanları dikey dilimler hâlinde geliştirilecek:
+
+Konaklama
+Sağlık
+Lisans
+Evraklar
+Yemekhane
+Veliler
+Servis
+Performans
+Medya
+Raporlama
+Sistem ayarları
+
+Her modül aynı referans standardı izleyecek: blueprint → domain → application → persistence → API → yetki/audit → conformance seal.
+
+5. Eski sistemden veri geçişi
+
+Üç yıllık SQL Express verisi için:
+
+Kaynak veri profilleme
+Kimlik ve eşleştirme kuralları
+Temizleme/dönüştürme
+Tekrarlanabilir migration araçları
+Dry-run
+Sayısal ve davranışsal reconciliation
+Kesin geçiş ve geri dönüş planı
+
+hazırlanacak. Veri doğrudan yeni modele körlemesine taşınmayacak.
+
+6. Operasyon ve production hazırlığı
+Gerçek kimlik sağlayıcı ve ortam yapılandırması
+Permission yönetim akışları
+Secret/configuration yönetimi
+Backup ve restore
+Monitoring ve alerting
+Deployment pipeline
+SQL Server üretim ortamı
+NAS ve dosya saklama yaklaşımı
+Performans, güvenlik ve felaket kurtarma sınamaları
+
+tamamlanacak.
+
+7. Web, telefon ve tablet ürün yüzeyleri
+
+MAUI ilk düşündüğümüz seçenek olmaya devam ediyor; fakat teknoloji kararı henüz geri dönülmez biçimde kilitlenmiş değil. Kararımız şuydu:
+
+Web, telefon ve tablet erişimi planın içindedir.
+Yöneticiler uzaktan telefon/tablet/PC üzerinden rapor ve analizlere erişebilmelidir.
+Önce çekirdek API ve use-case yüzeyi olgunlaşacaktır.
+Ardından Project Atmaca’yı bir kademe yukarı taşıyacak istemci mimarisi, MAUI dâhil uygun seçenekler değerlendirilerek seçilecektir.
+İç operasyon paneli önce, dış/public görünüm daha sonra ele alınacaktır.
+Büyük resim
+
+Bugüne kadar yaptığımız çalışma “çok sayıda ekran üretme” aşaması değildi. Asıl başarı, bir use-case’in domain’den SQL’e kadar nasıl güvenli, tarihsel, idempotent, gözlemlenebilir, yetkili ve denetlenebilir çalışacağını kanıtlayan referans mimariyi kurmuş olmamızdır.
+
+Şimdi derinlik temelimiz hazır. X.23 ile bundan sonraki yol, bu sağlam modeli production API yüzeyine ve ardından Project Atmaca’nın diğer iş modüllerine kontrollü biçimde çoğaltmak olacak.

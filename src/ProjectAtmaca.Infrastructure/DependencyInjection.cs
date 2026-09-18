@@ -91,6 +91,15 @@ public static class DependencyInjection
             IActorPermissionEvaluator,
             ActorPermissionEvaluator>();
 
+        services.AddScoped<ProjectAtmaca.Application.Persons.RegisterWithAtmacaCard.IPersonRegistrationStore,
+            ProjectAtmaca.Infrastructure.Persistence.Persons.SqlPersonRegistrationStore>();
+        services.AddScoped<ProjectAtmaca.Domain.Services.IAtmacaCardNumberGenerator,
+            ProjectAtmaca.Infrastructure.Persistence.Persons.SqlAtmacaCardNumberGenerator>();
+        services.AddScoped<ProjectAtmaca.Application.Persons.RegisterWithAtmacaCard.PersonRegistrationAuthorization>();
+        services.AddScoped<ProjectAtmaca.Application.Persons.RegisterWithAtmacaCard.PreparePersonRegistration>();
+        services.AddScoped<ProjectAtmaca.Application.Persons.RegisterWithAtmacaCard.RegisterPersonWithAtmacaCard>();
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<TimeProvider>(services, TimeProvider.System);
+
         return services;
     }
 }

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -6,6 +8,7 @@ using ProjectAtmaca.Api.Participations.Create;
 using ProjectAtmaca.Api.Participations.GetById;
 using ProjectAtmaca.Api.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Api.Participations.ListByActivity;
+using ProjectAtmaca.Api.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Api.Participations.MarkPresent;
 using ProjectAtmaca.Api.Participations.RecordArrival;
 using ProjectAtmaca.Api.Participations.RecordDeparture;
@@ -14,6 +17,7 @@ using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations.ListByActivity;
+using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
@@ -46,6 +50,9 @@ public sealed class ParticipationsController
     private readonly ListParticipationsByActivityQueryHandler
         _listParticipationsByActivityHandler;
 
+    private readonly ListParticipationHistoryByAtmacaCardQueryHandler
+        _listParticipationHistoryByAtmacaCardHandler;
+
     private readonly MarkParticipationPresentCommandHandler
         _markParticipationPresentHandler;
 
@@ -64,6 +71,8 @@ public sealed class ParticipationsController
             getParticipationSummaryByActivityHandler,
         ListParticipationsByActivityQueryHandler
             listParticipationsByActivityHandler,
+        ListParticipationHistoryByAtmacaCardQueryHandler
+            listParticipationHistoryByAtmacaCardHandler,
         MarkParticipationPresentCommandHandler
             markParticipationPresentHandler,
         RecordParticipationArrivalCommandHandler
@@ -82,6 +91,9 @@ public sealed class ParticipationsController
 
         ArgumentNullException.ThrowIfNull(
             listParticipationsByActivityHandler);
+
+        ArgumentNullException.ThrowIfNull(
+            listParticipationHistoryByAtmacaCardHandler);
 
         ArgumentNullException.ThrowIfNull(
             markParticipationPresentHandler);
@@ -103,6 +115,9 @@ public sealed class ParticipationsController
 
         _listParticipationsByActivityHandler =
             listParticipationsByActivityHandler;
+
+        _listParticipationHistoryByAtmacaCardHandler =
+            listParticipationHistoryByAtmacaCardHandler;
 
         _markParticipationPresentHandler =
             markParticipationPresentHandler;
@@ -228,6 +243,133 @@ public sealed class ParticipationsController
             response);
     }
 
+    [HttpGet("history")]
+    public async Task<ActionResult<
+        ParticipationHistoryPageResponse>>
+        ListHistoryByAtmacaCard(
+            [FromQuery] string? atmacaCardId,
+            [FromQuery] int pageSize,
+            [FromQuery] string? cursorAtmacaCardId,
+            [FromQuery] string? cursorCreatedAtUtc,
+            [FromQuery] string? cursorParticipationId,
+            CancellationToken cancellationToken)
+    {
+        if (
+            !Guid.TryParseExact(
+                atmacaCardId,
+                "D",
+                out Guid parsedAtmacaCardId) ||
+            parsedAtmacaCardId == Guid.Empty
+        )
+        {
+            return ToProblem(
+                ParticipationEndpointErrors
+                    .InvalidAtmacaCardId);
+        }
+        ParticipationHistoryCursor? cursor =
+            null;
+
+        bool hasCursor =
+            cursorAtmacaCardId is not null ||
+            cursorCreatedAtUtc is not null ||
+            cursorParticipationId is not null;
+
+        if (hasCursor)
+        {
+            if (
+                !Guid.TryParseExact(
+                    cursorAtmacaCardId,
+                    "D",
+                    out Guid parsedCursorAtmacaCardId) ||
+                parsedCursorAtmacaCardId == Guid.Empty ||
+                !DateTime.TryParseExact(
+                    cursorCreatedAtUtc,
+                    "O",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind,
+                    out DateTime parsedCursorCreatedAtUtc) ||
+                parsedCursorCreatedAtUtc.Kind !=
+                    DateTimeKind.Utc ||
+                !Guid.TryParseExact(
+                    cursorParticipationId,
+                    "D",
+                    out Guid parsedCursorParticipationId) ||
+                parsedCursorParticipationId == Guid.Empty
+            )
+            {
+                return ToProblem(
+                    ParticipationEndpointErrors
+                        .InvalidHistoryCursor);
+            }
+
+            cursor =
+                new ParticipationHistoryCursor(
+                    AtmacaCardId.From(
+                        parsedCursorAtmacaCardId),
+                    parsedCursorCreatedAtUtc,
+                    parsedCursorParticipationId);
+        }
+        ListParticipationHistoryByAtmacaCardQuery query =
+            new(
+                AtmacaCardId.From(
+                    parsedAtmacaCardId),
+                pageSize,
+                cursor);
+
+        Result<ParticipationHistoryPage> result =
+            await _listParticipationHistoryByAtmacaCardHandler
+                .Handle(
+                    query,
+                    cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ToProblem(
+                result.Error!);
+        }
+
+        ParticipationHistoryPage page =
+            result.Value!;
+
+        IReadOnlyList<ParticipationHistoryItemResponse> items =
+            page.Items
+                .Select(
+                    item =>
+                        new ParticipationHistoryItemResponse(
+                            item.ParticipationId,
+                            item.ActivityReference
+                                .ActivityType
+                                .Value,
+                            item.ActivityReference
+                                .ActivityId,
+                            GetParticipationStatusCode(
+                                item.Status),
+                            item.ConditionCode,
+                            item.JoinedAt,
+                            item.LeftAt,
+                            item.CreatedAtUtc))
+                .ToList();
+
+        ParticipationHistoryCursorResponse? nextCursor =
+            null;
+
+        if (page.NextCursor is not null)
+        {
+            nextCursor =
+                new ParticipationHistoryCursorResponse(
+                    page.NextCursor.AtmacaCardId.Value,
+                    page.NextCursor.CreatedAtUtc,
+                    page.NextCursor.ParticipationId);
+        }
+
+        ParticipationHistoryPageResponse response =
+            new(
+                items,
+                nextCursor);
+
+        return Ok(
+            response);
+    }
     [HttpGet("summary")]
     public async Task<ActionResult<
         ParticipationActivitySummaryResponse>>

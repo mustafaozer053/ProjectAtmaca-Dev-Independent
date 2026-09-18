@@ -204,13 +204,33 @@ public sealed class ApplyParticipationClassificationCommandHandler
         if (decision.Effect.Outcome ==
             ParticipationClassificationOutcome.Present)
         {
-            participation.MarkPresent();
+            Result classificationResult =
+                participation.MarkPresent();
+
+            if (classificationResult.IsFailure)
+            {
+                ObserveRejectedOutcome(
+                    command,
+                    classificationResult.Error!);
+
+                return classificationResult;
+            }
         }
 
         if (decision.Effect.Outcome ==
             ParticipationClassificationOutcome.Absent)
         {
-            participation.MarkAbsent();
+            Result classificationResult =
+                participation.MarkAbsent();
+
+            if (classificationResult.IsFailure)
+            {
+                ObserveRejectedOutcome(
+                    command,
+                    classificationResult.Error!);
+
+                return classificationResult;
+            }
         }
 
         DecisionApplication decisionApplication =

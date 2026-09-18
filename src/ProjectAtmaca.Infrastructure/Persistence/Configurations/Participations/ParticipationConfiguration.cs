@@ -212,6 +212,29 @@ public sealed class ParticipationConfiguration
             .IsUnique()
             .HasDatabaseName(
                 "UX_Participations_AtmacaCard_Activity");
+
+        builder.HasIndex(
+                nameof(Participation.AtmacaCardId),
+                nameof(Participation.CreatedAtUtc),
+                nameof(Participation.Id))
+            .IsDescending(false, true, true)
+            .IncludeProperties(
+                nameof(Participation.ActivityReference),
+                nameof(Participation.Status),
+                nameof(Participation.Condition),
+                nameof(Participation.JoinedAt),
+                nameof(Participation.LeftAt))
+            .HasDatabaseName(
+                "IX_Participations_AtmacaCard_CreatedAt_Id");
+
+        builder.HasIndex(nameof(Participation.ActivityReference))
+            .IncludeProperties(
+                nameof(Participation.AtmacaCardId),
+                nameof(Participation.Status),
+                nameof(Participation.Condition),
+                nameof(Participation.JoinedAt),
+                nameof(Participation.LeftAt))
+            .HasDatabaseName("IX_Participations_ActivityReference");
     }
 
     private static string SerializeActivityReference(

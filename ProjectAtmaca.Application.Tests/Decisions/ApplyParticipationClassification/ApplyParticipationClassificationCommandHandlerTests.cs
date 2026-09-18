@@ -4196,6 +4196,66 @@ Handle_Should_CommitThroughExactOperationIdentity_WhenDecisionApplicationSucceed
                     _wasCommitOutcomeReturned());
         }
     }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Handle_Should_RejectWithoutProvenanceOperationOrCommit_WhenParticipationRejectsClassification(bool applyPresent)
+    {
+        Participation participation = CreateParticipation();
+        var setupResult = applyPresent ? participation.MarkAbsent() : participation.MarkPresent();
+        setupResult.IsSuccess.Should().BeTrue();
+        ParticipationStatus originalStatus = participation.Status;
+        var originalEvents = participation.DomainEvents.ToArray();
+        var snapshot = ParticipationClassificationSnapshot.Create(
+            participation.ActivityReference, participation.AtmacaCardId,
+            participation.Status, participation.Condition, participation.JoinedAt, participation.LeftAt);
+        Decision decision = Decision.CreateParticipationClassification(
+            participation.ParticipationId, snapshot,
+            applyPresent ? ParticipationClassificationEffect.Present() : ParticipationClassificationEffect.Absent());
+        var applications = new FakeDecisionApplicationRepository();
+        var operations = new FakeDecisionApplicationOperationStore();
+        var committer = new FakeDecisionAuthorityCommitter();
+        var metrics = new RecordingClassificationRejectionMetrics();
+        var logger = new CapturingLogger<ApplyParticipationClassificationCommandHandler>(() => committer.HasReturnedOutcome);
+        var handler = new ApplyParticipationClassificationCommandHandler(
+            GrantedActorAuthorizationService.Instance,
+            metrics,
+            operations,
+            new FakeDecisionRepository { DecisionToReturn = decision },
+            new FakeParticipationRepository { ParticipationToReturn = participation },
+            applications, committer, logger);
+        var command = new ApplyParticipationClassificationCommand(
+            DecisionApplicationOperationId.New(), decision.DecisionId, decision.Revision,
+            new DateTimeOffset(2026, 9, 13, 10, 0, 0, TimeSpan.Zero));
+
+        var result = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().BeSameAs(ParticipationErrors.ClassificationCorrectionRequired);
+        participation.Status.Should().Be(originalStatus);
+        participation.DomainEvents.Should().Equal(originalEvents);
+        applications.AddCallCount.Should().Be(0);
+        operations.AddCallCount.Should().Be(0);
+        committer.CommitCallCount.Should().Be(0);
+        metrics.Reasons.Should().Equal(ParticipationErrors.ClassificationCorrectionRequired.Code);
+        metrics.AppliedCount.Should().Be(0);
+        metrics.ReplayCount.Should().Be(0);
+        logger.LogCallCount.Should().Be(1);
+        logger.Entry!.EventId.Name.Should().Be("DecisionApplicationRejected");
+        logger.Entry.Properties["ErrorCode"].Should().Be(ParticipationErrors.ClassificationCorrectionRequired.Code);
+        logger.Entry.WasCommitOutcomeReturned.Should().BeFalse();
+    }
+
+    private sealed class RecordingClassificationRejectionMetrics : IDecisionApplicationMetrics
+    {
+        public List<string> Reasons { get; } = new();
+        public int AppliedCount { get; private set; }
+        public int ReplayCount { get; private set; }
+        public void RecordAppliedOutcome() => AppliedCount++;
+        public void RecordReplayOutcome() => ReplayCount++;
+        public void RecordRejectedOutcome(string reason) => Reasons.Add(reason);
+    }
+
     private static Participation CreateParticipation()
     {
         var creationResult =

@@ -23,6 +23,10 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence("AtmacaCardNumbers", "dbo")
+                .HasMin(1L)
+                .HasMax(999999L);
+
             modelBuilder.Entity("ProjectAtmaca.Application.Decisions.ApplyParticipationClassification.DecisionApplicationOperation", b =>
                 {
                     b.Property<Guid>("OperationId")
@@ -40,6 +44,45 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.HasKey("OperationId");
 
                     b.ToTable("DecisionApplicationOperations", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CardNumber")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("IssuedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardNumber")
+                        .IsUnique();
+
+                    b.HasIndex("PersonId")
+                        .IsUnique();
+
+                    b.ToTable("AtmacaCards", (string)null);
                 });
 
             modelBuilder.Entity("ProjectAtmaca.Domain.Decisions.Decision", b =>
@@ -138,6 +181,12 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DecisionId", "AppliedAtUtc", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_DecisionApplications_Decision_AppliedAt_Id");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("DecisionId", "AppliedAtUtc", "Id"), new[] { "AppliedDecisionRevision" });
+
                     b.ToTable("DecisionApplications", (string)null);
                 });
 
@@ -215,11 +264,198 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ActivityReference")
+                        .HasDatabaseName("IX_Participations_ActivityReference");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ActivityReference"), new[] { "AtmacaCardId", "Status", "Condition", "JoinedAt", "LeftAt" });
+
                     b.HasIndex("AtmacaCardId", "ActivityReference")
                         .IsUnique()
                         .HasDatabaseName("UX_Participations_AtmacaCard_Activity");
 
+                    b.HasIndex("AtmacaCardId", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_Participations_AtmacaCard_CreatedAt_Id");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("AtmacaCardId", "CreatedAtUtc", "Id"), new[] { "ActivityReference", "Status", "Condition", "JoinedAt", "LeftAt" });
+
                     b.ToTable("Participations", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.Person", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BirthCountry")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("BirthDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("BirthPlace")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BloodType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FatherName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("MotherName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("PrimaryPhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SecondaryPhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Persons", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonCitizenship", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("AcquiredOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("PersonCitizenships", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.Registration.PersonRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Identity")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NationalIdentityNumber")
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
+
+                    b.Property<string>("PassportMatchKey")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NationalIdentityNumber")
+                        .IsUnique()
+                        .HasFilter("[NationalIdentityNumber] IS NOT NULL");
+
+                    b.HasIndex("PassportMatchKey");
+
+                    b.HasIndex("PersonId")
+                        .IsUnique();
+
+                    b.ToTable("PersonRegistrations", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Infrastructure.Persistence.Persons.PersonRegistrationOperation", b =>
+                {
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CardNumber")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("InputJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("IssuedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ActorId", "OperationId");
+
+                    b.HasIndex("CardId");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("PersonRegistrationOperations", (string)null);
                 });
 
             modelBuilder.Entity("ProjectAtmaca.Infrastructure.Persistence.Security.ActorIdentityMapping", b =>
@@ -293,6 +529,48 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("ActorPermissionGrants", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Persons.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonCitizenship", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Persons.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.Registration.PersonRegistration", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Persons.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Infrastructure.Persistence.Persons.PersonRegistrationOperation", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", null)
+                        .WithMany()
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ProjectAtmaca.Domain.Persons.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

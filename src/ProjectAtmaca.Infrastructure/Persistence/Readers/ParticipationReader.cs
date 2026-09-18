@@ -224,7 +224,9 @@ public sealed class ParticipationReader
                             row.Condition?.Code,
                             row.JoinedAt,
                             row.LeftAt,
-                            row.CreatedAtUtc))
+                            DateTime.SpecifyKind(
+                                row.CreatedAtUtc,
+                                DateTimeKind.Utc)))
                 .ToList();
 
         ParticipationHistoryCursor? nextCursor =
@@ -239,7 +241,9 @@ public sealed class ParticipationReader
             nextCursor =
                 new ParticipationHistoryCursor(
                     atmacaCardId,
-                    lastRow.CreatedAtUtc,
+                    DateTime.SpecifyKind(
+                        lastRow.CreatedAtUtc,
+                        DateTimeKind.Utc),
                     lastRow.Id);
         }
 
