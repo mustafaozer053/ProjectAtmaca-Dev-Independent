@@ -28,6 +28,19 @@ public sealed class Person : AuditableAggregateRoot
 
     public Address? Address { get; private set; }
 
+    private readonly List<PersonRole> _roles = [];
+
+    private readonly List<CareerTransition> _careerTransitions = [];
+
+    public IReadOnlyCollection<PersonRole> Roles => _roles.AsReadOnly();
+
+    public IReadOnlyCollection<CareerTransition> CareerTransitions => _careerTransitions.AsReadOnly();
+
+    public PersonRole? CurrentRole => _roles
+        .Where(role => role.Status == PersonRoleStatus.Active)
+        .OrderByDescending(role => role.StartDateUtc)
+        .FirstOrDefault();
+
     private Person(
         PersonName name,
         BirthDate birthDate,
@@ -153,5 +166,97 @@ public sealed class Person : AuditableAggregateRoot
     public void ChangeAddress(Address? address)
     {
         Address = address;
+    }
+
+    public Result AddRole(PersonRole role)
+    {
+        ArgumentNullException.ThrowIfNull(role);
+
+        if (_roles.Any(existingRole =>
+                existingRole.Status == PersonRoleStatus.Active &&
+                existingRole.RoleType == role.RoleType))
+        {
+            return Result.Failure(
+                Error.Create(
+                    "PERSON_ROLE_ALREADY_ACTIVE",
+                    "The person already has an active role of this type."));
+        }
+
+        _roles.Add(role);
+
+        return Result.Success();
+    }
+
+    public Result TransitionRole(
+        PersonRoleType fromRole,
+        PersonRoleType toRole,
+        DateTime transitionDateUtc,
+        string? notes = null)
+    {
+        if (fromRole == toRole)
+        {
+            return Result.Failure(
+                Error.Create(
+                    "PERSON_ROLE_TRANSITION_SAME_ROLE",
+                    "A role transition must move to a different role."));
+        }
+
+        var currentRole = _roles.FirstOrDefault(
+            role => role.Status == PersonRoleStatus.Active &&
+                    role.RoleType == fromRole);
+
+        if (currentRole is null)
+        {
+            return Result.Failure(
+                Error.Create(
+                    "PERSON_ROLE_NOT_ACTIVE",
+                    "The source role is not active for this person."));
+        }
+
+        if (transitionDateUtc < currentRole.StartDateUtc)
+        {
+            return Result.Failure(
+                Error.Create(
+                    "PERSON_ROLE_TRANSITION_DATE_INVALID",
+                    "Transition date cannot be earlier than the role start date."));
+        }
+
+        var closeResult = currentRole.Close(
+            transitionDateUtc,
+            PersonRoleStatus.Completed);
+
+        if (closeResult.IsFailure)
+        {
+            return closeResult;
+        }
+
+        var nextRoleResult = PersonRole.Create(
+            Id,
+            toRole,
+            transitionDateUtc,
+            notes: notes);
+
+        if (nextRoleResult.IsFailure)
+        {
+            return nextRoleResult;
+        }
+
+        _roles.Add(nextRoleResult.Value!);
+
+        var transitionResult = CareerTransition.Create(
+            Id,
+            fromRole,
+            toRole,
+            transitionDateUtc,
+            notes);
+
+        if (transitionResult.IsFailure)
+        {
+            return transitionResult;
+        }
+
+        _careerTransitions.Add(transitionResult.Value!);
+
+        return Result.Success();
     }
 }
