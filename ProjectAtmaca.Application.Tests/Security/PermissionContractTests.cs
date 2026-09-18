@@ -111,7 +111,10 @@ public sealed class PermissionContractTests
             Permissions.Persons.RegisterWithAtmacaCard,
 
             Permissions.Participations
-                .RecordDeparture
+                .RecordDeparture,
+
+            Permissions.Trainings
+                .Cancel
         };
 
         string[] expectedCodes =
@@ -126,7 +129,8 @@ public sealed class PermissionContractTests
             "Participations.MarkPresent",
             "Participations.RecordArrival",
             "Persons.RegisterWithAtmacaCard",
-            "Participations.RecordDeparture"
+            "Participations.RecordDeparture",
+            "Trainings.Cancel"
         };
 
         permissions

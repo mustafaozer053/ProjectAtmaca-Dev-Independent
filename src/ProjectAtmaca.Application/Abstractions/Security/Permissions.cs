@@ -59,6 +59,13 @@ public static class Permissions
                 "Participations.RecordDeparture");
     }
 
+    public static class Trainings
+    {
+        public static readonly Permission Cancel =
+            Permission.Create(
+                "Trainings.Cancel");
+    }
+
     private static readonly IReadOnlyList<Permission>
         AllPermissions =
             Array.AsReadOnly(
@@ -78,7 +85,8 @@ public static class Permissions
                     Participations.MarkPresent,
                     Participations.RecordArrival,
                     Persons.RegisterWithAtmacaCard,
-                    Participations.RecordDeparture
+                    Participations.RecordDeparture,
+                    Trainings.Cancel
                 });
 
     public static IReadOnlyList<Permission> All
