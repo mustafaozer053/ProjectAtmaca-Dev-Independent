@@ -114,6 +114,9 @@ public sealed class PermissionContractTests
                 .RecordDeparture,
 
             Permissions.Trainings
+                .GetById,
+
+            Permissions.Trainings
                 .Cancel
         };
 
@@ -130,6 +133,7 @@ public sealed class PermissionContractTests
             "Participations.RecordArrival",
             "Persons.RegisterWithAtmacaCard",
             "Participations.RecordDeparture",
+            "Trainings.GetById",
             "Trainings.Cancel"
         };
 

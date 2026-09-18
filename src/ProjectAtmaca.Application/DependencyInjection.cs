@@ -12,6 +12,7 @@ using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Application.Decisions.ApplyParticipationClassification;
 using ProjectAtmaca.Application.Decisions.ListApplicationHistory;
 using ProjectAtmaca.Application.Trainings.Cancel;
+using ProjectAtmaca.Application.Trainings.GetById;
 
 namespace ProjectAtmaca.Application;
 
@@ -62,6 +63,9 @@ public static class DependencyInjection
 
         services.AddScoped<
             CancelTrainingCommandHandler>();
+
+        services.AddScoped<
+            GetTrainingByIdQueryHandler>();
 
         return services;
     }
