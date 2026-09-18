@@ -1,5 +1,7 @@
 # Project Atmaca — Proje hafızası
 
+18 Eylül son durum: [Person kayıt API'si](person-kayit-api-sozlesmesi.md) uygulandı; tüm API **192/192 GREEN**, buna gerçek üretim SQL/DI üzerinden üç kimlik türü de dahil. Sıradaki kapı merkezi beklenmeyen hata yanıtı ve kayıt istek boyutu politikasıdır. Güncel devam [checkpoint](checkpoint.md) başındadır; aşağıdaki endpoint henüz yok ve eski GitHub durumları tarihçedir.
+
 18 Eylül: kullanıcı GitHub güncellemelerine izin verdi. Doğrulanmış checkpoint'ler commit/push ile paylaşılacak. Tam çözüm **684/684 GREEN**; güncel çalışma noktası [checkpoint](checkpoint.md). Eski stage/commit yapılmadı kayıtları tarihseldir.
 
 18 Eylül güncel durum: [ek vatandaşlık ve tutarlılık](ek-vatandaslik-kayit-akisi.md), Application 141/141 GREEN; önceki SQL 161/161. [API transport tasarımı](person-kayit-api-sozlesmesi.md) hazır; sıradaki adım ilk endpoint testi ve mapping. Değişiklikler yerelde, stage/commit/push yok.

@@ -1,5 +1,15 @@
 # Güncel checkpoint
 
+## Person kayıt HTTP ve gerçek SQL checkpoint'i — 18 Eylül 2026
+
+`POST /api/person-registrations` uygulandı. Açık transport DTO'ları mevcut kayıt koordinatörüne bağlandı; tarih/ülke/iletişim alanları güvenli factory mapping ile korunur. Yetki reddinde tek Application authorization çağrısı, store ve numara erişimi sıfır. Başarı ve exact replay aynı 200 receipt sözleşmesi; operation çatışması, TCKN mükerrerliği, pasaport teyidi ve kapasite 409; eksik gerekçe/koşullu kimlik alanları 400.
+
+Kanıt: yeni HTTP testleri **25/25**, üretim SQL/DI composition **3/3**; tüm API **192/192 GREEN**, başarısız/atlanan 0. Üç TC statüsü, opsiyonel kişi alanları/iki vatandaşlık, audit actor, SQL kayıt sayısı, replay, conflict, pasaport gerekçesi ve sequence kapasitesi doğrulandı. Son API regresyonu kapasite ve zorunlu alan ek kontrollerini de içerir. Önceki tam çözüm 684/684'tür; bugün tam çözüm yeniden koşulmadı. Testler uygulamadan önce RED çalıştırılmadı. İlk sandbox koşumu Windows EventLog erişim engeliyle başarısızdı; normal kullanıcı izinleriyle testler geçti.
+
+**Sıradaki adım:** API genel beklenmeyen hata sınırı ve kayıt istek boyutu politikası. Program.cs'de merkezi exception-to-problem handler yok; önceki tasarımın bunu var kabul eden satırı düzeltildi. Beklenen kayıt hataları doğrulanmıştır, beklenmeyen altyapı hataları için sanitizasyon kanıtı henüz yoktur. Bu checkpoint üretime hazır ilanı değildir. Ardından kişi okuma/arama ihtiyacı mevcut yol haritasıyla netleştirilecek.
+
+Üretim veritabanına migration uygulanmadı; yeni migration yok. GitHub tabanı `0564c33`; bu doğrulanmış adım kullanıcının sürekli eşitleme talimatıyla ayrı commit/push yapılacak. Önceki endpoint yok/devam bekliyor kayıtları tarihçedir.
+
 ## GitHub eşitleme checkpoint'i — 18 Eylül 2026
 
 Kullanıcı GitHub'ın geliştirmelerle güncel tutulmasını istedi; önceki stage/commit yapmama talimatı bu açık istekle değişti. Doğrulanmış adımlar commit/push ile yayımlanacak. Yayın öncesi tam solution regresyonu: Domain 218/218, Application 141/141, Infrastructure 161/161, API 164/164; toplam **684/684 GREEN**, başarısız/atlanan 0. Kaynak asistanın gerçek test koşumu. GitHub main yerel HEAD'in 50 commit gerisinde, uzakta ayrı commit yok; force push gerekmiyor.
