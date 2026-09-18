@@ -114,6 +114,17 @@ public sealed class RescheduleTrainingCommandHandlerTests
                     TrainingTypeName.Create("Taktik").Value!,
                     TrainingTypeDescription.Create(null).Value!,
                     1).Value);
+
+        public Task AddAsync(
+            TrainingType trainingType,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<IReadOnlyList<TrainingType>> ListAsync(
+            bool activeOnly,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TrainingType>>(
+                Array.Empty<TrainingType>());
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork

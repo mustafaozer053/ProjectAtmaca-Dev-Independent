@@ -16,6 +16,9 @@ using ProjectAtmaca.Application.Trainings.GetById;
 using ProjectAtmaca.Application.Trainings.Create;
 using ProjectAtmaca.Application.Trainings.Confirm;
 using ProjectAtmaca.Application.Trainings.Reschedule;
+using ProjectAtmaca.Application.TrainingTypes.Create;
+using ProjectAtmaca.Application.TrainingTypes.List;
+using ProjectAtmaca.Application.TrainingTypes.ChangeStatus;
 
 namespace ProjectAtmaca.Application;
 
@@ -78,6 +81,9 @@ public static class DependencyInjection
 
         services.AddScoped<
             RescheduleTrainingCommandHandler>();
+        services.AddScoped<CreateTrainingTypeCommandHandler>();
+        services.AddScoped<ListTrainingTypesQueryHandler>();
+        services.AddScoped<ChangeTrainingTypeStatusCommandHandler>();
 
         return services;
     }

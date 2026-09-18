@@ -82,6 +82,16 @@ public static class Permissions
                 "Trainings.Cancel");
     }
 
+    public static class TrainingTypes
+    {
+        public static readonly Permission Create =
+            Permission.Create("TrainingTypes.Create");
+        public static readonly Permission List =
+            Permission.Create("TrainingTypes.List");
+        public static readonly Permission ChangeStatus =
+            Permission.Create("TrainingTypes.ChangeStatus");
+    }
+
     private static readonly IReadOnlyList<Permission>
         AllPermissions =
             Array.AsReadOnly(
@@ -106,7 +116,10 @@ public static class Permissions
                     Trainings.Confirm,
                     Trainings.Reschedule,
                     Trainings.GetById,
-                    Trainings.Cancel
+                    Trainings.Cancel,
+                    TrainingTypes.Create,
+                    TrainingTypes.List,
+                    TrainingTypes.ChangeStatus
                 });
 
     public static IReadOnlyList<Permission> All

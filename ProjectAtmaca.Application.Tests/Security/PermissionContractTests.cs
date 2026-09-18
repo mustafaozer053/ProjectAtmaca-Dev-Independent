@@ -126,7 +126,11 @@ public sealed class PermissionContractTests
                 .GetById,
 
             Permissions.Trainings
-                .Cancel
+                .Cancel,
+
+            Permissions.TrainingTypes.Create,
+            Permissions.TrainingTypes.List,
+            Permissions.TrainingTypes.ChangeStatus
         };
 
         string[] expectedCodes =
@@ -146,7 +150,10 @@ public sealed class PermissionContractTests
             "Trainings.Confirm",
             "Trainings.Reschedule",
             "Trainings.GetById",
-            "Trainings.Cancel"
+            "Trainings.Cancel",
+            "TrainingTypes.Create",
+            "TrainingTypes.List",
+            "TrainingTypes.ChangeStatus"
         };
 
         permissions

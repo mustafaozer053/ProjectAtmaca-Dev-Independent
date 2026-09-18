@@ -176,6 +176,17 @@ public sealed class CreateTrainingCommandHandlerTests
             TrainingTypeId id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(_trainingType);
+
+        public Task AddAsync(
+            TrainingType trainingType,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<IReadOnlyList<TrainingType>> ListAsync(
+            bool activeOnly,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<TrainingType>>(
+                Array.Empty<TrainingType>());
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork
