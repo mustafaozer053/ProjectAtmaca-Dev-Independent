@@ -483,6 +483,58 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
 
         return Result.Success();
     }
+
+    public Result<ScoutingConversion> ConvertToPlayer(
+        Guid personId,
+        Guid clubId,
+        Guid academyId,
+        Guid? teamId = null,
+        DateTime? convertedAtUtc = null,
+        string? notes = null)
+    {
+        if (personId == Guid.Empty)
+        {
+            return Result<ScoutingConversion>.Failure(
+                Error.Create(
+                    "SCOUTING_CONVERSION_PERSON_ID_REQUIRED",
+                    "Person id is required."));
+        }
+
+        if (clubId == Guid.Empty)
+        {
+            return Result<ScoutingConversion>.Failure(
+                Error.Create(
+                    "SCOUTING_CONVERSION_CLUB_ID_REQUIRED",
+                    "Club id is required."));
+        }
+
+        if (academyId == Guid.Empty)
+        {
+            return Result<ScoutingConversion>.Failure(
+                Error.Create(
+                    "SCOUTING_CONVERSION_ACADEMY_ID_REQUIRED",
+                    "Academy id is required."));
+        }
+
+        var conversion = ScoutingConversion.Create(
+            Id,
+            personId,
+            clubId,
+            academyId,
+            teamId,
+            convertedAtUtc,
+            notes);
+
+        if (conversion.IsFailure)
+        {
+            return conversion;
+        }
+
+        ScoutingDecision = ScoutingDecision.Positive;
+
+        return conversion;
+    }
+
     private Result<ScoutingObservation> FindObservation(
     Guid observationId)
     {
