@@ -69,6 +69,10 @@ public static class Permissions
             Permission.Create(
                 "Trainings.Confirm");
 
+        public static readonly Permission Reschedule =
+            Permission.Create(
+                "Trainings.Reschedule");
+
         public static readonly Permission GetById =
             Permission.Create(
                 "Trainings.GetById");
@@ -100,6 +104,7 @@ public static class Permissions
                     Participations.RecordDeparture,
                     Trainings.Create,
                     Trainings.Confirm,
+                    Trainings.Reschedule,
                     Trainings.GetById,
                     Trainings.Cancel
                 });

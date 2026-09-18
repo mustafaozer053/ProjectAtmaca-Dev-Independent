@@ -5,6 +5,7 @@ using ProjectAtmaca.Application.Trainings.Cancel;
 using ProjectAtmaca.Application.Trainings.GetById;
 using ProjectAtmaca.Application.Trainings.Create;
 using ProjectAtmaca.Application.Trainings.Confirm;
+using ProjectAtmaca.Application.Trainings.Reschedule;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Trainings;
 
@@ -23,12 +24,14 @@ public sealed class TrainingsController : ControllerBase
     private readonly GetTrainingByIdQueryHandler _getByIdHandler;
     private readonly CreateTrainingCommandHandler _createHandler;
     private readonly ConfirmTrainingCommandHandler _confirmHandler;
+    private readonly RescheduleTrainingCommandHandler _rescheduleHandler;
 
     public TrainingsController(
         CancelTrainingCommandHandler cancelHandler,
         GetTrainingByIdQueryHandler getByIdHandler,
         CreateTrainingCommandHandler createHandler,
-        ConfirmTrainingCommandHandler confirmHandler)
+        ConfirmTrainingCommandHandler confirmHandler,
+        RescheduleTrainingCommandHandler rescheduleHandler)
     {
         _cancelHandler = cancelHandler ??
             throw new ArgumentNullException(nameof(cancelHandler));
@@ -38,6 +41,8 @@ public sealed class TrainingsController : ControllerBase
             throw new ArgumentNullException(nameof(createHandler));
         _confirmHandler = confirmHandler ??
             throw new ArgumentNullException(nameof(confirmHandler));
+        _rescheduleHandler = rescheduleHandler ??
+            throw new ArgumentNullException(nameof(rescheduleHandler));
     }
 
     [HttpPost]
@@ -148,6 +153,37 @@ public sealed class TrainingsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{trainingId}/reschedule")]
+    public async Task<IActionResult> Reschedule(
+        string trainingId,
+        [FromBody] RescheduleTrainingRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParseExact(trainingId, "D", out Guid parsedId) ||
+            parsedId == Guid.Empty)
+        {
+            return ToProblem(InvalidTrainingId);
+        }
+
+        Result result = await _rescheduleHandler.Handle(
+            new RescheduleTrainingCommand(
+                TrainingId.From(parsedId),
+                request.Date,
+                request.StartTime,
+                request.EndTime,
+                (request.Assignments ?? Array.Empty<CreateTrainingAssignmentRequest>())
+                    .Select(x => new TrainingTypeAssignmentInput(
+                        x.TrainingTypeId,
+                        x.DurationMinutes))
+                    .ToList()),
+            cancellationToken);
+
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
+    }
+
     private ObjectResult ToProblem(Error error)
     {
         int statusCode = error.Code == ActorAuthorizationErrors.Forbidden.Code
@@ -158,6 +194,8 @@ public sealed class TrainingsController : ControllerBase
               error.Code == TrainingErrors.TrainingTypeAssignmentRequired.Code
                 ? StatusCodes.Status400BadRequest
             : error.Code == ConfirmTrainingErrors.NotFound.Code
+                ? StatusCodes.Status404NotFound
+            : error.Code == RescheduleTrainingErrors.NotFound.Code
                 ? StatusCodes.Status404NotFound
             : error.Code == CancelTrainingErrors.NotFound.Code
                 ? StatusCodes.Status404NotFound

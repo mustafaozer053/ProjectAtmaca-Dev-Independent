@@ -163,6 +163,12 @@ public sealed class Training : AuditableAggregateRoot
         ArgumentNullException.ThrowIfNull(schedule);
         ArgumentNullException.ThrowIfNull(assignments);
 
+        if (Status == TrainingStatus.Cancelled)
+        {
+            return Result.Failure(
+                TrainingErrors.RescheduleCancelledTraining);
+        }
+
         List<TrainingTypeAssignment> assignmentList =
             assignments.ToList();
 

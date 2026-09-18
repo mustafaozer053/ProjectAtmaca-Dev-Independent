@@ -120,6 +120,9 @@ public sealed class PermissionContractTests
                 .Confirm,
 
             Permissions.Trainings
+                .Reschedule,
+
+            Permissions.Trainings
                 .GetById,
 
             Permissions.Trainings
@@ -141,6 +144,7 @@ public sealed class PermissionContractTests
             "Participations.RecordDeparture",
             "Trainings.Create",
             "Trainings.Confirm",
+            "Trainings.Reschedule",
             "Trainings.GetById",
             "Trainings.Cancel"
         };

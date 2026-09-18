@@ -233,4 +233,21 @@ public sealed class TrainingBehaviorTests
 
         training.Status.Should().Be(TrainingStatus.Cancelled);
     }
+
+    [Fact]
+    public void Reschedule_Should_Reject_CancelledTraining()
+    {
+        Training training = CreateTraining();
+        training.Cancel();
+
+        var result = training.Reschedule(
+            TrainingSchedule.Create(
+                new DateOnly(2026, 8, 4),
+                new TimeOnly(17, 0),
+                new TimeOnly(18, 0)).Value!,
+            training.TrainingTypeAssignments.ToArray());
+
+        result.Error.Should().Be(TrainingErrors.RescheduleCancelledTraining);
+        training.Status.Should().Be(TrainingStatus.Cancelled);
+    }
 }
