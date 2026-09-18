@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ProjectAtmaca.Domain.Participations;
+using ProjectAtmaca.Domain.Trainings;
 
 namespace ProjectAtmaca.Infrastructure.Persistence;
 
@@ -14,6 +15,9 @@ public sealed class ProjectAtmacaDbContext
 
     public DbSet<Participation> Participations =>
         Set<Participation>();
+
+    public DbSet<Training> Trainings =>
+        Set<Training>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
