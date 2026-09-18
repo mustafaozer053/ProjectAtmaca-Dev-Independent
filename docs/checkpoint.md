@@ -1,5 +1,15 @@
 # Güncel checkpoint
 
+## API hata sınırı ve kayıt boyutu — 18 Eylül 2026
+
+Merkezi `UseExceptionHandler` tüm ortamlarda eklendi. Beklenmeyen hata: 500, `application/problem+json`, `Api.UnexpectedError`, sabit mesaj ve traceId; exception mesajı, inner exception ve stack trace HTTP yanıtına girmez. Sunucu tarafı framework hata logları korunur; log erişimi/saklama/redaksiyon politikası bu adımın kanıtı değildir. Başlamış yanıt ve bağlantı iptalinde framework davranışı korunur; istemciye başarı/rollback iddiası yapılmaz.
+
+Person kayıt endpoint'ine 64 KiB UTF-8 gövde sınırı eklendi. Resource filter, model binding öncesinde Content-Length'i denetler; uzunluk bilinmiyorsa en fazla limit + 1 bayt okur. Aşım 413 `Api.Request.TooLarge`; Application authorization ve kayıt deposuna ulaşmaz. Authentication/actor çözümleme önce çalışır; tüm sistemde sıfır veritabanı erişimi iddiası yoktur. Bu tek kayıt JSON sözleşmesidir, dosya yükleme/toplu kayıt değildir. Reverse proxy/host daha düşük limit uygulayabilir.
+
+Kanıt: 8 yeni güvenlik testi; Development/Production + farklı Accept başlıkları; bilinen/bilinmeyen gövde boyutunda 65535/65536/65537 bayt. Odaklı 8/8, tüm API 200/200 GREEN; başarısız/atlanan 0. İlk Production test hostunda bağlantı ayarı eksikti; test başlangıç ayarı düzeltildi. Bu adım için önce RED uygulama koşumu yapılmadı. Tam çözüm yeniden koşulmadı; üretim DB/migration değişmedi.
+
+**Sıradaki adım:** kişi okuma/arama için mevcut kabiliyet, yetki ve kişisel veri görünürlüğü incelemesi; ardından en küçük gerekli sözleşme/test dilimi. Önceki merkezi hata/boyut açık kapıları bu adımla kapanmıştır; pilot öncesi veri koruma ve gerçek JWT/host doğrulaması ayrı kalır. Doğrulanmış adım GitHub'a ayrı commit/push ile gönderilir.
+
 ## Person kayıt HTTP ve gerçek SQL checkpoint'i — 18 Eylül 2026
 
 `POST /api/person-registrations` uygulandı. Açık transport DTO'ları mevcut kayıt koordinatörüne bağlandı; tarih/ülke/iletişim alanları güvenli factory mapping ile korunur. Yetki reddinde tek Application authorization çağrısı, store ve numara erişimi sıfır. Başarı ve exact replay aynı 200 receipt sözleşmesi; operation çatışması, TCKN mükerrerliği, pasaport teyidi ve kapasite 409; eksik gerekçe/koşullu kimlik alanları 400.

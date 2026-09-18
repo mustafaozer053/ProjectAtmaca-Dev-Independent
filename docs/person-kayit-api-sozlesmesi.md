@@ -1,5 +1,11 @@
 # İlk kişi kaydı API transport tasarımı — 18 Eylül 2026
 
+## Güncel güvenlik eki — 18 Eylül 2026
+
+Aşağıdaki önceki açık kapıların ikisi kapandı: merkezi beklenmeyen hata yanıtı ve 64 KiB kayıt gövde sınırı uygulandı. Boyut byte cinsinden JSON'un tamamına uygulanır; bilinmeyen Content-Length de denetlenir. 413 `Api.Request.TooLarge`; beklenmeyen hatada 500 `Api.UnexpectedError`. İkisi de problem+json ve traceId içerir; ham exception içermez. 64 KiB tek kayıt için teknik sınırdır; ekler ayrı yükleme sözleşmesi gerektirir. Host/proxy kaynaklı ret yanıtları ayrıca işletim ortamında doğrulanmalıdır.
+
+Kanıt: `RegisterPersonEndpointSafetyTests`, 8/8; tüm API 200/200. Exception sanitizasyonu istemci yanıtı içindir; framework server loglarının kişisel veri saklama/redaksiyon politikası ayrıca ele alınmalıdır. Ayrıntılı devam [checkpoint](checkpoint.md) başında. Aşağıdaki tasarım/açık kapı ifadeleri önceki dilimin kaydıdır.
+
 Durum: 18 Eylül 2026 endpoint uygulandı. API 192/192 GREEN; 25 yeni transport/yetki testi ve 3 gerçek SQL/üretim DI testi. Beklenmeyen hata sınırı ve istek boyutu politikası aşağıda açık kapı olarak belirtilir.
 
 ## İncelenen mevcut sınırlar

@@ -1,5 +1,7 @@
 # Project Atmaca — Proje hafızası
 
+18 Eylül en güncel: merkezi güvenli hata yanıtı ve Person kayıt için 64 KiB gövde sınırı uygulandı. API **200/200 GREEN**. Devam: kişi okuma/arama, yetki ve veri görünürlüğü incelemesi. Ayrıntı ve sınırlar [checkpoint](checkpoint.md) başında; aşağıdaki açık kapı/sonraki adım ifadeleri tarihseldir.
+
 18 Eylül son durum: [Person kayıt API'si](person-kayit-api-sozlesmesi.md) uygulandı; tüm API **192/192 GREEN**, buna gerçek üretim SQL/DI üzerinden üç kimlik türü de dahil. Sıradaki kapı merkezi beklenmeyen hata yanıtı ve kayıt istek boyutu politikasıdır. Güncel devam [checkpoint](checkpoint.md) başındadır; aşağıdaki endpoint henüz yok ve eski GitHub durumları tarihçedir.
 
 18 Eylül: kullanıcı GitHub güncellemelerine izin verdi. Doğrulanmış checkpoint'ler commit/push ile paylaşılacak. Tam çözüm **684/684 GREEN**; güncel çalışma noktası [checkpoint](checkpoint.md). Eski stage/commit yapılmadı kayıtları tarihseldir.

@@ -132,6 +132,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseExceptionHandler(handler => handler.Run(ProjectAtmaca.Api.Errors.UnexpectedRequestProblem.WriteAsync));
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

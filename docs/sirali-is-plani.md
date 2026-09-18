@@ -1,5 +1,7 @@
 # Project Atmaca — sıralı iş planı
 
+18 Eylül son ilerleme: merkezi hata yanıtı ve tek kişi kayıt gövde sınırı tamamlandı; API **200/200 GREEN**. Şimdi kişi okuma/arama kabiliyetleri, izin ve veri görünürlüğü incelenecek; sonra gereken en küçük API dilimi belirlenecek. Önceki (1) hata/boyut adımı kapandı; UI prototipi hazırlık koşulları korunur.
+
 18 Eylül güncel devam: Person kayıt HTTP dilimi tamamlandı; API **192/192 GREEN**. Gerçek SQL/DI ile kayıt, replay, mükerrerlik teyidi/gerekçesi, audit ve kapasite test edildi. Sonraki sıralı iş: (1) merkezi beklenmeyen hata yanıtı ve istek boyutu sınırı, (2) kişi okuma/arama sözleşmesi ve yetki kapsamının mevcut kabiliyetlerle karşılaştırılması, (3) kayıt ekranı prototipine geçiş koşulları. Bu, aşağıdaki ana ürün yol haritasının yerine geçmez; Person diliminin devam noktasıdır. Üretim migration yok; doğrulanmış adımlar GitHub'a gönderilir.
 
 18 Eylül devam noktası: ek vatandaşlık kayıt/replay/SQL akışı tamamlandı; TC statüsü ve tarih tutarlılığı eklendi, Application 141/141 GREEN. [API transport sözleşmesine](person-kayit-api-sozlesmesi.md) göre DTO/mapping ve ilk endpoint yetki testi sırada. Endpoint henüz yok; önceki devam notları tarihçedir.

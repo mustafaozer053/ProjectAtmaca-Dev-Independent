@@ -10,7 +10,9 @@ namespace ProjectAtmaca.Api.Persons;
 [Route("api/person-registrations")]
 public sealed class PersonRegistrationsController(RegisterPersonWithAtmacaCard handler) : ControllerBase
 {
+    // One registration JSON document; attachments use a separate upload contract.
     [HttpPost]
+    [ProjectAtmaca.Api.Errors.LimitedRequestBody(64 * 1024)]
     public async Task<IActionResult> Register([FromBody] RegisterPersonRequest request, CancellationToken cancellationToken)
     {
         if (!Guid.TryParseExact(request.OperationId, "D", out var operationId) || operationId == Guid.Empty)
