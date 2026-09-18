@@ -21,6 +21,7 @@ public sealed class RescheduleTrainingCommandHandlerTests
         var handler = new RescheduleTrainingCommandHandler(
             new GrantedAuthorizationService(),
             new FakeTrainingRepository(training),
+            new FakeTrainingTypeRepository(),
             unitOfWork);
 
         var result = await handler.Handle(
@@ -47,6 +48,7 @@ public sealed class RescheduleTrainingCommandHandlerTests
         var handler = new RescheduleTrainingCommandHandler(
             new GrantedAuthorizationService(),
             new FakeTrainingRepository(null),
+            new FakeTrainingTypeRepository(),
             unitOfWork);
 
         var result = await handler.Handle(
@@ -99,6 +101,19 @@ public sealed class RescheduleTrainingCommandHandlerTests
             TrainingId id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(training);
+    }
+
+    private sealed class FakeTrainingTypeRepository : ITrainingTypeRepository
+    {
+        public Task<TrainingType?> GetByIdAsync(
+            TrainingTypeId id,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<TrainingType?>(
+                TrainingType.Create(
+                    TrainingTypeCode.Create("TACTIC").Value!,
+                    TrainingTypeName.Create("Taktik").Value!,
+                    TrainingTypeDescription.Create(null).Value!,
+                    1).Value);
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork

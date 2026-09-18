@@ -11,15 +11,18 @@ public sealed class RescheduleTrainingCommandHandler
 {
     private readonly IActorAuthorizationService _authorizationService;
     private readonly ITrainingRepository _trainingRepository;
+    private readonly ITrainingTypeRepository _trainingTypeRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public RescheduleTrainingCommandHandler(
         IActorAuthorizationService authorizationService,
         ITrainingRepository trainingRepository,
+        ITrainingTypeRepository trainingTypeRepository,
         IUnitOfWork unitOfWork)
     {
         _authorizationService = authorizationService;
         _trainingRepository = trainingRepository;
+        _trainingTypeRepository = trainingTypeRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -50,6 +53,17 @@ public sealed class RescheduleTrainingCommandHandler
         {
             if (input.TrainingTypeId == Guid.Empty)
                 return Result.Failure(TrainingCreationErrors.TrainingTypeRequired);
+
+            TrainingType? trainingType =
+                await _trainingTypeRepository.GetByIdAsync(
+                    TrainingTypeId.From(input.TrainingTypeId),
+                    cancellationToken);
+
+            if (trainingType is null)
+                return Result.Failure(TrainingCreationErrors.TrainingTypeNotFound);
+
+            if (!trainingType.IsActive)
+                return Result.Failure(TrainingCreationErrors.TrainingTypeInactive);
 
             Result<TrainingTypeDuration> durationResult =
                 TrainingTypeDuration.Create(input.DurationMinutes);

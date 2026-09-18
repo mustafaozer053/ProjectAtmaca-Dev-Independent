@@ -18,4 +18,14 @@ public static class TrainingCreationErrors
         Error.Create(
             "Training.Create.TrainingTypeRequired",
             "Every training assignment must have a training type.");
+
+    public static readonly Error TrainingTypeNotFound =
+        Error.Create(
+            "Training.Create.TrainingTypeNotFound",
+            "The selected training type does not exist.");
+
+    public static readonly Error TrainingTypeInactive =
+        Error.Create(
+            "Training.Create.TrainingTypeInactive",
+            "The selected training type is inactive.");
 }

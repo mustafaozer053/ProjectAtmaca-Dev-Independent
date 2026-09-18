@@ -12,15 +12,18 @@ public sealed class CreateTrainingCommandHandler
 {
     private readonly IActorAuthorizationService _authorizationService;
     private readonly ITrainingRepository _trainingRepository;
+    private readonly ITrainingTypeRepository _trainingTypeRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateTrainingCommandHandler(
         IActorAuthorizationService authorizationService,
         ITrainingRepository trainingRepository,
+        ITrainingTypeRepository trainingTypeRepository,
         IUnitOfWork unitOfWork)
     {
         _authorizationService = authorizationService;
         _trainingRepository = trainingRepository;
+        _trainingTypeRepository = trainingTypeRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -57,6 +60,19 @@ public sealed class CreateTrainingCommandHandler
                 return Result<TrainingId>.Failure(
                     TrainingCreationErrors.TrainingTypeRequired);
             }
+
+            TrainingType? trainingType =
+                await _trainingTypeRepository.GetByIdAsync(
+                    TrainingTypeId.From(input.TrainingTypeId),
+                    cancellationToken);
+
+            if (trainingType is null)
+                return Result<TrainingId>.Failure(
+                    TrainingCreationErrors.TrainingTypeNotFound);
+
+            if (!trainingType.IsActive)
+                return Result<TrainingId>.Failure(
+                    TrainingCreationErrors.TrainingTypeInactive);
 
             Result<TrainingTypeDuration> durationResult =
                 TrainingTypeDuration.Create(input.DurationMinutes);
