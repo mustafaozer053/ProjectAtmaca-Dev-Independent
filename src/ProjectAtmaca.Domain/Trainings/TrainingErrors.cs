@@ -90,6 +90,4 @@ public static class TrainingErrors
         Error.Create(
             "Training.TypeDuration.Mismatch",
             "The total duration of training types must equal the training duration.");
-
 }
-

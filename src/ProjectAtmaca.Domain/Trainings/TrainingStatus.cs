@@ -3,5 +3,6 @@
 public enum TrainingStatus
 {
     Planned = 1,
-    Confirmed = 2
+    Confirmed = 2,
+    Cancelled = 3
 }

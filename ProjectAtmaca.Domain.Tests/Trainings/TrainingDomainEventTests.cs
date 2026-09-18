@@ -96,6 +96,20 @@ public sealed class TrainingDomainEventTests
         training.DomainEvents.Should()
             .HaveCount(2);
     }
+
+    [Fact]
+    public void Cancel_Should_RaiseTrainingCancelledDomainEvent_OnlyOnce()
+    {
+        Training training = CreateTraining();
+
+        training.Cancel();
+        training.Cancel();
+
+        training.DomainEvents
+            .OfType<TrainingCancelledDomainEvent>()
+            .Should()
+            .ContainSingle();
+    }
     private static Training CreateTraining()
     {
         TrainingTitle title =

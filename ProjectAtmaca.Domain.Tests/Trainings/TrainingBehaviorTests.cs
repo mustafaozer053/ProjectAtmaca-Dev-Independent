@@ -211,4 +211,26 @@ public sealed class TrainingBehaviorTests
         training.Status.Should()
             .Be(TrainingStatus.Confirmed);
     }
+
+    [Fact]
+    public void Cancel_Should_ChangeStatus_When_TrainingIsPlanned()
+    {
+        Training training = CreateTraining();
+
+        var result = training.Cancel();
+
+        result.IsSuccess.Should().BeTrue();
+        training.Status.Should().Be(TrainingStatus.Cancelled);
+    }
+
+    [Fact]
+    public void Confirm_Should_Not_Reactivate_CancelledTraining()
+    {
+        Training training = CreateTraining();
+
+        training.Cancel();
+        training.Confirm();
+
+        training.Status.Should().Be(TrainingStatus.Cancelled);
+    }
 }

@@ -247,6 +247,11 @@ public sealed class Training : AuditableAggregateRoot
     }
     public void Confirm()
     {
+        if (Status == TrainingStatus.Cancelled)
+        {
+            return;
+        }
+
         if (Status == TrainingStatus.Confirmed)
         {
             return;
@@ -257,6 +262,22 @@ public sealed class Training : AuditableAggregateRoot
         RaiseDomainEvent(
             new TrainingConfirmedDomainEvent(
                 TrainingId));
+    }
+
+    public Result Cancel()
+    {
+        if (Status == TrainingStatus.Cancelled)
+        {
+            return Result.Success();
+        }
+
+        Status = TrainingStatus.Cancelled;
+
+        RaiseDomainEvent(
+            new TrainingCancelledDomainEvent(
+                TrainingId));
+
+        return Result.Success();
     }
 
     private static bool HaveSameTrainingTypeAssignments(
