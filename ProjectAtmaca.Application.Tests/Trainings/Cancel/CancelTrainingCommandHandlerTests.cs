@@ -78,6 +78,11 @@ public sealed class CancelTrainingCommandHandlerTests
     private sealed class FakeTrainingRepository(Training? training)
         : ITrainingRepository
     {
+        public Task AddAsync(
+            Training training,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
         public Task<Training?> GetByIdAsync(
             TrainingId id,
             CancellationToken cancellationToken = default) =>

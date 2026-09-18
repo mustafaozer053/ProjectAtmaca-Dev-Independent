@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Trainings.Cancel;
 using ProjectAtmaca.Application.Trainings.GetById;
+using ProjectAtmaca.Application.Trainings.Create;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Trainings;
 
@@ -19,15 +20,51 @@ public sealed class TrainingsController : ControllerBase
 
     private readonly CancelTrainingCommandHandler _cancelHandler;
     private readonly GetTrainingByIdQueryHandler _getByIdHandler;
+    private readonly CreateTrainingCommandHandler _createHandler;
 
     public TrainingsController(
         CancelTrainingCommandHandler cancelHandler,
-        GetTrainingByIdQueryHandler getByIdHandler)
+        GetTrainingByIdQueryHandler getByIdHandler,
+        CreateTrainingCommandHandler createHandler)
     {
         _cancelHandler = cancelHandler ??
             throw new ArgumentNullException(nameof(cancelHandler));
         _getByIdHandler = getByIdHandler ??
             throw new ArgumentNullException(nameof(getByIdHandler));
+        _createHandler = createHandler ??
+            throw new ArgumentNullException(nameof(createHandler));
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<CreateTrainingResponse>> Create(
+        [FromBody] CreateTrainingRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new CreateTrainingCommand(
+            request.SeasonId,
+            request.OrganizationId,
+            request.Title,
+            request.Description,
+            request.Location,
+            request.Date,
+            request.StartTime,
+            request.EndTime,
+            (request.Assignments ?? Array.Empty<CreateTrainingAssignmentRequest>())
+                .Select(x => new TrainingTypeAssignmentInput(
+                    x.TrainingTypeId,
+                    x.DurationMinutes))
+                .ToList());
+
+        Result<TrainingId> result = await _createHandler.Handle(
+            command,
+            cancellationToken);
+
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return Created(
+            $"/api/trainings/{result.Value!.Value:D}",
+            new CreateTrainingResponse(result.Value.Value));
     }
 
     [HttpGet("{trainingId}")]
@@ -89,6 +126,11 @@ public sealed class TrainingsController : ControllerBase
     {
         int statusCode = error.Code == ActorAuthorizationErrors.Forbidden.Code
             ? StatusCodes.Status403Forbidden
+            : error.Code == TrainingCreationErrors.OrganizationContextRequired.Code ||
+              error.Code == TrainingCreationErrors.AssignmentsRequired.Code ||
+              error.Code == TrainingCreationErrors.TrainingTypeRequired.Code ||
+              error.Code == TrainingErrors.TrainingTypeAssignmentRequired.Code
+                ? StatusCodes.Status400BadRequest
             : error.Code == CancelTrainingErrors.NotFound.Code
                 ? StatusCodes.Status404NotFound
                 : StatusCodes.Status400BadRequest;

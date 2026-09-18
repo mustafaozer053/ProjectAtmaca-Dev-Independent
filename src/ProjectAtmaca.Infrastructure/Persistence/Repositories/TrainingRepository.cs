@@ -19,4 +19,12 @@ public sealed class TrainingRepository : ITrainingRepository
             .SingleOrDefaultAsync(
                 training => EF.Property<Guid>(training, "Id") == id.Value,
                 cancellationToken);
+
+    public async Task AddAsync(
+        Training training,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(training);
+        await _dbContext.Set<Training>().AddAsync(training, cancellationToken);
+    }
 }
