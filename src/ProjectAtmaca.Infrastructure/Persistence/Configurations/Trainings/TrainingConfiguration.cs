@@ -4,6 +4,7 @@ using ProjectAtmaca.Domain.Actors;
 using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Domain.Seasons;
 using ProjectAtmaca.Domain.Organizations;
+using ProjectAtmaca.Domain.TrainingTypes;
 
 namespace ProjectAtmaca.Infrastructure.Persistence.Configurations.Trainings;
 
@@ -61,8 +62,39 @@ public sealed class TrainingConfiguration : IEntityTypeConfiguration<Training>
         builder.Property<byte[]>("RowVersion").IsRowVersion();
 
         builder.Ignore(x => x.TrainingId);
-        builder.Ignore(x => x.TrainingTypeAssignments);
         builder.Ignore(x => x.DomainEvents);
+
+        builder.OwnsMany(
+            x => x.TrainingTypeAssignments,
+            assignments =>
+            {
+                assignments.ToTable("TrainingTypeAssignments");
+                assignments.HasKey("Id");
+
+                assignments.Property<Guid>("Id")
+                    .HasColumnName("Id")
+                    .ValueGeneratedNever();
+
+                assignments.Property<Guid>("TrainingId")
+                    .HasColumnName("TrainingId")
+                    .IsRequired();
+
+                assignments.Property(x => x.TrainingTypeId)
+                    .HasConversion(
+                        id => id.Value,
+                        value => TrainingTypeId.From(value))
+                    .HasColumnName("TrainingTypeId")
+                    .IsRequired();
+
+                assignments.Property(x => x.Duration)
+                    .HasConversion(
+                        duration => duration.Minutes,
+                        value => TrainingTypeDuration.Create(value).Value!)
+                    .HasColumnName("DurationMinutes")
+                    .IsRequired();
+
+                assignments.Ignore(x => x.TrainingTypeAssignmentId);
+            });
     }
 
     private static TrainingSchedule DeserializeSchedule(string value)
