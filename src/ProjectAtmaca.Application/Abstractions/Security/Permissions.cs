@@ -65,6 +65,10 @@ public static class Permissions
             Permission.Create(
                 "Trainings.Create");
 
+        public static readonly Permission Confirm =
+            Permission.Create(
+                "Trainings.Confirm");
+
         public static readonly Permission GetById =
             Permission.Create(
                 "Trainings.GetById");
@@ -95,6 +99,7 @@ public static class Permissions
                     Persons.RegisterWithAtmacaCard,
                     Participations.RecordDeparture,
                     Trainings.Create,
+                    Trainings.Confirm,
                     Trainings.GetById,
                     Trainings.Cancel
                 });

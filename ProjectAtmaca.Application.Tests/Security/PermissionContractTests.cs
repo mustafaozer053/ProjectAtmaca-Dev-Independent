@@ -117,6 +117,9 @@ public sealed class PermissionContractTests
                 .Create,
 
             Permissions.Trainings
+                .Confirm,
+
+            Permissions.Trainings
                 .GetById,
 
             Permissions.Trainings
@@ -137,6 +140,7 @@ public sealed class PermissionContractTests
             "Persons.RegisterWithAtmacaCard",
             "Participations.RecordDeparture",
             "Trainings.Create",
+            "Trainings.Confirm",
             "Trainings.GetById",
             "Trainings.Cancel"
         };

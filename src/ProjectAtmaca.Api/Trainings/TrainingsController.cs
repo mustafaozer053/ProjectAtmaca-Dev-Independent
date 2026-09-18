@@ -4,6 +4,7 @@ using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Trainings.Cancel;
 using ProjectAtmaca.Application.Trainings.GetById;
 using ProjectAtmaca.Application.Trainings.Create;
+using ProjectAtmaca.Application.Trainings.Confirm;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Trainings;
 
@@ -21,11 +22,13 @@ public sealed class TrainingsController : ControllerBase
     private readonly CancelTrainingCommandHandler _cancelHandler;
     private readonly GetTrainingByIdQueryHandler _getByIdHandler;
     private readonly CreateTrainingCommandHandler _createHandler;
+    private readonly ConfirmTrainingCommandHandler _confirmHandler;
 
     public TrainingsController(
         CancelTrainingCommandHandler cancelHandler,
         GetTrainingByIdQueryHandler getByIdHandler,
-        CreateTrainingCommandHandler createHandler)
+        CreateTrainingCommandHandler createHandler,
+        ConfirmTrainingCommandHandler confirmHandler)
     {
         _cancelHandler = cancelHandler ??
             throw new ArgumentNullException(nameof(cancelHandler));
@@ -33,6 +36,8 @@ public sealed class TrainingsController : ControllerBase
             throw new ArgumentNullException(nameof(getByIdHandler));
         _createHandler = createHandler ??
             throw new ArgumentNullException(nameof(createHandler));
+        _confirmHandler = confirmHandler ??
+            throw new ArgumentNullException(nameof(confirmHandler));
     }
 
     [HttpPost]
@@ -122,6 +127,27 @@ public sealed class TrainingsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{trainingId}/confirm")]
+    public async Task<IActionResult> Confirm(
+        string trainingId,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParseExact(trainingId, "D", out Guid parsedId) ||
+            parsedId == Guid.Empty)
+        {
+            return ToProblem(InvalidTrainingId);
+        }
+
+        Result result = await _confirmHandler.Handle(
+            new ConfirmTrainingCommand(TrainingId.From(parsedId)),
+            cancellationToken);
+
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
+    }
+
     private ObjectResult ToProblem(Error error)
     {
         int statusCode = error.Code == ActorAuthorizationErrors.Forbidden.Code
@@ -131,6 +157,8 @@ public sealed class TrainingsController : ControllerBase
               error.Code == TrainingCreationErrors.TrainingTypeRequired.Code ||
               error.Code == TrainingErrors.TrainingTypeAssignmentRequired.Code
                 ? StatusCodes.Status400BadRequest
+            : error.Code == ConfirmTrainingErrors.NotFound.Code
+                ? StatusCodes.Status404NotFound
             : error.Code == CancelTrainingErrors.NotFound.Code
                 ? StatusCodes.Status404NotFound
                 : StatusCodes.Status400BadRequest;

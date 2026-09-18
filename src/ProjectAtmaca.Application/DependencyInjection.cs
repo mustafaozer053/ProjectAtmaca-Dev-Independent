@@ -14,6 +14,7 @@ using ProjectAtmaca.Application.Decisions.ListApplicationHistory;
 using ProjectAtmaca.Application.Trainings.Cancel;
 using ProjectAtmaca.Application.Trainings.GetById;
 using ProjectAtmaca.Application.Trainings.Create;
+using ProjectAtmaca.Application.Trainings.Confirm;
 
 namespace ProjectAtmaca.Application;
 
@@ -70,6 +71,9 @@ public static class DependencyInjection
 
         services.AddScoped<
             CreateTrainingCommandHandler>();
+
+        services.AddScoped<
+            ConfirmTrainingCommandHandler>();
 
         return services;
     }
