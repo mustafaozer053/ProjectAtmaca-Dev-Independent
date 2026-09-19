@@ -10,6 +10,11 @@ public static class TrainingCreationErrors
     public static readonly Error SeasonTeamNotFound =
         Error.Create("TRAINING_SEASON_TEAM_NOT_FOUND", "Season team was not found.");
 
+    public static readonly Error SeasonTeamInactive =
+        Error.Create(
+            "TRAINING_SEASON_TEAM_INACTIVE",
+            "An inactive season team cannot have team training.");
+
     public static readonly Error SeasonTeamContextMismatch =
         Error.Create(
             "TRAINING_SEASON_TEAM_CONTEXT_MISMATCH",

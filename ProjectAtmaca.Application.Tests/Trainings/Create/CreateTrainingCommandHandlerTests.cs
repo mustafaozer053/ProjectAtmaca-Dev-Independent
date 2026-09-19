@@ -3,6 +3,9 @@ using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Trainings.Create;
 using ProjectAtmaca.Domain.Common;
+using ProjectAtmaca.Domain.Organizations;
+using ProjectAtmaca.Domain.Seasons;
+using ProjectAtmaca.Domain.SeasonTeams;
 using ProjectAtmaca.Domain.TrainingTypes;
 using ProjectAtmaca.Domain.Trainings;
 
@@ -110,6 +113,52 @@ public sealed class CreateTrainingCommandHandlerTests
         unitOfWork.SaveChangesCallCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Handle_Should_NotPersist_WhenSeasonTeamIsInactive()
+    {
+        SeasonId seasonId = SeasonId.New();
+        OrganizationId organizationId = OrganizationId.New();
+        SeasonTeam seasonTeam = SeasonTeam.Create(
+            seasonId,
+            organizationId,
+            Guid.NewGuid(),
+            "U16")
+            .Value!;
+        seasonTeam.Deactivate();
+
+        var repository = new FakeTrainingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateTrainingCommandHandler(
+            new GrantedAuthorizationService(),
+            repository,
+            new FakeTrainingTypeRepository(),
+            unitOfWork,
+            new FakeSeasonTeamRepository(seasonTeam));
+
+        var result = await handler.Handle(
+            new CreateTrainingCommand(
+                seasonId.Value,
+                organizationId.Value,
+                "U16 takım antrenmanı",
+                null,
+                "Saha",
+                new DateOnly(2026, 9, 19),
+                new TimeOnly(16, 0),
+                new TimeOnly(17, 0),
+                new[]
+                {
+                    new TrainingTypeAssignmentInput(
+                        Guid.NewGuid(),
+                        60)
+                },
+                seasonTeam.SeasonTeamId.Value),
+            TestContext.Current.CancellationToken);
+
+        result.Error.Should().Be(TrainingCreationErrors.SeasonTeamInactive);
+        repository.AddedTraining.Should().BeNull();
+        unitOfWork.SaveChangesCallCount.Should().Be(0);
+    }
+
     private static CreateTrainingCommand CreateCommand() =>
         new(
             Guid.NewGuid(),
@@ -177,7 +226,7 @@ public sealed class CreateTrainingCommandHandlerTests
                 _trainingType?.Deactivate();
         }
 
-        public Task<TrainingType?> GetByIdAsync(
+            public Task<TrainingType?> GetByIdAsync(
             TrainingTypeId id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(_trainingType);
@@ -192,6 +241,25 @@ public sealed class CreateTrainingCommandHandlerTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<TrainingType>>(
                 Array.Empty<TrainingType>());
+    }
+
+    private sealed class FakeSeasonTeamRepository(
+        SeasonTeam seasonTeam)
+        : ISeasonTeamRepository
+    {
+        public Task AddAsync(
+            SeasonTeam seasonTeam,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<SeasonTeam?> GetByIdAsync(
+            SeasonTeamId id,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<SeasonTeam?>(seasonTeam);
+
+        public Task<IReadOnlyList<SeasonTeam>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SeasonTeam>>([]);
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork

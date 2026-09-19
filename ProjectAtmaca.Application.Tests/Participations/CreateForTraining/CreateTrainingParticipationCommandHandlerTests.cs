@@ -131,6 +131,37 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_Should_ReturnSeasonTeamInactive_WhenTeamIsInactive()
+    {
+        SeasonTeam seasonTeam = CreateSeasonTeam();
+        AtmacaCardId cardId = AtmacaCardId.New();
+        seasonTeam.AddMembership(
+            cardId,
+            AssignmentPeriod.Create(new DateTime(2026, 9, 1)).Value!)
+            .IsSuccess.Should().BeTrue();
+        seasonTeam.Deactivate();
+        Training training = CreateTraining(seasonTeam.SeasonTeamId);
+        FakeParticipationRepository participationRepository = new();
+        FakeUnitOfWork unitOfWork = new();
+        CreateTrainingParticipationCommandHandler handler = CreateHandler(
+            training,
+            seasonTeam,
+            participationRepository,
+            unitOfWork);
+
+        Result<ParticipationId> result = await handler.Handle(
+            new CreateTrainingParticipationCommand(
+                training.TrainingId,
+                cardId),
+            TestContext.Current.CancellationToken);
+
+        result.Error.Should().Be(
+            CreateTrainingParticipationErrors.SeasonTeamInactive);
+        participationRepository.AddedParticipation.Should().BeNull();
+        unitOfWork.SaveChangesCallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Handle_Should_ReturnAlreadyExists_AndNotPersist_WhenParticipationIsDuplicate()
     {
         SeasonTeam seasonTeam = CreateSeasonTeam();

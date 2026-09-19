@@ -14,6 +14,11 @@ public static class CreateTrainingParticipationErrors
             "Participation.Training.SeasonTeamRequired",
             "Training is not linked to a season team.");
 
+    public static readonly Error SeasonTeamInactive =
+        Error.Create(
+            "Participation.Training.SeasonTeamInactive",
+            "Participation cannot be created for an inactive season team.");
+
     public static readonly Error MembershipNotActive =
         Error.Create(
             "Participation.SeasonTeam.MembershipNotActive",

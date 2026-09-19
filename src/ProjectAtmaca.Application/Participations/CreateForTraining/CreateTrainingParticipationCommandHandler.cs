@@ -54,8 +54,15 @@ public sealed class CreateTrainingParticipationCommandHandler
         SeasonTeam? seasonTeam = await _seasonTeamRepository.GetByIdAsync(
             training.SeasonTeamId.Value,
             cancellationToken);
-        if (seasonTeam is null ||
-            !seasonTeam.HasActiveMembership(
+        if (seasonTeam is null)
+            return Result<ParticipationId>.Failure(
+                CreateTrainingParticipationErrors.MembershipNotActive);
+
+        if (seasonTeam.Status != SeasonTeamStatus.Active)
+            return Result<ParticipationId>.Failure(
+                CreateTrainingParticipationErrors.SeasonTeamInactive);
+
+        if (!seasonTeam.HasActiveMembership(
                 command.AtmacaCardId,
                 training.Schedule.Date.ToDateTime(TimeOnly.MinValue)))
         {

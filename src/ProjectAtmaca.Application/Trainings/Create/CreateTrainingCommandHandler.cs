@@ -164,6 +164,10 @@ public sealed class CreateTrainingCommandHandler
             return Result<Training>.Failure(
                 TrainingCreationErrors.SeasonTeamNotFound);
 
+        if (seasonTeam.Status != SeasonTeamStatus.Active)
+            return Result<Training>.Failure(
+                TrainingCreationErrors.SeasonTeamInactive);
+
         if (seasonTeam.SeasonId.Value != command.SeasonId ||
             seasonTeam.OrganizationId.Value != command.OrganizationId)
         {
