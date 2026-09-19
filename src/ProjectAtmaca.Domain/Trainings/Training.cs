@@ -1,5 +1,6 @@
 ﻿using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Trainings.DomainEvents;
+using ProjectAtmaca.Domain.SeasonTeams;
 
 namespace ProjectAtmaca.Domain.Trainings;
 
@@ -12,6 +13,8 @@ public sealed class Training : AuditableAggregateRoot
         TrainingId.From(Id);
 
     public SeasonOrganization SeasonOrganization { get; private set; }
+
+    public SeasonTeamId? SeasonTeamId { get; private set; }
 
     public TrainingTitle Title { get; private set; }
 
@@ -35,12 +38,14 @@ public sealed class Training : AuditableAggregateRoot
         Description = null!;
         Location = null!;
         Schedule = null!;
+        SeasonTeamId = null;
     }
 
     // Constructors
     private Training(
     TrainingId id,
     SeasonOrganization seasonOrganization,
+    SeasonTeamId? seasonTeamId,
     TrainingTitle title,
     TrainingDescription description,
     TrainingLocation location,
@@ -48,6 +53,7 @@ public sealed class Training : AuditableAggregateRoot
     : base(id.Value)
     {
         SeasonOrganization = seasonOrganization;
+        SeasonTeamId = seasonTeamId;
         Title = title;
         Description = description;
         Location = location;
@@ -94,6 +100,7 @@ public sealed class Training : AuditableAggregateRoot
         var training = new Training(
             TrainingId.New(),
             seasonOrganization,
+            null,
             title,
             description,
             location,
@@ -107,6 +114,30 @@ public sealed class Training : AuditableAggregateRoot
                 training.TrainingId));
 
         return Result<Training>.Success(training);
+    }
+
+    public static Result<Training> Create(
+        SeasonOrganization seasonOrganization,
+        SeasonTeamId seasonTeamId,
+        TrainingTitle title,
+        TrainingDescription description,
+        TrainingLocation location,
+        TrainingSchedule schedule,
+        IEnumerable<TrainingTypeAssignment> assignments)
+    {
+        var result = Create(
+            seasonOrganization,
+            title,
+            description,
+            location,
+            schedule,
+            assignments);
+
+        if (result.IsFailure)
+            return result;
+
+        result.Value!.SeasonTeamId = seasonTeamId;
+        return result;
     }
 
     public void Rename(

@@ -80,7 +80,8 @@ public sealed class TrainingsController : ControllerBase
             item.EndTime,
             GetStatusCode(item.Status),
             item.SeasonId,
-            item.OrganizationId)));
+            item.OrganizationId,
+            item.SeasonTeamId)));
     }
 
     [HttpPost]
@@ -88,6 +89,12 @@ public sealed class TrainingsController : ControllerBase
         [FromBody] CreateTrainingRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.SeasonTeamId == Guid.Empty)
+        {
+            return ToProblem(
+                TrainingCreationErrors.SeasonTeamRequired);
+        }
+
         var command = new CreateTrainingCommand(
             request.SeasonId,
             request.OrganizationId,
@@ -101,7 +108,8 @@ public sealed class TrainingsController : ControllerBase
                 .Select(x => new TrainingTypeAssignmentInput(
                     x.TrainingTypeId,
                     x.DurationMinutes))
-                .ToList());
+                .ToList(),
+            request.SeasonTeamId);
 
         Result<TrainingId> result = await _createHandler.Handle(
             command,
@@ -144,7 +152,8 @@ public sealed class TrainingsController : ControllerBase
             details.EndTime,
             GetStatusCode(details.Status),
             details.SeasonId,
-            details.OrganizationId));
+            details.OrganizationId,
+            details.SeasonTeamId));
     }
 
     [HttpPost("{trainingId}/cancel")]

@@ -65,7 +65,8 @@ public sealed class ListTrainingsQueryHandler
                     training.Schedule.EndTime,
                     training.Status,
                     training.SeasonOrganization.SeasonId.Value,
-                    training.SeasonOrganization.OrganizationId.Value))
+                    training.SeasonOrganization.OrganizationId.Value,
+                    training.SeasonTeamId?.Value))
                 .ToList());
     }
 }

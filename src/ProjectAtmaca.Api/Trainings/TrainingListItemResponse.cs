@@ -9,4 +9,5 @@ public sealed record TrainingListItemResponse(
     TimeOnly EndTime,
     string Status,
     Guid SeasonId,
-    Guid OrganizationId);
+    Guid OrganizationId,
+    Guid? SeasonTeamId);

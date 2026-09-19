@@ -11,4 +11,5 @@ public sealed record TrainingListItem(
     TimeOnly EndTime,
     TrainingStatus Status,
     Guid SeasonId,
-    Guid OrganizationId);
+    Guid OrganizationId,
+    Guid? SeasonTeamId);

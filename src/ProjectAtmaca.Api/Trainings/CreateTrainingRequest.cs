@@ -9,7 +9,8 @@ public sealed record CreateTrainingRequest(
     DateOnly Date,
     TimeOnly StartTime,
     TimeOnly EndTime,
-    IReadOnlyCollection<CreateTrainingAssignmentRequest> Assignments);
+    IReadOnlyCollection<CreateTrainingAssignmentRequest> Assignments,
+    Guid SeasonTeamId = default);
 
 public sealed record CreateTrainingAssignmentRequest(
     Guid TrainingTypeId,

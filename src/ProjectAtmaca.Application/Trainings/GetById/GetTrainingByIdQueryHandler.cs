@@ -50,6 +50,7 @@ public sealed class GetTrainingByIdQueryHandler
                 training.Schedule.EndTime,
                 training.Status,
                 training.SeasonOrganization.SeasonId.Value,
-                training.SeasonOrganization.OrganizationId.Value));
+                training.SeasonOrganization.OrganizationId.Value,
+                training.SeasonTeamId?.Value));
     }
 }

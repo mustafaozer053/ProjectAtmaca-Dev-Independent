@@ -5,6 +5,7 @@ using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Domain.Seasons;
 using ProjectAtmaca.Domain.Organizations;
 using ProjectAtmaca.Domain.TrainingTypes;
+using ProjectAtmaca.Domain.SeasonTeams;
 
 namespace ProjectAtmaca.Infrastructure.Persistence.Configurations.Trainings;
 
@@ -48,6 +49,13 @@ public sealed class TrainingConfiguration : IEntityTypeConfiguration<Training>
                 x => DeserializeSeasonOrganization(x))
             .HasMaxLength(73)
             .IsRequired();
+
+        builder.Property(x => x.SeasonTeamId)
+            .HasConversion(
+                id => id.HasValue ? id.Value.Value : (Guid?)null,
+                value => value.HasValue ? SeasonTeamId.From(value.Value) : null)
+            .HasColumnName("SeasonTeamId")
+            .IsRequired(false);
 
         builder.Property(x => x.CreatedAtUtc).IsRequired();
         builder.Property(x => x.CreatedByActorId)

@@ -4,6 +4,16 @@ namespace ProjectAtmaca.Application.Trainings.Create;
 
 public static class TrainingCreationErrors
 {
+    public static readonly Error SeasonTeamRequired =
+        Error.Create("TRAINING_SEASON_TEAM_REQUIRED", "Season team is required.");
+
+    public static readonly Error SeasonTeamNotFound =
+        Error.Create("TRAINING_SEASON_TEAM_NOT_FOUND", "Season team was not found.");
+
+    public static readonly Error SeasonTeamContextMismatch =
+        Error.Create(
+            "TRAINING_SEASON_TEAM_CONTEXT_MISMATCH",
+            "Season team does not belong to the supplied season and organization.");
     public static readonly Error AssignmentsRequired =
         Error.Create(
             "Training.Create.AssignmentsRequired",

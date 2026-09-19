@@ -5,6 +5,7 @@ using ProjectAtmaca.Domain.Organizations;
 using ProjectAtmaca.Domain.Seasons;
 using ProjectAtmaca.Domain.TrainingTypes;
 using ProjectAtmaca.Domain.Trainings;
+using ProjectAtmaca.Domain.SeasonTeams;
 
 namespace ProjectAtmaca.Application.Trainings.Create;
 
@@ -13,17 +14,20 @@ public sealed class CreateTrainingCommandHandler
     private readonly IActorAuthorizationService _authorizationService;
     private readonly ITrainingRepository _trainingRepository;
     private readonly ITrainingTypeRepository _trainingTypeRepository;
+    private readonly ISeasonTeamRepository? _seasonTeamRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateTrainingCommandHandler(
         IActorAuthorizationService authorizationService,
         ITrainingRepository trainingRepository,
         ITrainingTypeRepository trainingTypeRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ISeasonTeamRepository? seasonTeamRepository = null)
     {
         _authorizationService = authorizationService;
         _trainingRepository = trainingRepository;
         _trainingTypeRepository = trainingTypeRepository;
+        _seasonTeamRepository = seasonTeamRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -111,7 +115,8 @@ public sealed class CreateTrainingCommandHandler
             return Result<TrainingId>.Failure(locationResult.Error!);
 
         Result<Training> trainingResult =
-            Training.Create(
+            command.SeasonTeamId == Guid.Empty
+                ? Training.Create(
                 SeasonOrganization.Create(
                     SeasonId.From(command.SeasonId),
                     OrganizationId.From(command.OrganizationId)),
@@ -119,7 +124,15 @@ public sealed class CreateTrainingCommandHandler
                 descriptionResult.Value!,
                 locationResult.Value!,
                 scheduleResult.Value!,
-                assignments);
+                assignments)
+                : await CreateForSeasonTeamAsync(
+                    command,
+                    titleResult.Value!,
+                    descriptionResult.Value!,
+                    locationResult.Value!,
+                    scheduleResult.Value!,
+                    assignments,
+                    cancellationToken);
 
         if (trainingResult.IsFailure)
             return Result<TrainingId>.Failure(trainingResult.Error!);
@@ -129,5 +142,46 @@ public sealed class CreateTrainingCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<TrainingId>.Success(training.TrainingId);
+    }
+
+    private async Task<Result<Training>> CreateForSeasonTeamAsync(
+        CreateTrainingCommand command,
+        TrainingTitle title,
+        TrainingDescription description,
+        TrainingLocation location,
+        TrainingSchedule schedule,
+        IReadOnlyCollection<TrainingTypeAssignment> assignments,
+        CancellationToken cancellationToken)
+    {
+        if (_seasonTeamRepository is null)
+            return Result<Training>.Failure(
+                TrainingCreationErrors.SeasonTeamRequired);
+
+        SeasonTeam? seasonTeam = await _seasonTeamRepository.GetByIdAsync(
+            SeasonTeamId.From(command.SeasonTeamId),
+            cancellationToken);
+        if (seasonTeam is null)
+            return Result<Training>.Failure(
+                TrainingCreationErrors.SeasonTeamNotFound);
+
+        if (seasonTeam.SeasonId.Value != command.SeasonId ||
+            seasonTeam.OrganizationId.Value != command.OrganizationId)
+        {
+            return Result<Training>.Failure(
+                TrainingCreationErrors.SeasonTeamContextMismatch);
+        }
+
+        var seasonOrganization = SeasonOrganization.Create(
+            SeasonId.From(command.SeasonId),
+            OrganizationId.From(command.OrganizationId));
+
+        return Training.Create(
+            seasonOrganization,
+            SeasonTeamId.From(command.SeasonTeamId),
+            title,
+            description,
+            location,
+            schedule,
+            assignments);
     }
 }

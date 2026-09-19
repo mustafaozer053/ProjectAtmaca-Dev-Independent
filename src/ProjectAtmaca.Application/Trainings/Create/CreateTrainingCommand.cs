@@ -9,7 +9,8 @@ public sealed record CreateTrainingCommand(
     DateOnly Date,
     TimeOnly StartTime,
     TimeOnly EndTime,
-    IReadOnlyCollection<TrainingTypeAssignmentInput> Assignments);
+    IReadOnlyCollection<TrainingTypeAssignmentInput> Assignments,
+    Guid SeasonTeamId = default);
 
 public sealed record TrainingTypeAssignmentInput(
     Guid TrainingTypeId,
