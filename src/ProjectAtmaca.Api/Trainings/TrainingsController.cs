@@ -52,11 +52,21 @@ public sealed class TrainingsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TrainingListItemResponse>>> List(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        [FromQuery] Guid? seasonId,
+        [FromQuery] Guid? organizationId,
+        [FromQuery] TrainingStatus? status)
     {
         Result<IReadOnlyList<TrainingListItem>> result =
             await _listHandler.Handle(
-                new ListTrainingsQuery(),
+                new ListTrainingsQuery(
+                    fromDate,
+                    toDate,
+                    seasonId,
+                    organizationId,
+                    status),
                 cancellationToken);
         if (result.IsFailure)
             return ToProblem(result.Error!);
@@ -219,7 +229,8 @@ public sealed class TrainingsController : ControllerBase
             : error.Code == TrainingCreationErrors.OrganizationContextRequired.Code ||
               error.Code == TrainingCreationErrors.AssignmentsRequired.Code ||
               error.Code == TrainingCreationErrors.TrainingTypeRequired.Code ||
-              error.Code == TrainingErrors.TrainingTypeAssignmentRequired.Code
+              error.Code == TrainingErrors.TrainingTypeAssignmentRequired.Code ||
+              error.Code == TrainingListErrors.InvalidDateRange.Code
                 ? StatusCodes.Status400BadRequest
             : error.Code == ConfirmTrainingErrors.NotFound.Code
                 ? StatusCodes.Status404NotFound
