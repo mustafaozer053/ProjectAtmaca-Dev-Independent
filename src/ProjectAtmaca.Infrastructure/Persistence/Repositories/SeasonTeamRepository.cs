@@ -30,4 +30,11 @@ public sealed class SeasonTeamRepository : ISeasonTeamRepository
             .SingleOrDefaultAsync(
                 seasonTeam => EF.Property<Guid>(seasonTeam, "Id") == id.Value,
                 cancellationToken);
+
+    public async Task<IReadOnlyList<SeasonTeam>> ListAsync(
+        CancellationToken cancellationToken = default) =>
+        await _dbContext.Set<SeasonTeam>()
+            .Include(x => x.Memberships)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
 }

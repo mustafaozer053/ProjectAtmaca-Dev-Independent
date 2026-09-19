@@ -9,4 +9,7 @@ public interface ISeasonTeamRepository
     Task<SeasonTeam?> GetByIdAsync(
         SeasonTeamId id,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SeasonTeam>> ListAsync(
+        CancellationToken cancellationToken = default);
 }

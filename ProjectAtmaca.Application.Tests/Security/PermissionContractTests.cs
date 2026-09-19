@@ -132,7 +132,10 @@ public sealed class PermissionContractTests
 
             Permissions.TrainingTypes.Create,
             Permissions.TrainingTypes.List,
-            Permissions.TrainingTypes.ChangeStatus
+            Permissions.TrainingTypes.ChangeStatus,
+            Permissions.SeasonTeams.Create,
+            Permissions.SeasonTeams.List,
+            Permissions.SeasonTeams.AddMembership
         };
 
         string[] expectedCodes =
@@ -156,7 +159,10 @@ public sealed class PermissionContractTests
             "Trainings.List",
             "TrainingTypes.Create",
             "TrainingTypes.List",
-            "TrainingTypes.ChangeStatus"
+            "TrainingTypes.ChangeStatus",
+            "SeasonTeams.Create",
+            "SeasonTeams.List",
+            "SeasonTeams.AddMembership"
         };
 
         permissions

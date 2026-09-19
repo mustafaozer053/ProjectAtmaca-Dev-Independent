@@ -96,6 +96,16 @@ public static class Permissions
             Permission.Create("TrainingTypes.ChangeStatus");
     }
 
+    public static class SeasonTeams
+    {
+        public static readonly Permission Create =
+            Permission.Create("SeasonTeams.Create");
+        public static readonly Permission List =
+            Permission.Create("SeasonTeams.List");
+        public static readonly Permission AddMembership =
+            Permission.Create("SeasonTeams.AddMembership");
+    }
+
     private static readonly IReadOnlyList<Permission>
         AllPermissions =
             Array.AsReadOnly(
@@ -124,7 +134,10 @@ public static class Permissions
                     Trainings.List,
                     TrainingTypes.Create,
                     TrainingTypes.List,
-                    TrainingTypes.ChangeStatus
+                    TrainingTypes.ChangeStatus,
+                    SeasonTeams.Create,
+                    SeasonTeams.List,
+                    SeasonTeams.AddMembership
                 });
 
     public static IReadOnlyList<Permission> All

@@ -20,6 +20,9 @@ using ProjectAtmaca.Application.TrainingTypes.Create;
 using ProjectAtmaca.Application.TrainingTypes.List;
 using ProjectAtmaca.Application.TrainingTypes.ChangeStatus;
 using ProjectAtmaca.Application.Trainings.List;
+using ProjectAtmaca.Application.SeasonTeams.Create;
+using ProjectAtmaca.Application.SeasonTeams.List;
+using ProjectAtmaca.Application.SeasonTeams.AddMembership;
 
 namespace ProjectAtmaca.Application;
 
@@ -86,6 +89,9 @@ public static class DependencyInjection
         services.AddScoped<CreateTrainingTypeCommandHandler>();
         services.AddScoped<ListTrainingTypesQueryHandler>();
         services.AddScoped<ChangeTrainingTypeStatusCommandHandler>();
+        services.AddScoped<CreateSeasonTeamCommandHandler>();
+        services.AddScoped<ListSeasonTeamsQueryHandler>();
+        services.AddScoped<AddSeasonTeamMembershipCommandHandler>();
 
         return services;
     }
