@@ -105,6 +105,29 @@ public sealed class MarkParticipationAbsentCommandHandlerTests
         unitOfWork.SaveChangesCallCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Handle_Should_ReturnForbiddenWithoutPersistenceAccess_WhenPermissionIsDenied()
+    {
+        FakeParticipationRepository repository = new()
+        {
+            ParticipationToReturn = CreateParticipation()
+        };
+        FakeUnitOfWork unitOfWork = new();
+        MarkParticipationAbsentCommandHandler handler = new(
+            new DenyingActorAuthorizationService(),
+            repository,
+            unitOfWork);
+
+        Result result = await handler.Handle(
+            new MarkParticipationAbsentCommand(
+                repository.ParticipationToReturn!.ParticipationId),
+            TestContext.Current.CancellationToken);
+
+        result.Error.Should().Be(ActorAuthorizationErrors.Forbidden);
+        repository.GetByIdCallCount.Should().Be(0);
+        unitOfWork.SaveChangesCallCount.Should().Be(0);
+    }
+
     private static Participation CreateParticipation()
     {
         return Participation.Create(
@@ -122,15 +145,31 @@ public sealed class MarkParticipationAbsentCommandHandlerTests
             Task.FromResult(Result.Success());
     }
 
+    private sealed class DenyingActorAuthorizationService
+        : IActorAuthorizationService
+    {
+        public Task<Result> AuthorizeAsync(
+            Permission permission,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                Result.Failure(
+                    ActorAuthorizationErrors.Forbidden));
+    }
+
     private sealed class FakeParticipationRepository
         : IParticipationRepository
     {
         public Participation? ParticipationToReturn { get; init; }
 
+        public int GetByIdCallCount { get; private set; }
+
         public Task<Participation?> GetByIdAsync(
             ParticipationId id,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(ParticipationToReturn);
+            CancellationToken cancellationToken = default)
+        {
+            GetByIdCallCount++;
+            return Task.FromResult(ParticipationToReturn);
+        }
 
         public Task<bool> ExistsAsync(
             AtmacaCardId atmacaCardId,
