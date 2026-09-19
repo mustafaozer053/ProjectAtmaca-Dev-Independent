@@ -25,6 +25,7 @@ using ProjectAtmaca.Application.SeasonTeams.Create;
 using ProjectAtmaca.Application.SeasonTeams.List;
 using ProjectAtmaca.Application.SeasonTeams.AddMembership;
 using ProjectAtmaca.Application.SeasonTeams.EndMembership;
+using ProjectAtmaca.Application.SeasonTeams.GetById;
 
 namespace ProjectAtmaca.Application;
 
@@ -97,6 +98,7 @@ public static class DependencyInjection
         services.AddScoped<ListSeasonTeamsQueryHandler>();
         services.AddScoped<AddSeasonTeamMembershipCommandHandler>();
         services.AddScoped<EndSeasonTeamMembershipCommandHandler>();
+        services.AddScoped<GetSeasonTeamByIdQueryHandler>();
 
         return services;
     }

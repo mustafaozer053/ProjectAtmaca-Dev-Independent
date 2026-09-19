@@ -5,6 +5,7 @@ using ProjectAtmaca.Application.SeasonTeams.AddMembership;
 using ProjectAtmaca.Application.SeasonTeams.Create;
 using ProjectAtmaca.Application.SeasonTeams.List;
 using ProjectAtmaca.Application.SeasonTeams.EndMembership;
+using ProjectAtmaca.Application.SeasonTeams.GetById;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.SeasonTeams;
 
@@ -18,17 +19,20 @@ public sealed class SeasonTeamsController : ControllerBase
     private readonly ListSeasonTeamsQueryHandler _listHandler;
     private readonly AddSeasonTeamMembershipCommandHandler _membershipHandler;
     private readonly EndSeasonTeamMembershipCommandHandler _endMembershipHandler;
+    private readonly GetSeasonTeamByIdQueryHandler _getByIdHandler;
 
     public SeasonTeamsController(
         CreateSeasonTeamCommandHandler createHandler,
         ListSeasonTeamsQueryHandler listHandler,
         AddSeasonTeamMembershipCommandHandler membershipHandler,
-        EndSeasonTeamMembershipCommandHandler endMembershipHandler)
+        EndSeasonTeamMembershipCommandHandler endMembershipHandler,
+        GetSeasonTeamByIdQueryHandler getByIdHandler)
     {
         _createHandler = createHandler;
         _listHandler = listHandler;
         _membershipHandler = membershipHandler;
         _endMembershipHandler = endMembershipHandler;
+        _getByIdHandler = getByIdHandler;
     }
 
     [HttpPost]
@@ -89,6 +93,38 @@ public sealed class SeasonTeamsController : ControllerBase
         return Created(
             $"/api/season-teams/{seasonTeamId:D}/memberships/{result.Value!.Value:D}",
             result.Value.Value);
+    }
+
+    [HttpGet("{seasonTeamId}")]
+    public async Task<ActionResult<SeasonTeamDetailsResponse>> GetById(
+        Guid seasonTeamId,
+        CancellationToken cancellationToken)
+    {
+        if (seasonTeamId == Guid.Empty)
+            return ToProblem(SeasonTeamApplicationErrors.NotFound);
+
+        var result = await _getByIdHandler.Handle(
+            new GetSeasonTeamByIdQuery(
+                SeasonTeamId.From(seasonTeamId)),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        var details = result.Value!;
+        return Ok(new SeasonTeamDetailsResponse(
+            details.Id,
+            details.SeasonId,
+            details.OrganizationId,
+            details.AgeGroupId,
+            details.Name,
+            details.IsActive,
+            details.Memberships.Select(x =>
+                new SeasonTeamMembershipResponse(
+                    x.Id,
+                    x.AtmacaCardId,
+                    x.StartDate,
+                    x.EndDate,
+                    x.IsActive)).ToList()));
     }
 
     [HttpPost("{seasonTeamId}/memberships/{membershipId}/end")]
