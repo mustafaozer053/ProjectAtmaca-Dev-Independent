@@ -2,6 +2,7 @@
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.TrainingTypes;
 using ProjectAtmaca.Domain.Trainings;
+using ProjectAtmaca.Domain.SeasonTeams;
 
 namespace ProjectAtmaca.Infrastructure.Persistence;
 
@@ -22,6 +23,9 @@ public sealed class ProjectAtmacaDbContext
 
     public DbSet<TrainingType> TrainingTypes =>
         Set<TrainingType>();
+
+    public DbSet<SeasonTeam> SeasonTeams =>
+        Set<SeasonTeam>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

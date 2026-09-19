@@ -8,6 +8,7 @@ using ProjectAtmaca.Domain.Decisions;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Domain.TrainingTypes;
+using ProjectAtmaca.Domain.SeasonTeams;
 using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Auditing;
 using ProjectAtmaca.Infrastructure.Persistence.Decisions;
@@ -64,6 +65,10 @@ public static class DependencyInjection
         services.AddScoped<
             ITrainingTypeRepository,
             TrainingTypeRepository>();
+
+        services.AddScoped<
+            ISeasonTeamRepository,
+            SeasonTeamRepository>();
 
         services.AddScoped<
             IDecisionRepository,
