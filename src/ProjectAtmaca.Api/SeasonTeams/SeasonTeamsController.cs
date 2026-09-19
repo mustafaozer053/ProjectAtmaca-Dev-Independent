@@ -7,6 +7,7 @@ using ProjectAtmaca.Application.SeasonTeams.ChangeStatus;
 using ProjectAtmaca.Application.SeasonTeams.List;
 using ProjectAtmaca.Application.SeasonTeams.EndMembership;
 using ProjectAtmaca.Application.SeasonTeams.GetById;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.SeasonTeams;
 
@@ -172,9 +173,11 @@ public sealed class SeasonTeamsController : ControllerBase
 
     private ObjectResult ToProblem(Error error)
     {
-        var statusCode = error.Code == SeasonTeamApplicationErrors.NotFound.Code
-            ? StatusCodes.Status404NotFound
-            : StatusCodes.Status400BadRequest;
+        var statusCode = error.Code == ActorAuthorizationErrors.Forbidden.Code
+            ? StatusCodes.Status403Forbidden
+            : error.Code == SeasonTeamApplicationErrors.NotFound.Code
+                ? StatusCodes.Status404NotFound
+                : StatusCodes.Status400BadRequest;
         var details = new ProblemDetails
         {
             Status = statusCode,
