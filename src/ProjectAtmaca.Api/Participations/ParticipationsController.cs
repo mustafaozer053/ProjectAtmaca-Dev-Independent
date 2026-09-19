@@ -11,6 +11,7 @@ using ProjectAtmaca.Api.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Api.Participations.ListByActivity;
 using ProjectAtmaca.Api.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Api.Participations.MarkPresent;
+using ProjectAtmaca.Api.Participations.MarkAbsent;
 using ProjectAtmaca.Api.Participations.RecordArrival;
 using ProjectAtmaca.Api.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Abstractions.Security;
@@ -21,6 +22,7 @@ using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Application.Participations.MarkPresent;
+using ProjectAtmaca.Application.Participations.MarkAbsent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Domain.AtmacaCards;
@@ -59,6 +61,8 @@ public sealed class ParticipationsController
 
     private readonly MarkParticipationPresentCommandHandler
         _markParticipationPresentHandler;
+    private readonly MarkParticipationAbsentCommandHandler
+        _markParticipationAbsentHandler;
 
     private readonly RecordParticipationArrivalCommandHandler
         _recordParticipationArrivalHandler;
@@ -81,6 +85,8 @@ public sealed class ParticipationsController
             listParticipationHistoryByAtmacaCardHandler,
         MarkParticipationPresentCommandHandler
             markParticipationPresentHandler,
+        MarkParticipationAbsentCommandHandler
+            markParticipationAbsentHandler,
         RecordParticipationArrivalCommandHandler
             recordParticipationArrivalHandler,
         RecordParticipationDepartureCommandHandler
@@ -105,6 +111,8 @@ public sealed class ParticipationsController
 
         ArgumentNullException.ThrowIfNull(
             markParticipationPresentHandler);
+        ArgumentNullException.ThrowIfNull(
+            markParticipationAbsentHandler);
 
         ArgumentNullException.ThrowIfNull(
             recordParticipationArrivalHandler);
@@ -131,6 +139,8 @@ public sealed class ParticipationsController
 
         _markParticipationPresentHandler =
             markParticipationPresentHandler;
+        _markParticipationAbsentHandler =
+            markParticipationAbsentHandler;
 
         _recordParticipationArrivalHandler =
             recordParticipationArrivalHandler;
@@ -600,6 +610,31 @@ public sealed class ParticipationsController
         return NoContent();
     }
 
+    [HttpPost("{participationId}/mark-absent")]
+    public async Task<IActionResult> MarkAbsent(
+        string participationId,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParseExact(
+                participationId,
+                "D",
+                out Guid parsedParticipationId) ||
+            parsedParticipationId == Guid.Empty)
+        {
+            return ToProblem(
+                ParticipationEndpointErrors.InvalidParticipationId);
+        }
+
+        var result = await _markParticipationAbsentHandler.Handle(
+            new MarkParticipationAbsentCommand(
+                ParticipationId.From(parsedParticipationId)),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
+    }
+
     [HttpPost("{participationId}/record-arrival")]
     public async Task<IActionResult> RecordArrival(
         string participationId,
@@ -738,6 +773,10 @@ public sealed class ParticipationsController
             string.Equals(
                 error.Code,
                 RecordParticipationDepartureErrors.NotFound.Code,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                error.Code,
+                MarkParticipationAbsentErrors.NotFound.Code,
                 StringComparison.Ordinal) ||
             string.Equals(
                 error.Code,

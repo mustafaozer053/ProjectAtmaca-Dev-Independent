@@ -5,6 +5,7 @@ using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.CreateForTraining;
 using ProjectAtmaca.Application.Participations.MarkPresent;
+using ProjectAtmaca.Application.Participations.MarkAbsent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Participations.ListByActivity;
@@ -54,6 +55,8 @@ public static class DependencyInjection
 
         services.AddScoped<
             MarkParticipationPresentCommandHandler>();
+        services.AddScoped<
+            MarkParticipationAbsentCommandHandler>();
 
         services.AddScoped<
             RecordParticipationArrivalCommandHandler>();

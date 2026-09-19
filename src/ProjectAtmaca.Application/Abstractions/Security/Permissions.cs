@@ -50,6 +50,10 @@ public static class Permissions
             Permission.Create(
                 "Participations.MarkPresent");
 
+        public static readonly Permission MarkAbsent =
+            Permission.Create(
+                "Participations.MarkAbsent");
+
         public static readonly Permission RecordArrival =
             Permission.Create(
                 "Participations.RecordArrival");
@@ -125,6 +129,7 @@ public static class Permissions
                     Participations.ListByActivity,
                     Participations.ListHistoryByAtmacaCard,
                     Participations.MarkPresent,
+                    Participations.MarkAbsent,
                     Participations.RecordArrival,
                     Persons.RegisterWithAtmacaCard,
                     Participations.RecordDeparture,
