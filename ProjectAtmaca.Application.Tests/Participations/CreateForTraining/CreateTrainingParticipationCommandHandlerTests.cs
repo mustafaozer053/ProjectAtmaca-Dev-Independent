@@ -162,6 +162,34 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
         unitOfWork.SaveChangesCallCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Handle_Should_ReturnForbiddenWithoutRepositoryAccess_WhenPermissionIsDenied()
+    {
+        FakeTrainingRepository trainingRepository = new(null);
+        FakeSeasonTeamRepository seasonTeamRepository = new(null);
+        FakeParticipationRepository participationRepository = new();
+        FakeUnitOfWork unitOfWork = new();
+        CreateTrainingParticipationCommandHandler handler = new(
+            new DenyingAuthorizationService(),
+            participationRepository,
+            trainingRepository,
+            seasonTeamRepository,
+            unitOfWork);
+
+        Result<ParticipationId> result = await handler.Handle(
+            new CreateTrainingParticipationCommand(
+                TrainingId.New(),
+                AtmacaCardId.New()),
+            TestContext.Current.CancellationToken);
+
+        result.Error.Should().Be(ActorAuthorizationErrors.Forbidden);
+        trainingRepository.GetByIdCallCount.Should().Be(0);
+        seasonTeamRepository.GetByIdCallCount.Should().Be(0);
+        participationRepository.ExistsCallCount.Should().Be(0);
+        participationRepository.AddCallCount.Should().Be(0);
+        unitOfWork.SaveChangesCallCount.Should().Be(0);
+    }
+
     private static CreateTrainingParticipationCommandHandler CreateHandler(
         Training? training,
         SeasonTeam? seasonTeam,
@@ -232,9 +260,21 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
             Task.FromResult(Result.Success());
     }
 
+    private sealed class DenyingAuthorizationService : IActorAuthorizationService
+    {
+        public Task<Result> AuthorizeAsync(
+            Permission permission,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                Result.Failure(
+                    ActorAuthorizationErrors.Forbidden));
+    }
+
     private sealed class FakeTrainingRepository(Training? training)
         : ITrainingRepository
     {
+        public int GetByIdCallCount { get; private set; }
+
         public Task AddAsync(
             Training training,
             CancellationToken cancellationToken = default) =>
@@ -242,8 +282,11 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
 
         public Task<Training?> GetByIdAsync(
             TrainingId id,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(training);
+            CancellationToken cancellationToken = default)
+        {
+            GetByIdCallCount++;
+            return Task.FromResult(training);
+        }
 
         public Task<IReadOnlyList<Training>> ListAsync(
             CancellationToken cancellationToken = default) =>
@@ -253,6 +296,8 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
     private sealed class FakeSeasonTeamRepository(SeasonTeam? seasonTeam)
         : ISeasonTeamRepository
     {
+        public int GetByIdCallCount { get; private set; }
+
         public Task AddAsync(
             SeasonTeam seasonTeam,
             CancellationToken cancellationToken = default) =>
@@ -260,8 +305,11 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
 
         public Task<SeasonTeam?> GetByIdAsync(
             SeasonTeamId id,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(seasonTeam);
+            CancellationToken cancellationToken = default)
+        {
+            GetByIdCallCount++;
+            return Task.FromResult(seasonTeam);
+        }
 
         public Task<IReadOnlyList<SeasonTeam>> ListAsync(
             CancellationToken cancellationToken = default) =>
@@ -275,6 +323,10 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
 
         public Participation? AddedParticipation { get; private set; }
 
+        public int ExistsCallCount { get; private set; }
+
+        public int AddCallCount { get; private set; }
+
         public Task<Participation?> GetByIdAsync(
             ParticipationId id,
             CancellationToken cancellationToken = default) =>
@@ -283,13 +335,17 @@ public sealed class CreateTrainingParticipationCommandHandlerTests
         public Task<bool> ExistsAsync(
             AtmacaCardId atmacaCardId,
             ActivityReference activityReference,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(ParticipationExists);
+            CancellationToken cancellationToken = default)
+        {
+            ExistsCallCount++;
+            return Task.FromResult(ParticipationExists);
+        }
 
         public Task AddAsync(
             Participation participation,
             CancellationToken cancellationToken = default)
         {
+            AddCallCount++;
             AddedParticipation = participation;
             return Task.CompletedTask;
         }
