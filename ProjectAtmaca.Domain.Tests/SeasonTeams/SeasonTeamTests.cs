@@ -91,6 +91,25 @@ public sealed class SeasonTeamTests
             .Should().BeFalse();
     }
 
+    [Fact]
+    public void EndMembership_Should_PreserveMembershipAndSetEndDate()
+    {
+        var team = CreateTeam();
+        var cardId = AtmacaCardId.New();
+        var period = AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!;
+        var membership = team.AddMembership(cardId, period).Value!;
+
+        var result = team.EndMembership(
+            membership.SeasonTeamMembershipId,
+            new DateTime(2026, 7, 31));
+
+        result.IsSuccess.Should().BeTrue();
+        team.Memberships.Should().ContainSingle()
+            .Which.Period.EndDate.Should().Be(new DateTime(2026, 7, 31));
+        team.HasActiveMembership(cardId, new DateTime(2026, 8, 1))
+            .Should().BeFalse();
+    }
+
     private static SeasonTeam CreateTeam()
     {
         return SeasonTeam.Create(

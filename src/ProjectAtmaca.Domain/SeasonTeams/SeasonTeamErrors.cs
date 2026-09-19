@@ -33,4 +33,9 @@ public static class SeasonTeamErrors
         Error.Create(
             "SEASON_TEAM_DUPLICATE_MEMBERSHIP",
             "The Atmaca card has an overlapping membership in this season team.");
+
+    public static readonly Error MembershipNotFound =
+        Error.Create(
+            "SEASON_TEAM_MEMBERSHIP_NOT_FOUND",
+            "Season team membership was not found.");
 }

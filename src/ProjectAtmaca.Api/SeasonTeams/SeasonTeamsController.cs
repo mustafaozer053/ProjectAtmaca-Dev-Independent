@@ -4,6 +4,7 @@ using ProjectAtmaca.Application.SeasonTeams;
 using ProjectAtmaca.Application.SeasonTeams.AddMembership;
 using ProjectAtmaca.Application.SeasonTeams.Create;
 using ProjectAtmaca.Application.SeasonTeams.List;
+using ProjectAtmaca.Application.SeasonTeams.EndMembership;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.SeasonTeams;
 
@@ -16,15 +17,18 @@ public sealed class SeasonTeamsController : ControllerBase
     private readonly CreateSeasonTeamCommandHandler _createHandler;
     private readonly ListSeasonTeamsQueryHandler _listHandler;
     private readonly AddSeasonTeamMembershipCommandHandler _membershipHandler;
+    private readonly EndSeasonTeamMembershipCommandHandler _endMembershipHandler;
 
     public SeasonTeamsController(
         CreateSeasonTeamCommandHandler createHandler,
         ListSeasonTeamsQueryHandler listHandler,
-        AddSeasonTeamMembershipCommandHandler membershipHandler)
+        AddSeasonTeamMembershipCommandHandler membershipHandler,
+        EndSeasonTeamMembershipCommandHandler endMembershipHandler)
     {
         _createHandler = createHandler;
         _listHandler = listHandler;
         _membershipHandler = membershipHandler;
+        _endMembershipHandler = endMembershipHandler;
     }
 
     [HttpPost]
@@ -85,6 +89,25 @@ public sealed class SeasonTeamsController : ControllerBase
         return Created(
             $"/api/season-teams/{seasonTeamId:D}/memberships/{result.Value!.Value:D}",
             result.Value.Value);
+    }
+
+    [HttpPost("{seasonTeamId}/memberships/{membershipId}/end")]
+    public async Task<IActionResult> EndMembership(
+        Guid seasonTeamId,
+        Guid membershipId,
+        [FromBody] EndSeasonTeamMembershipRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _endMembershipHandler.Handle(
+            new EndSeasonTeamMembershipCommand(
+                seasonTeamId,
+                membershipId,
+                request.EndDate),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
     }
 
     private ObjectResult ToProblem(Error error)

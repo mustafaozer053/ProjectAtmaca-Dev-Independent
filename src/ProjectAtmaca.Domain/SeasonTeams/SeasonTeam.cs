@@ -119,9 +119,7 @@ public sealed class SeasonTeam : AuditableAggregateRoot
         if (membership is null)
         {
             return Result.Failure(
-                Error.Create(
-                    "SEASON_TEAM_MEMBERSHIP_NOT_FOUND",
-                    "Season team membership was not found."));
+                SeasonTeamErrors.MembershipNotFound);
         }
 
         _memberships.Remove(membership);
@@ -135,6 +133,22 @@ public sealed class SeasonTeam : AuditableAggregateRoot
         return _memberships.Any(
             x => x.AtmacaCardId == atmacaCardId &&
                  x.IsActiveOn(onDate));
+    }
+
+    public Result EndMembership(
+        SeasonTeamMembershipId membershipId,
+        DateTime endDate)
+    {
+        var membership = _memberships.SingleOrDefault(
+            x => x.SeasonTeamMembershipId == membershipId);
+
+        if (membership is null)
+        {
+            return Result.Failure(
+                SeasonTeamErrors.MembershipNotFound);
+        }
+
+        return membership.End(endDate);
     }
 
     public void Activate()
