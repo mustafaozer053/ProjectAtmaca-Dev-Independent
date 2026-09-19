@@ -81,5 +81,10 @@ public sealed class GetTrainingByIdQueryHandlerTests
             TrainingId id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(training);
+
+        public Task<IReadOnlyList<Training>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Training>>(
+                Array.Empty<Training>());
     }
 }

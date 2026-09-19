@@ -87,6 +87,11 @@ public sealed class CancelTrainingCommandHandlerTests
             TrainingId id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(training);
+
+        public Task<IReadOnlyList<Training>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Training>>(
+                Array.Empty<Training>());
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork

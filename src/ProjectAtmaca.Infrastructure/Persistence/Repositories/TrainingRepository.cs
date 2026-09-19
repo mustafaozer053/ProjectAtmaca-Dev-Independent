@@ -27,4 +27,10 @@ public sealed class TrainingRepository : ITrainingRepository
         ArgumentNullException.ThrowIfNull(training);
         await _dbContext.Set<Training>().AddAsync(training, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Training>> ListAsync(
+        CancellationToken cancellationToken = default) =>
+        await _dbContext.Set<Training>()
+            .OrderBy(training => training.Schedule)
+            .ToListAsync(cancellationToken);
 }

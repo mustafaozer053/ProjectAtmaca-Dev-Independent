@@ -50,8 +50,8 @@ public sealed class TrainingTypesController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TrainingTypeResponse>>> List(
-        [FromQuery] bool activeOnly,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] bool activeOnly = true)
     {
         Result<IReadOnlyList<TrainingTypeListItem>> result =
             await _listHandler.Handle(

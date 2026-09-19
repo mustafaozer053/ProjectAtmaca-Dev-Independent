@@ -9,4 +9,7 @@ public interface ITrainingRepository
     Task<Training?> GetByIdAsync(
         TrainingId id,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Training>> ListAsync(
+        CancellationToken cancellationToken = default);
 }

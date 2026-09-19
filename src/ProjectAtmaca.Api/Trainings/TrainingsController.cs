@@ -6,6 +6,7 @@ using ProjectAtmaca.Application.Trainings.GetById;
 using ProjectAtmaca.Application.Trainings.Create;
 using ProjectAtmaca.Application.Trainings.Confirm;
 using ProjectAtmaca.Application.Trainings.Reschedule;
+using ProjectAtmaca.Application.Trainings.List;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Trainings;
 
@@ -25,13 +26,15 @@ public sealed class TrainingsController : ControllerBase
     private readonly CreateTrainingCommandHandler _createHandler;
     private readonly ConfirmTrainingCommandHandler _confirmHandler;
     private readonly RescheduleTrainingCommandHandler _rescheduleHandler;
+    private readonly ListTrainingsQueryHandler _listHandler;
 
     public TrainingsController(
         CancelTrainingCommandHandler cancelHandler,
         GetTrainingByIdQueryHandler getByIdHandler,
         CreateTrainingCommandHandler createHandler,
         ConfirmTrainingCommandHandler confirmHandler,
-        RescheduleTrainingCommandHandler rescheduleHandler)
+        RescheduleTrainingCommandHandler rescheduleHandler,
+        ListTrainingsQueryHandler listHandler)
     {
         _cancelHandler = cancelHandler ??
             throw new ArgumentNullException(nameof(cancelHandler));
@@ -43,6 +46,31 @@ public sealed class TrainingsController : ControllerBase
             throw new ArgumentNullException(nameof(confirmHandler));
         _rescheduleHandler = rescheduleHandler ??
             throw new ArgumentNullException(nameof(rescheduleHandler));
+        _listHandler = listHandler ??
+            throw new ArgumentNullException(nameof(listHandler));
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<TrainingListItemResponse>>> List(
+        CancellationToken cancellationToken)
+    {
+        Result<IReadOnlyList<TrainingListItem>> result =
+            await _listHandler.Handle(
+                new ListTrainingsQuery(),
+                cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return Ok(result.Value!.Select(item => new TrainingListItemResponse(
+            item.Id,
+            item.Title,
+            item.Location,
+            item.Date,
+            item.StartTime,
+            item.EndTime,
+            GetStatusCode(item.Status),
+            item.SeasonId,
+            item.OrganizationId)));
     }
 
     [HttpPost]

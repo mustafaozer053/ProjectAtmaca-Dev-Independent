@@ -128,6 +128,8 @@ public sealed class PermissionContractTests
             Permissions.Trainings
                 .Cancel,
 
+            Permissions.Trainings.List,
+
             Permissions.TrainingTypes.Create,
             Permissions.TrainingTypes.List,
             Permissions.TrainingTypes.ChangeStatus
@@ -151,6 +153,7 @@ public sealed class PermissionContractTests
             "Trainings.Reschedule",
             "Trainings.GetById",
             "Trainings.Cancel",
+            "Trainings.List",
             "TrainingTypes.Create",
             "TrainingTypes.List",
             "TrainingTypes.ChangeStatus"

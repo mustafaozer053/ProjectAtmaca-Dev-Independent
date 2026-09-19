@@ -80,6 +80,10 @@ public static class Permissions
         public static readonly Permission Cancel =
             Permission.Create(
                 "Trainings.Cancel");
+
+        public static readonly Permission List =
+            Permission.Create(
+                "Trainings.List");
     }
 
     public static class TrainingTypes
@@ -117,6 +121,7 @@ public static class Permissions
                     Trainings.Reschedule,
                     Trainings.GetById,
                     Trainings.Cancel,
+                    Trainings.List,
                     TrainingTypes.Create,
                     TrainingTypes.List,
                     TrainingTypes.ChangeStatus

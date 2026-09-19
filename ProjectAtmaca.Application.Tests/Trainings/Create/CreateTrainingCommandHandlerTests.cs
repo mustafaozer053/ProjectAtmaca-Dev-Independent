@@ -149,6 +149,11 @@ public sealed class CreateTrainingCommandHandlerTests
             TrainingId id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<Training?>(null);
+
+        public Task<IReadOnlyList<Training>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Training>>(
+                Array.Empty<Training>());
     }
 
     private sealed class FakeTrainingTypeRepository : ITrainingTypeRepository

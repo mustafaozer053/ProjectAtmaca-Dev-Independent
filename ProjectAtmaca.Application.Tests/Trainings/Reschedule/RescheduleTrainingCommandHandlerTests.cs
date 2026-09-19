@@ -101,6 +101,11 @@ public sealed class RescheduleTrainingCommandHandlerTests
             TrainingId id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(training);
+
+        public Task<IReadOnlyList<Training>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Training>>(
+                Array.Empty<Training>());
     }
 
     private sealed class FakeTrainingTypeRepository : ITrainingTypeRepository
