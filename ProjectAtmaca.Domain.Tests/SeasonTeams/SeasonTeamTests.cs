@@ -26,6 +26,33 @@ public sealed class SeasonTeamTests
     }
 
     [Fact]
+    public void Deactivate_Should_MarkSeasonTeamInactive_WithoutChangingMembershipHistory()
+    {
+        var team = CreateTeam();
+        var cardId = AtmacaCardId.New();
+        var period = AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!;
+
+        team.AddMembership(cardId, period).IsSuccess.Should().BeTrue();
+        team.Deactivate();
+
+        team.Status.Should().Be(SeasonTeamStatus.Inactive);
+        team.Memberships.Should().ContainSingle();
+        team.HasActiveMembership(cardId, new DateTime(2026, 8, 1))
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void Activate_Should_RestoreActiveStatus()
+    {
+        var team = CreateTeam();
+
+        team.Deactivate();
+        team.Activate();
+
+        team.Status.Should().Be(SeasonTeamStatus.Active);
+    }
+
+    [Fact]
     public void AddMembership_Should_AllowSameCardInDifferentSeasonTeams()
     {
         var firstTeam = CreateTeam();
