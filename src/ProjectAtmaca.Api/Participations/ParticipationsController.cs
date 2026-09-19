@@ -11,7 +11,6 @@ using ProjectAtmaca.Api.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Api.Participations.ListByActivity;
 using ProjectAtmaca.Api.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Api.Participations.MarkPresent;
-using ProjectAtmaca.Api.Participations.MarkAbsent;
 using ProjectAtmaca.Api.Participations.RecordArrival;
 using ProjectAtmaca.Api.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Abstractions.Security;

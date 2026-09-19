@@ -408,6 +408,12 @@ public sealed class ParticipationReaderTests
                 AtmacaCardId.New())
             .Value!;
 
+        Participation btaParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
         Participation otherPresentParticipation =
             Participation.Create(
                 otherActivity,
@@ -439,6 +445,13 @@ public sealed class ParticipationReaderTests
             .Should()
             .BeTrue();
 
+        btaParticipation
+            .MarkAbsent(
+                ParticipationCondition.Bta)
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
         otherPresentParticipation
             .MarkPresent()
             .IsSuccess
@@ -461,6 +474,7 @@ public sealed class ParticipationReaderTests
                 firstPresentParticipation,
                 secondPresentParticipation,
                 absentParticipation,
+                btaParticipation,
                 otherPresentParticipation,
                 otherAbsentParticipation);
 

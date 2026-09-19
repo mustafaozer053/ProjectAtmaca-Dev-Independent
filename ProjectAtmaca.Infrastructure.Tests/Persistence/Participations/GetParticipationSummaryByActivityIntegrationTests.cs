@@ -58,6 +58,12 @@ public sealed class GetParticipationSummaryByActivityIntegrationTests
                 AtmacaCardId.New())
             .Value!;
 
+        Participation btaParticipation =
+            Participation.Create(
+                targetActivity,
+                AtmacaCardId.New())
+            .Value!;
+
         Participation otherPresentParticipation =
             Participation.Create(
                 otherActivity,
@@ -83,6 +89,13 @@ public sealed class GetParticipationSummaryByActivityIntegrationTests
             .Should()
             .BeTrue();
 
+        btaParticipation
+            .MarkAbsent(
+                ParticipationCondition.Bta)
+            .IsSuccess
+            .Should()
+            .BeTrue();
+
         otherPresentParticipation
             .MarkPresent()
             .IsSuccess
@@ -99,6 +112,7 @@ public sealed class GetParticipationSummaryByActivityIntegrationTests
                 firstPresentParticipation,
                 secondPresentParticipation,
                 absentParticipation,
+                btaParticipation,
                 otherPresentParticipation);
 
             await seedContext.SaveChangesAsync();

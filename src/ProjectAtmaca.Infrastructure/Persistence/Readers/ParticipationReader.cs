@@ -105,7 +105,11 @@ public sealed class ParticipationReader
                 .Where(
                     participation =>
                         participation.ActivityReference ==
-                        activityReference)
+                        activityReference &&
+                        EF.Property<ParticipationCondition?>(
+                            participation,
+                            nameof(Participation.Condition)) !=
+                            ParticipationCondition.Bta)
                 .GroupBy(
                     _ => 1)
                 .Select(
