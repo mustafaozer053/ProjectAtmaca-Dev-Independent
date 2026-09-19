@@ -3,6 +3,7 @@ using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Security;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.Create;
+using ProjectAtmaca.Application.Participations.CreateForTraining;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
@@ -43,6 +44,8 @@ public static class DependencyInjection
 
         services.AddScoped<
             CreateParticipationCommandHandler>();
+        services.AddScoped<
+            CreateTrainingParticipationCommandHandler>();
 
         services.AddScoped<
             GetParticipationByIdQueryHandler>();

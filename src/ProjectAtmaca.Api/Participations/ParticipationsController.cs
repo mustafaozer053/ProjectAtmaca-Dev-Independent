@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 
 using ProjectAtmaca.Api.Participations.Create;
+using ProjectAtmaca.Api.Participations.CreateForTraining;
 using ProjectAtmaca.Api.Participations.GetById;
 using ProjectAtmaca.Api.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Api.Participations.ListByActivity;
@@ -14,6 +15,7 @@ using ProjectAtmaca.Api.Participations.RecordArrival;
 using ProjectAtmaca.Api.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Participations.Create;
+using ProjectAtmaca.Application.Participations.CreateForTraining;
 using ProjectAtmaca.Application.Participations.GetById;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Application.Participations.ListByActivity;
@@ -40,6 +42,8 @@ public sealed class ParticipationsController
 
     private readonly CreateParticipationCommandHandler
         _createParticipationHandler;
+    private readonly CreateTrainingParticipationCommandHandler
+        _createTrainingParticipationHandler;
 
     private readonly GetParticipationByIdQueryHandler
         _getParticipationByIdHandler;
@@ -65,6 +69,8 @@ public sealed class ParticipationsController
     public ParticipationsController(
         CreateParticipationCommandHandler
             createParticipationHandler,
+        CreateTrainingParticipationCommandHandler
+            createTrainingParticipationHandler,
         GetParticipationByIdQueryHandler
             getParticipationByIdHandler,
         GetParticipationSummaryByActivityQueryHandler
@@ -82,6 +88,8 @@ public sealed class ParticipationsController
     {
         ArgumentNullException.ThrowIfNull(
             createParticipationHandler);
+        ArgumentNullException.ThrowIfNull(
+            createTrainingParticipationHandler);
 
         ArgumentNullException.ThrowIfNull(
             getParticipationByIdHandler);
@@ -106,6 +114,8 @@ public sealed class ParticipationsController
 
         _createParticipationHandler =
             createParticipationHandler;
+        _createTrainingParticipationHandler =
+            createTrainingParticipationHandler;
 
         _getParticipationByIdHandler =
             getParticipationByIdHandler;
@@ -127,6 +137,32 @@ public sealed class ParticipationsController
 
         _recordParticipationDepartureHandler =
             recordParticipationDepartureHandler;
+    }
+
+    [HttpPost("~/api/trainings/{trainingId}/participations")]
+    public async Task<ActionResult<CreateParticipationResponse>>
+        CreateForTraining(
+            Guid trainingId,
+            [FromBody] CreateTrainingParticipationRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (trainingId == Guid.Empty)
+            return ToProblem(ActivityIdRequired);
+
+        if (request.AtmacaCardId == Guid.Empty)
+            return ToProblem(ParticipationErrors.AtmacaCardRequired);
+
+        var result = await _createTrainingParticipationHandler.Handle(
+            new CreateTrainingParticipationCommand(
+                TrainingId.From(trainingId),
+                AtmacaCardId.From(request.AtmacaCardId)),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return Created(
+            $"/api/participations/{result.Value!.Value:D}",
+            new CreateParticipationResponse(result.Value.Value));
     }
 
     [HttpPost]
@@ -702,6 +738,10 @@ public sealed class ParticipationsController
             string.Equals(
                 error.Code,
                 RecordParticipationDepartureErrors.NotFound.Code,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                error.Code,
+                CreateTrainingParticipationErrors.TrainingNotFound.Code,
                 StringComparison.Ordinal)
         )
         {
