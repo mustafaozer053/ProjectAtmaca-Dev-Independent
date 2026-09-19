@@ -4,6 +4,7 @@ using ProjectAtmaca.Application.TrainingTypes.ChangeStatus;
 using ProjectAtmaca.Application.TrainingTypes.Create;
 using ProjectAtmaca.Application.TrainingTypes.List;
 using ProjectAtmaca.Application.TrainingTypes;
+using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.TrainingTypes;
 
@@ -91,8 +92,10 @@ public sealed class TrainingTypesController : ControllerBase
 
     private ObjectResult ToProblem(Error error)
     {
-        int statusCode = error.Code == TrainingTypeApplicationErrors.NotFound.Code
-            ? StatusCodes.Status404NotFound
+        int statusCode = error.Code == ActorAuthorizationErrors.Forbidden.Code
+            ? StatusCodes.Status403Forbidden
+            : error.Code == TrainingTypeApplicationErrors.NotFound.Code
+                ? StatusCodes.Status404NotFound
             : StatusCodes.Status400BadRequest;
 
         var details = new ProblemDetails
