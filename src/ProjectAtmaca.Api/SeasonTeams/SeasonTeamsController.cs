@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using ProjectAtmaca.Application.SeasonTeams;
 using ProjectAtmaca.Application.SeasonTeams.AddMembership;
 using ProjectAtmaca.Application.SeasonTeams.Create;
+using ProjectAtmaca.Application.SeasonTeams.ChangeStatus;
 using ProjectAtmaca.Application.SeasonTeams.List;
 using ProjectAtmaca.Application.SeasonTeams.EndMembership;
 using ProjectAtmaca.Application.SeasonTeams.GetById;
@@ -20,19 +21,22 @@ public sealed class SeasonTeamsController : ControllerBase
     private readonly AddSeasonTeamMembershipCommandHandler _membershipHandler;
     private readonly EndSeasonTeamMembershipCommandHandler _endMembershipHandler;
     private readonly GetSeasonTeamByIdQueryHandler _getByIdHandler;
+    private readonly ChangeSeasonTeamStatusCommandHandler _statusHandler;
 
     public SeasonTeamsController(
         CreateSeasonTeamCommandHandler createHandler,
         ListSeasonTeamsQueryHandler listHandler,
         AddSeasonTeamMembershipCommandHandler membershipHandler,
         EndSeasonTeamMembershipCommandHandler endMembershipHandler,
-        GetSeasonTeamByIdQueryHandler getByIdHandler)
+        GetSeasonTeamByIdQueryHandler getByIdHandler,
+        ChangeSeasonTeamStatusCommandHandler statusHandler)
     {
         _createHandler = createHandler;
         _listHandler = listHandler;
         _membershipHandler = membershipHandler;
         _endMembershipHandler = endMembershipHandler;
         _getByIdHandler = getByIdHandler;
+        _statusHandler = statusHandler;
     }
 
     [HttpPost]
@@ -125,6 +129,26 @@ public sealed class SeasonTeamsController : ControllerBase
                     x.StartDate,
                     x.EndDate,
                     x.IsActive)).ToList()));
+    }
+
+    [HttpPatch("{seasonTeamId}/status")]
+    public async Task<IActionResult> ChangeStatus(
+        Guid seasonTeamId,
+        ChangeSeasonTeamStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (seasonTeamId == Guid.Empty)
+            return ToProblem(SeasonTeamApplicationErrors.NotFound);
+
+        var result = await _statusHandler.Handle(
+            new ChangeSeasonTeamStatusCommand(
+                SeasonTeamId.From(seasonTeamId),
+                request.IsActive),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
     }
 
     [HttpPost("{seasonTeamId}/memberships/{membershipId}/end")]

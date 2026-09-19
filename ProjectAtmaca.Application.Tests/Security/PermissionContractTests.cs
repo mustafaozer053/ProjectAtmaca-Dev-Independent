@@ -139,7 +139,8 @@ public sealed class PermissionContractTests
             Permissions.SeasonTeams.Create,
             Permissions.SeasonTeams.List,
             Permissions.SeasonTeams.AddMembership,
-            Permissions.SeasonTeams.EndMembership
+            Permissions.SeasonTeams.EndMembership,
+            Permissions.SeasonTeams.ChangeStatus
         };
 
         string[] expectedCodes =
@@ -168,7 +169,8 @@ public sealed class PermissionContractTests
             "SeasonTeams.Create",
             "SeasonTeams.List",
             "SeasonTeams.AddMembership",
-            "SeasonTeams.EndMembership"
+            "SeasonTeams.EndMembership",
+            "SeasonTeams.ChangeStatus"
         };
 
         permissions
