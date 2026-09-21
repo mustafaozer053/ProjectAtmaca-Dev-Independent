@@ -1,10 +1,20 @@
 using ProjectAtmaca.Web.Components;
+using ProjectAtmaca.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddHttpClient<SeasonTeamsApiClient>(client =>
+{
+    var baseUrl = builder.Configuration["ProjectAtmacaApi:BaseUrl"]
+        ?? throw new InvalidOperationException(
+            "ProjectAtmacaApi:BaseUrl configuration is missing.");
+
+    client.BaseAddress = new Uri(baseUrl);
+});
 
 var app = builder.Build();
 

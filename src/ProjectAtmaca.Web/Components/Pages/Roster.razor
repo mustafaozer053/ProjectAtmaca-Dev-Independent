@@ -1,86 +1,128 @@
 ﻿@page "/roster"
 @rendermode InteractiveServer
 @using System.Linq
+@using ProjectAtmaca.Web.Services
+@inject SeasonTeamsApiClient Api
 
 <PageTitle>Sezon Takım Kadrosu</PageTitle>
 
-<div class="roster-page">
-    <header class="roster-header">
-        <div>
-            <div class="eyebrow">SEZON TAKIMI · KADRO YÖNETİMİ</div>
-            <h1>U15 Akademi</h1>
-            <p class="muted">2025-2026 sezonu · Project Atmaca Akademi</p>
-        </div>
-        <div class="header-actions">
-            <span class="status-pill active"><span></span> Aktif takım</span>
-            <button class="btn btn-primary" @onclick="OpenAddMember">+ Kadroya üye ekle</button>
-        </div>
-    </header>
-
-    <section class="summary-grid" aria-label="Kadro özeti">
-        <SummaryCard Label="Toplam üye" Value="@Members.Count" Detail="Bu sezon kayıtlı" Tone="blue" />
-        <SummaryCard Label="Aktif üyelik" Value="@Members.Count(m => m.IsActive)" Detail="Bugün geçerli" Tone="green" />
-        <SummaryCard Label="Sporcu" Value="@Members.Count(m => m.Classification == "Sporcu")" Detail="Aktif sınıflandırma" Tone="purple" />
-        <SummaryCard Label="Teknik ekip" Value="@Members.Count(m => m.Classification == "Teknik Ekip")" Detail="Aktif sınıflandırma" Tone="orange" />
-    </section>
-
-    <div class="toolbar">
-        <div class="section-tabs" role="tablist" aria-label="Kadro bölümü">
-            <button class="tab @(selectedSection == "Tümü" ? "selected" : "")" @onclick='@(() => selectedSection = "Tümü")'>Tümü <b>@Members.Count</b></button>
-            <button class="tab @(selectedSection == "Sporcu" ? "selected" : "")" @onclick='@(() => selectedSection = "Sporcu")'>Sporcular <b>@Members.Count(m => m.Classification == "Sporcu")</b></button>
-            <button class="tab @(selectedSection == "Teknik Ekip" ? "selected" : "")" @onclick='@(() => selectedSection = "Teknik Ekip")'>Teknik ekip <b>@Members.Count(m => m.Classification == "Teknik Ekip")</b></button>
-            <button class="tab @(selectedSection == "Sınıflandırılmamış" ? "selected" : "")" @onclick='@(() => selectedSection = "Sınıflandırılmamış")'>Sınıflandırılmamış <b>@Members.Count(m => string.IsNullOrEmpty(m.Classification))</b></button>
-        </div>
-        <label class="search-box">
-            <span aria-hidden="true">⌕</span>
-            <input @bind="searchTerm" placeholder="Kadroyu ara..." aria-label="Kadroyu ara" />
-        </label>
+@if (isLoading)
+{
+    <div class="roster-page"><p class="muted">Kadro verileri yükleniyor...</p></div>
+}
+else if (errorMessage is not null)
+{
+    <div class="roster-page">
+        <p class="muted">@errorMessage</p>
+        <button class="btn btn-primary" @onclick="ReloadAsync">Tekrar dene</button>
     </div>
+}
+else if (selectedTeam is null)
+{
+    <div class="roster-page"><p class="muted">Henüz kayıtlı bir sezon takımı bulunmuyor.</p></div>
+}
+else
+{
+    <div class="roster-page">
+        <header class="roster-header">
+            <div>
+                <div class="eyebrow">SEZON TAKIMI · KADRO YÖNETİMİ</div>
+                <h1>@selectedTeam.Name</h1>
+                <p class="muted">Project Atmaca Akademi</p>
+            </div>
+            <div class="header-actions">
+                @if (teams.Count > 1)
+                {
+                    <select class="form-input" style="width:auto" value="@selectedTeam.Id" @onchange="OnTeamChangedAsync">
+                        @foreach (var team in teams)
+                        {
+                            <option value="@team.Id">@team.Name</option>
+                        }
+                    </select>
+                }
+                <span class="status-pill @(selectedTeam.IsActive ? "active" : "passive")"><span></span> @(selectedTeam.IsActive ? "Aktif takım" : "Pasif takım")</span>
+                <button class="btn btn-primary" @onclick="OpenAddMember">+ Kadroya üye ekle</button>
+            </div>
+        </header>
 
-    <section class="member-card">
-        <div class="card-heading">
-            <div><h2>@selectedSection</h2><span>@FilteredMembers.Count() kayıt gösteriliyor</span></div>
-            <button class="btn btn-light" @onclick="OpenAddMember">Üye işlemleri <span>⌄</span></button>
-        </div>
-        <div class="table-wrap">
-            <table class="member-table">
-                <thead><tr><th>ÜYE</th><th>GÖREV / ÜNVAN / ROL</th><th>ÜYELİK DÖNEMİ</th><th>DURUM</th><th></th></tr></thead>
-                <tbody>
-                    @foreach (var member in FilteredMembers)
-                    {
-                        <tr>
-                            <td><div class="member-name"><div class="avatar @member.AvatarColor">@member.Initials</div><div><strong>@member.Name</strong><small>@member.CardCode</small></div></div></td>
-                            <td><div class="assignment-list">@foreach (var assignment in member.Assignments) { <span class="assignment-tag @assignment.Kind">@assignment.Text</span> }</div></td>
-                            <td><span class="period">@member.Period</span></td>
-                            <td><span class="status-pill @(member.IsActive ? "active" : "passive")"><span></span>@(member.IsActive ? "Aktif" : "Pasif")</span></td>
-                            <td><button class="more-button" aria-label="@member.Name detayları" @onclick="() => selectedMember = member">•••</button></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </section>
+        <section class="summary-grid" aria-label="Kadro özeti">
+            <SummaryCard Label="Toplam üye" Value="@Members.Count" Detail="Bu sezon kayıtlı" Tone="blue" />
+            <SummaryCard Label="Aktif üyelik" Value="@Members.Count(m => m.IsActive)" Detail="Bugün geçerli" Tone="green" />
+            <SummaryCard Label="Sporcu" Value="@Members.Count(m => m.Classification == "Sporcu")" Detail="Aktif sınıflandırma" Tone="purple" />
+            <SummaryCard Label="Teknik ekip" Value="@Members.Count(m => m.Classification == "Teknik Ekip")" Detail="Aktif sınıflandırma" Tone="orange" />
+        </section>
 
-    @if (selectedMember is not null)
-    {
-        <div class="detail-overlay" @onclick="CloseDetails">
-            <aside class="detail-panel" @onclick:stopPropagation>
-                <button class="close-button" @onclick="CloseDetails">×</button>
-                <div class="detail-profile"><div class="avatar large @selectedMember.AvatarColor">@selectedMember.Initials</div><div><h2>@selectedMember.Name</h2><p>@selectedMember.CardCode</p></div></div>
-                <div class="detail-section"><h3>Bu kadrodaki atamalar</h3>@foreach (var assignment in selectedMember.Assignments) { <div class="detail-assignment"><span class="assignment-tag @assignment.Kind">@assignment.Text</span><small>@assignment.Period</small></div> }</div>
-                <div class="detail-section"><h3>Üyelik dönemi</h3><p class="detail-period">@selectedMember.Period</p><span class="status-pill @(selectedMember.IsActive ? "active" : "passive")"><span></span>@(selectedMember.IsActive ? "Aktif üyelik" : "Sonlandırılmış üyelik")</span></div>
-                <button class="btn btn-primary full-width" @onclick="CloseDetails">Üyelik detayını aç</button>
-            </aside>
+        <div class="toolbar">
+            <div class="section-tabs" role="tablist" aria-label="Kadro bölümü">
+                <button class="tab @(selectedSection == "Tümü" ? "selected" : "")" @onclick='@(() => selectedSection = "Tümü")'>Tümü <b>@Members.Count</b></button>
+                <button class="tab @(selectedSection == "Sporcu" ? "selected" : "")" @onclick='@(() => selectedSection = "Sporcu")'>Sporcular <b>@Members.Count(m => m.Classification == "Sporcu")</b></button>
+                <button class="tab @(selectedSection == "Teknik Ekip" ? "selected" : "")" @onclick='@(() => selectedSection = "Teknik Ekip")'>Teknik ekip <b>@Members.Count(m => m.Classification == "Teknik Ekip")</b></button>
+                <button class="tab @(selectedSection == "Sınıflandırılmamış" ? "selected" : "")" @onclick='@(() => selectedSection = "Sınıflandırılmamış")'>Sınıflandırılmamış <b>@Members.Count(m => string.IsNullOrEmpty(m.Classification))</b></button>
+            </div>
+            <label class="search-box">
+                <span aria-hidden="true">⌕</span>
+                <input @bind="searchTerm" placeholder="Kadroyu ara..." aria-label="Kadroyu ara" />
+            </label>
         </div>
-    }
 
-    @if (showAddMember)
-    {
-        <div class="detail-overlay" @onclick="CloseAddMember"><aside class="detail-panel add-panel" @onclick:stopPropagation><button class="close-button" @onclick="CloseAddMember">×</button><h2>Kadroya üye ekle</h2><p class="muted">Bir AtmacaCard seçerek bu sezon takımına üyelik oluşturun.</p><label class="form-label">AtmacaCard ara<input class="form-input" placeholder="İsim veya kart numarası" /></label><div class="empty-search">Arama sonucu burada görünecek.</div><button class="btn btn-primary full-width" @onclick="CloseAddMember">Devam et</button></aside></div>
-    }
-</div>
+        <section class="member-card">
+            <div class="card-heading">
+                <div><h2>@selectedSection</h2><span>@FilteredMembers.Count() kayıt gösteriliyor</span></div>
+                <button class="btn btn-light" @onclick="OpenAddMember">Üye işlemleri <span>⌄</span></button>
+            </div>
+            <div class="table-wrap">
+                @if (!FilteredMembers.Any())
+                {
+                    <div class="empty-search">Bu bölümde gösterilecek üye bulunmuyor.</div>
+                }
+                else
+                {
+                    <table class="member-table">
+                        <thead><tr><th>ÜYE</th><th>GÖREV / ÜNVAN / ROL</th><th>ÜYELİK DÖNEMİ</th><th>DURUM</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var member in FilteredMembers)
+                            {
+                                <tr>
+                                    <td><div class="member-name"><div class="avatar @member.AvatarColor">@member.Initials</div><div><strong>@member.Name</strong><small>@member.CardCode</small></div></div></td>
+                                    <td><div class="assignment-list">@foreach (var assignment in member.Assignments) { <span class="assignment-tag @assignment.Kind">@assignment.Text</span> }</div></td>
+                                    <td><span class="period">@member.Period</span></td>
+                                    <td><span class="status-pill @(member.IsActive ? "active" : "passive")"><span></span>@(member.IsActive ? "Aktif" : "Pasif")</span></td>
+                                    <td><button class="more-button" aria-label="@member.Name detayları" @onclick="() => selectedMember = member">•••</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </section>
+
+        @if (selectedMember is not null)
+        {
+            <div class="detail-overlay" @onclick="CloseDetails">
+                <aside class="detail-panel" @onclick:stopPropagation>
+                    <button class="close-button" @onclick="CloseDetails">×</button>
+                    <div class="detail-profile"><div class="avatar large @selectedMember.AvatarColor">@selectedMember.Initials</div><div><h2>@selectedMember.Name</h2><p>@selectedMember.CardCode</p></div></div>
+                    <div class="detail-section"><h3>Bu kadrodaki atamalar</h3>@foreach (var assignment in selectedMember.Assignments) { <div class="detail-assignment"><span class="assignment-tag @assignment.Kind">@assignment.Text</span><small>@assignment.Period</small></div> }</div>
+                    <div class="detail-section"><h3>Üyelik dönemi</h3><p class="detail-period">@selectedMember.Period</p><span class="status-pill @(selectedMember.IsActive ? "active" : "passive")"><span></span>@(selectedMember.IsActive ? "Aktif üyelik" : "Sonlandırılmış üyelik")</span></div>
+                    <button class="btn btn-primary full-width" @onclick="CloseDetails">Üyelik detayını aç</button>
+                </aside>
+            </div>
+        }
+
+        @if (showAddMember)
+        {
+            <div class="detail-overlay" @onclick="CloseAddMember"><aside class="detail-panel add-panel" @onclick:stopPropagation><button class="close-button" @onclick="CloseAddMember">×</button><h2>Kadroya üye ekle</h2><p class="muted">Bir AtmacaCard seçerek bu sezon takımına üyelik oluşturun.</p><label class="form-label">AtmacaCard ara<input class="form-input" placeholder="İsim veya kart numarası" /></label><div class="empty-search">Arama sonucu burada görünecek.</div><button class="btn btn-primary full-width" @onclick="CloseAddMember">Devam et</button></aside></div>
+        }
+    </div>
+}
 
 @code {
+    private bool isLoading = true;
+    private string? errorMessage;
+    private IReadOnlyList<SeasonTeamResponse> teams = [];
+    private SeasonTeamResponse? selectedTeam;
+    private IReadOnlyList<Member> Members = [];
+
     private string selectedSection = "Tümü";
     private string searchTerm = string.Empty;
     private bool showAddMember;
@@ -90,23 +132,132 @@
         (selectedSection == "Tümü" || (selectedSection == "Sınıflandırılmamış" ? string.IsNullOrEmpty(m.Classification) : m.Classification == selectedSection)) &&
         (string.IsNullOrWhiteSpace(searchTerm) || m.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || m.CardCode.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
 
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            teams = await Api.GetSeasonTeamsAsync();
+            selectedTeam = teams.FirstOrDefault();
+
+            if (selectedTeam is not null)
+            {
+                await LoadRosterAsync(selectedTeam.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Kadro verileri yüklenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnTeamChangedAsync(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var teamId))
+        {
+            selectedTeam = teams.FirstOrDefault(t => t.Id == teamId);
+            selectedSection = "Tümü";
+            searchTerm = string.Empty;
+            selectedMember = null;
+
+            if (selectedTeam is not null)
+            {
+                await LoadRosterAsync(selectedTeam.Id);
+            }
+        }
+    }
+
+    private async Task LoadRosterAsync(Guid seasonTeamId)
+    {
+        var roster = await Api.GetRosterViewAsync(seasonTeamId);
+        Members = roster is null
+            ? []
+            : roster.Groups
+                .SelectMany(group => group.Memberships.Select(membership => ToMember(membership, group.Classification)))
+                .Concat(roster.UnclassifiedMemberships.Select(membership => ToMember(membership, string.Empty)))
+                .OrderBy(m => m.Name)
+                .ToList();
+    }
+
+    private static Member ToMember(SeasonTeamMembershipResponse membership, string classification)
+    {
+        var name = !string.IsNullOrWhiteSpace(membership.AtmacaCardDisplayName)
+            ? membership.AtmacaCardDisplayName!
+            : "İsimsiz kart";
+        var cardCode = membership.AtmacaCardNumber ?? "—";
+        var period = membership.EndDate is null
+            ? $"{membership.StartDate:dd.MM.yyyy} - devam ediyor"
+            : $"{membership.StartDate:dd.MM.yyyy} - {membership.EndDate:dd.MM.yyyy}";
+
+        var assignments = membership.Assignments
+            .Where(a => a.IsActive)
+            .Select(a => new Assignment(ToTagCssClass(a.Kind, a.DisplayNameSnapshot), a.DisplayNameSnapshot, FormatAssignmentPeriod(a)))
+            .ToList();
+
+        return new Member(
+            name,
+            cardCode,
+            ToInitials(name),
+            ToAvatarColor(name),
+            classification,
+            period,
+            membership.IsActive,
+            assignments);
+    }
+
+    private static string ToTagCssClass(string kind, string label)
+    {
+        if (string.Equals(kind, "Classification", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(label, "Sporcu", StringComparison.OrdinalIgnoreCase) ? "player" : "duty";
+        }
+
+        return kind.ToLowerInvariant();
+    }
+
+    private static string FormatAssignmentPeriod(SeasonTeamMembershipAssignmentResponse assignment)
+    {
+        return assignment.EndDate is null
+            ? $"{assignment.StartDate:dd.MM.yyyy} - devam ediyor"
+            : $"{assignment.StartDate:dd.MM.yyyy} - {assignment.EndDate:dd.MM.yyyy}";
+    }
+
+    private static string ToInitials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..Math.Min(2, parts[0].Length)].ToUpperInvariant(),
+            _ => string.Concat(parts[0][0], parts[^1][0]).ToUpperInvariant()
+        };
+    }
+
+    private static readonly string[] AvatarPalette = ["blue", "pink", "green", "orange", "purple", "gray"];
+
+    private static string ToAvatarColor(string name)
+    {
+        var index = Math.Abs(name.GetHashCode()) % AvatarPalette.Length;
+        return AvatarPalette[index];
+    }
+
     private void OpenAddMember() => showAddMember = true;
     private void CloseAddMember() => showAddMember = false;
     private void CloseDetails() => selectedMember = null;
 
-    private static readonly List<Member> Members = new()
-    {
-        new("Mert Yılmaz", "ATM-000124", "MY", "blue", "Sporcu", "15.08.2025 - 30.06.2026", true, new[] { new Assignment("player", "Sporcu"), new Assignment("role", "Kaptan") }),
-        new("Ece Kaya", "ATM-000087", "EK", "pink", "Sporcu", "15.08.2025 - 30.06.2026", true, new[] { new Assignment("player", "Sporcu") }),
-        new("Burak Demir", "ATM-000031", "BD", "green", "Teknik Ekip", "01.08.2025 - 30.06.2026", true, new[] { new Assignment("duty", "Takım Teknik Sorumlusu") }),
-        new("Selin Arslan", "ATM-000056", "SA", "orange", "Teknik Ekip", "01.08.2025 - 30.06.2026", true, new[] { new Assignment("duty", "Yardımcı Antrenör"), new Assignment("title", "UEFA B") }),
-        new("Can Özkan", "ATM-000145", "CÖ", "purple", "Sporcu", "15.08.2025 - 30.06.2026", true, new[] { new Assignment("player", "Sporcu"), new Assignment("role", "Kaleci") }),
-        new("Deniz Aydın", "ATM-000162", "DA", "gray", "", "15.08.2025 - 12.02.2026", false, Array.Empty<Assignment>())
-    };
-
     private sealed record Member(string Name, string CardCode, string Initials, string AvatarColor, string Classification, string Period, bool IsActive, IReadOnlyList<Assignment> Assignments);
-    private sealed record Assignment(string Kind, string Text) { public string Period => "15.08.2025 - devam ediyor"; }
+    private sealed record Assignment(string Kind, string Text, string Period);
 }
-
-
 
