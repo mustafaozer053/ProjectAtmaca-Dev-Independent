@@ -48,9 +48,26 @@ builder.Services
         "Authentication:Audience is required.")
     .ValidateOnStart();
 
-builder.Services
+bool isDevelopment =
+    builder.Environment.IsDevelopment();
+
+// Requires an explicit opt-in (never set by the test host's
+// WebApplicationFactory) in addition to Development, so security/
+// production-composition tests keep exercising real authentication.
+bool developmentActorBypassEnabled =
+    isDevelopment &&
+    string.Equals(
+        Environment.GetEnvironmentVariable(
+            "PROJECTATMACA_ENABLE_DEV_BYPASS"),
+        "true",
+        StringComparison.OrdinalIgnoreCase);
+
+var authenticationBuilder = builder.Services
     .AddAuthentication(
-        JwtBearerDefaults.AuthenticationScheme)
+        developmentActorBypassEnabled
+            ? DevelopmentActorAuthenticationHandler
+                .SchemeName
+            : JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(
         options =>
         {
@@ -74,6 +91,20 @@ builder.Services
                     ValidateLifetime = true
                 };
         });
+
+// Development-only: authenticate every request as a fixed local actor
+// and grant every permission, so a local UI client can call the API
+// without standing up a full identity provider. Never active outside
+// Development (see DevelopmentActorAuthenticationHandler/AllowAllPermissionEvaluator).
+if (developmentActorBypassEnabled)
+{
+    authenticationBuilder.AddScheme<
+        AuthenticationSchemeOptions,
+        DevelopmentActorAuthenticationHandler>(
+        DevelopmentActorAuthenticationHandler
+            .SchemeName,
+        _ => { });
+}
 
 builder.Services.AddHttpContextAccessor();
 
@@ -115,6 +146,16 @@ builder.Services.AddApplication();
 
 builder.Services.AddInfrastructure(
     builder.Configuration);
+
+// Development-only: bypass the persisted permission grant table so
+// prototyping does not require seeding ActorPermissionGrant rows.
+if (developmentActorBypassEnabled)
+{
+    builder.Services.Replace(
+        ServiceDescriptor.Scoped<
+            IActorPermissionEvaluator,
+            AllowAllPermissionEvaluator>());
+}
 
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
