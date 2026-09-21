@@ -26,6 +26,20 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
             activeCard,
             AssignmentPeriod.Create(today).Value!)
             .IsSuccess.Should().BeTrue();
+        SeasonTeamMembership activeMembership = seasonTeam.Memberships
+            .Single(x => x.AtmacaCardId == activeCard);
+        activeMembership.AddAssignment(
+            SeasonTeamAssignmentKind.Role,
+            Guid.NewGuid(),
+            "Player",
+            AssignmentPeriod.Create(today).Value!)
+            .IsSuccess.Should().BeTrue();
+        activeMembership.AddAssignment(
+            SeasonTeamAssignmentKind.Role,
+            Guid.NewGuid(),
+            "Captain",
+            AssignmentPeriod.Create(today).Value!)
+            .IsSuccess.Should().BeTrue();
         seasonTeam.AddMembership(
             endedCard,
             AssignmentPeriod.Create(
@@ -49,9 +63,14 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
         result.Value.Memberships[0].AtmacaCardId
             .Should().Be(endedCard.Value);
         result.Value.Memberships[0].IsActive.Should().BeFalse();
+        result.Value.Memberships[0].Assignments.Should().BeEmpty();
         result.Value.Memberships[1].AtmacaCardId
             .Should().Be(activeCard.Value);
         result.Value.Memberships[1].IsActive.Should().BeTrue();
+        result.Value.Memberships[1].Assignments.Should().HaveCount(2);
+        result.Value.Memberships[1].Assignments
+            .Select(x => x.DisplayNameSnapshot)
+            .Should().BeEquivalentTo("Captain", "Player");
     }
 
     [Fact]

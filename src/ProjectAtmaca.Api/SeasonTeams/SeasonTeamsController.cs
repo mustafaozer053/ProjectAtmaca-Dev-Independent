@@ -7,6 +7,8 @@ using ProjectAtmaca.Application.SeasonTeams.ChangeStatus;
 using ProjectAtmaca.Application.SeasonTeams.List;
 using ProjectAtmaca.Application.SeasonTeams.EndMembership;
 using ProjectAtmaca.Application.SeasonTeams.GetById;
+using ProjectAtmaca.Application.SeasonTeams.AddMembershipAssignment;
+using ProjectAtmaca.Application.SeasonTeams.EndMembershipAssignment;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.SeasonTeams;
@@ -21,6 +23,8 @@ public sealed class SeasonTeamsController : ControllerBase
     private readonly ListSeasonTeamsQueryHandler _listHandler;
     private readonly AddSeasonTeamMembershipCommandHandler _membershipHandler;
     private readonly EndSeasonTeamMembershipCommandHandler _endMembershipHandler;
+    private readonly AddSeasonTeamMembershipAssignmentCommandHandler _addAssignmentHandler;
+    private readonly EndSeasonTeamMembershipAssignmentCommandHandler _endAssignmentHandler;
     private readonly GetSeasonTeamByIdQueryHandler _getByIdHandler;
     private readonly ChangeSeasonTeamStatusCommandHandler _statusHandler;
 
@@ -29,6 +33,8 @@ public sealed class SeasonTeamsController : ControllerBase
         ListSeasonTeamsQueryHandler listHandler,
         AddSeasonTeamMembershipCommandHandler membershipHandler,
         EndSeasonTeamMembershipCommandHandler endMembershipHandler,
+        AddSeasonTeamMembershipAssignmentCommandHandler addAssignmentHandler,
+        EndSeasonTeamMembershipAssignmentCommandHandler endAssignmentHandler,
         GetSeasonTeamByIdQueryHandler getByIdHandler,
         ChangeSeasonTeamStatusCommandHandler statusHandler)
     {
@@ -36,6 +42,8 @@ public sealed class SeasonTeamsController : ControllerBase
         _listHandler = listHandler;
         _membershipHandler = membershipHandler;
         _endMembershipHandler = endMembershipHandler;
+        _addAssignmentHandler = addAssignmentHandler;
+        _endAssignmentHandler = endAssignmentHandler;
         _getByIdHandler = getByIdHandler;
         _statusHandler = statusHandler;
     }
@@ -129,7 +137,16 @@ public sealed class SeasonTeamsController : ControllerBase
                     x.AtmacaCardId,
                     x.StartDate,
                     x.EndDate,
-                    x.IsActive)).ToList()));
+                    x.IsActive,
+                    x.Assignments.Select(y =>
+                        new SeasonTeamMembershipAssignmentResponse(
+                            y.Id,
+                            y.Kind,
+                            y.DefinitionId,
+                            y.DisplayNameSnapshot,
+                            y.StartDate,
+                            y.EndDate,
+                            y.IsActive)).ToList())).ToList()));
     }
 
     [HttpPatch("{seasonTeamId}/status")]
@@ -163,6 +180,53 @@ public sealed class SeasonTeamsController : ControllerBase
             new EndSeasonTeamMembershipCommand(
                 seasonTeamId,
                 membershipId,
+                request.EndDate),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
+    }
+
+    [HttpPost("{seasonTeamId}/memberships/{membershipId}/assignments")]
+    public async Task<ActionResult<Guid>> AddMembershipAssignment(
+        Guid seasonTeamId,
+        Guid membershipId,
+        [FromBody] AddSeasonTeamMembershipAssignmentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _addAssignmentHandler.Handle(
+            new AddSeasonTeamMembershipAssignmentCommand(
+                seasonTeamId,
+                membershipId,
+                request.Kind,
+                request.DefinitionId,
+                request.DisplayNameSnapshot,
+                request.StartDate,
+                request.EndDate),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return Created(
+            $"/api/season-teams/{seasonTeamId:D}/memberships/{membershipId:D}" +
+            $"/assignments/{result.Value!.Value:D}",
+            result.Value.Value);
+    }
+
+    [HttpPost("{seasonTeamId}/memberships/{membershipId}/assignments/{assignmentId}/end")]
+    public async Task<IActionResult> EndMembershipAssignment(
+        Guid seasonTeamId,
+        Guid membershipId,
+        Guid assignmentId,
+        [FromBody] EndSeasonTeamMembershipAssignmentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _endAssignmentHandler.Handle(
+            new EndSeasonTeamMembershipAssignmentCommand(
+                seasonTeamId,
+                membershipId,
+                assignmentId,
                 request.EndDate),
             cancellationToken);
         if (result.IsFailure)

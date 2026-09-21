@@ -112,6 +112,10 @@ public static class Permissions
             Permission.Create("SeasonTeams.EndMembership");
         public static readonly Permission ChangeStatus =
             Permission.Create("SeasonTeams.ChangeStatus");
+        public static readonly Permission AddMembershipAssignment =
+            Permission.Create("SeasonTeams.AddMembershipAssignment");
+        public static readonly Permission EndMembershipAssignment =
+            Permission.Create("SeasonTeams.EndMembershipAssignment");
     }
 
     private static readonly IReadOnlyList<Permission>
@@ -148,7 +152,9 @@ public static class Permissions
                     SeasonTeams.List,
                     SeasonTeams.AddMembership,
                     SeasonTeams.EndMembership,
-                    SeasonTeams.ChangeStatus
+                    SeasonTeams.ChangeStatus,
+                    SeasonTeams.AddMembershipAssignment,
+                    SeasonTeams.EndMembershipAssignment
                 });
 
     public static IReadOnlyList<Permission> All

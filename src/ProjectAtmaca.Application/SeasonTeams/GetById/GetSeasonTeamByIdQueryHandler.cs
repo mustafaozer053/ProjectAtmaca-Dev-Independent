@@ -51,7 +51,20 @@ public sealed class GetSeasonTeamByIdQueryHandler
                         x.AtmacaCardId.Value,
                         x.Period.StartDate,
                         x.Period.EndDate,
-                        x.IsActiveOn(today)))
+                        x.IsActiveOn(today),
+                        x.Assignments
+                            .OrderBy(y => y.Period.StartDate)
+                            .ThenBy(y => y.Kind)
+                            .ThenBy(y => y.DefinitionId)
+                            .Select(y => new SeasonTeamMembershipAssignmentDetails(
+                                y.SeasonTeamMembershipAssignmentId.Value,
+                                y.Kind.ToString(),
+                                y.DefinitionId,
+                                y.DisplayNameSnapshot,
+                                y.Period.StartDate,
+                                y.Period.EndDate,
+                                y.IsActiveOn(today)))
+                            .ToList()))
                     .ToList()));
     }
 }

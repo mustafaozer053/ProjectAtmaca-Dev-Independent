@@ -14,4 +14,14 @@ public sealed record SeasonTeamMembershipDetails(
     Guid AtmacaCardId,
     DateTime StartDate,
     DateTime? EndDate,
+    bool IsActive,
+    IReadOnlyList<SeasonTeamMembershipAssignmentDetails> Assignments);
+
+public sealed record SeasonTeamMembershipAssignmentDetails(
+    Guid Id,
+    string Kind,
+    Guid DefinitionId,
+    string DisplayNameSnapshot,
+    DateTime StartDate,
+    DateTime? EndDate,
     bool IsActive);

@@ -32,6 +32,8 @@ public sealed class SeasonTeamsEndpointAuthorizationTests
     [InlineData("PATCH", "/api/season-teams/11111111-1111-1111-1111-111111111111/status")]
     [InlineData("POST", "/api/season-teams/11111111-1111-1111-1111-111111111111/memberships")]
     [InlineData("POST", "/api/season-teams/11111111-1111-1111-1111-111111111111/memberships/22222222-2222-2222-2222-222222222222/end")]
+    [InlineData("POST", "/api/season-teams/11111111-1111-1111-1111-111111111111/memberships/22222222-2222-2222-2222-222222222222/assignments")]
+    [InlineData("POST", "/api/season-teams/11111111-1111-1111-1111-111111111111/memberships/22222222-2222-2222-2222-222222222222/assignments/33333333-3333-3333-3333-333333333333/end")]
     public async Task Endpoint_Should_ReturnForbidden_WhenPermissionIsDenied(
         string methodName,
         string path)
@@ -55,6 +57,15 @@ public sealed class SeasonTeamsEndpointAuthorizationTests
                 ? JsonContent.Create(new { isActive = false })
                 : path.EndsWith("/end", StringComparison.Ordinal)
                     ? JsonContent.Create(new { endDate = DateTime.UtcNow.Date })
+                    : path.EndsWith("/assignments", StringComparison.Ordinal)
+                        ? JsonContent.Create(new
+                        {
+                            kind = SeasonTeamAssignmentKind.Role,
+                            definitionId = Guid.NewGuid(),
+                            displayNameSnapshot = "Player",
+                            startDate = DateTime.UtcNow.Date,
+                            endDate = (DateTime?)null
+                        })
                     : path.EndsWith("/memberships", StringComparison.Ordinal)
                         ? JsonContent.Create(new
                         {

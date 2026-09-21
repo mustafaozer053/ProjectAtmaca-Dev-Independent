@@ -5,4 +5,5 @@ public sealed record SeasonTeamMembershipResponse(
     Guid AtmacaCardId,
     DateTime StartDate,
     DateTime? EndDate,
-    bool IsActive);
+    bool IsActive,
+    IReadOnlyList<SeasonTeamMembershipAssignmentResponse> Assignments);

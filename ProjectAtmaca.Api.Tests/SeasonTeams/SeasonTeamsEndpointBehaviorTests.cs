@@ -84,9 +84,15 @@ public sealed class SeasonTeamsEndpointBehaviorTests
     {
         SeasonTeam team = CreateTeam("U16");
         DateTime startDate = DateTime.UtcNow.Date.AddDays(-1);
-        team.AddMembership(
+        SeasonTeamMembership membership = team.AddMembership(
             AtmacaCardId.New(),
-            AssignmentPeriod.Create(startDate).Value!);
+            AssignmentPeriod.Create(startDate).Value!).Value!;
+        membership.AddAssignment(
+            SeasonTeamAssignmentKind.Role,
+            Guid.NewGuid(),
+            "Player",
+            AssignmentPeriod.Create(startDate).Value!)
+            .IsSuccess.Should().BeTrue();
         InMemoryRepository repository = new(team);
         using var factory = CreateFactory(repository);
         using HttpClient client = factory.CreateClient();
@@ -103,6 +109,10 @@ public sealed class SeasonTeamsEndpointBehaviorTests
             .Should().Be(team.SeasonTeamId.Value);
         body.RootElement.GetProperty("name").GetString().Should().Be("U16");
         body.RootElement.GetProperty("memberships").GetArrayLength()
+            .Should().Be(1);
+        body.RootElement.GetProperty("memberships")[0]
+            .GetProperty("assignments")
+            .GetArrayLength()
             .Should().Be(1);
     }
 
@@ -158,6 +168,75 @@ public sealed class SeasonTeamsEndpointBehaviorTests
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         membership.Period.EndDate.Should().Be(endDate);
+        repository.SaveChangesCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PostMembershipAssignment_Should_AddAssignment_AndReturnCreatedLocation()
+    {
+        SeasonTeam team = CreateTeam("U16");
+        SeasonTeamMembership membership = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!)
+            .Value!;
+        InMemoryRepository repository = new(team);
+        using var factory = CreateFactory(repository);
+        using HttpClient client = factory.CreateClient();
+        Guid definitionId = Guid.NewGuid();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/season-teams/{team.SeasonTeamId.Value:D}/memberships/" +
+            $"{membership.SeasonTeamMembershipId.Value:D}/assignments",
+            new
+            {
+                kind = SeasonTeamAssignmentKind.Role,
+                definitionId,
+                displayNameSnapshot = "Captain",
+                startDate = DateTime.UtcNow.Date,
+                endDate = (DateTime?)null
+            },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        Guid assignmentId = await response.Content.ReadFromJsonAsync<Guid>(
+            TestContext.Current.CancellationToken);
+        response.Headers.Location!.ToString()
+            .Should().Be(
+                $"/api/season-teams/{team.SeasonTeamId.Value:D}/memberships/" +
+                $"{membership.SeasonTeamMembershipId.Value:D}/assignments/{assignmentId:D}");
+        membership.Assignments.Should().ContainSingle(x =>
+            x.DefinitionId == definitionId &&
+            x.DisplayNameSnapshot == "Captain");
+    }
+
+    [Fact]
+    public async Task EndMembershipAssignment_Should_CloseAssignment_AndReturnNoContent()
+    {
+        SeasonTeam team = CreateTeam("U16");
+        SeasonTeamMembership membership = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!)
+            .Value!;
+        SeasonTeamMembershipAssignment assignment = membership.AddAssignment(
+            SeasonTeamAssignmentKind.Role,
+            Guid.NewGuid(),
+            "Captain",
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-1)).Value!)
+            .Value!;
+        InMemoryRepository repository = new(team);
+        using var factory = CreateFactory(repository);
+        using HttpClient client = factory.CreateClient();
+        DateTime endDate = DateTime.UtcNow.Date;
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/season-teams/{team.SeasonTeamId.Value:D}/memberships/" +
+            $"{membership.SeasonTeamMembershipId.Value:D}/assignments/" +
+            $"{assignment.SeasonTeamMembershipAssignmentId.Value:D}/end",
+            new { endDate },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        assignment.Period.EndDate.Should().Be(endDate);
         repository.SaveChangesCalls.Should().Be(1);
     }
 
