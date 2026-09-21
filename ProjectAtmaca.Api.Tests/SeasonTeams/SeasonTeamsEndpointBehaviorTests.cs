@@ -12,6 +12,7 @@ using ProjectAtmaca.Api.Tests.Decisions;
 using ProjectAtmaca.Api.Tests.Infrastructure;
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.AtmacaCards;
 using ProjectAtmaca.Application.SeasonTeams;
 using ProjectAtmaca.Domain.Actors;
 using ProjectAtmaca.Domain.AtmacaCards;
@@ -377,6 +378,9 @@ public sealed class SeasonTeamsEndpointBehaviorTests
                     services.AddSingleton<ISeasonTeamRepository>(repository);
                     services.RemoveAll<IUnitOfWork>();
                     services.AddSingleton<IUnitOfWork>(repository);
+                    services.RemoveAll<IAtmacaCardReader>();
+                    services.AddSingleton<IAtmacaCardReader>(
+                        new EmptyAtmacaCardReader());
                 }));
     }
 
@@ -401,6 +405,15 @@ public sealed class SeasonTeamsEndpointBehaviorTests
             Permission permission,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(Result.Success());
+    }
+
+    private sealed class EmptyAtmacaCardReader : IAtmacaCardReader
+    {
+        public Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
+            IReadOnlyCollection<Guid> atmacaCardIds,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, AtmacaCardSummary>>(
+                new Dictionary<Guid, AtmacaCardSummary>());
     }
 
     private sealed class InMemoryRepository(params SeasonTeam[] values)

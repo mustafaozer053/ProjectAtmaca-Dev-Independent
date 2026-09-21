@@ -71,6 +71,10 @@ public static class DependencyInjection
             SeasonTeamRepository>();
 
         services.AddScoped<
+            ProjectAtmaca.Application.AtmacaCards.IAtmacaCardReader,
+            AtmacaCardReader>();
+
+        services.AddScoped<
             IDecisionRepository,
             DecisionRepository>();
 

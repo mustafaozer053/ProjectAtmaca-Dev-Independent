@@ -14,6 +14,8 @@ public sealed record SeasonTeamDetails(
 public sealed record SeasonTeamMembershipDetails(
     Guid Id,
     Guid AtmacaCardId,
+    string? AtmacaCardDisplayName,
+    string? AtmacaCardNumber,
     DateTime StartDate,
     DateTime? EndDate,
     bool IsActive,

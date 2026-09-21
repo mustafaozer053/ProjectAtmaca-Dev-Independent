@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 
 using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.AtmacaCards;
 using ProjectAtmaca.Application.SeasonTeams;
 using ProjectAtmaca.Application.SeasonTeams.GetById;
 using ProjectAtmaca.Domain.AtmacaCards;
@@ -49,7 +50,13 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
 
         var handler = new GetSeasonTeamByIdQueryHandler(
             new GrantedAuthorizationService(),
-            new FakeSeasonTeamRepository(seasonTeam));
+            new FakeSeasonTeamRepository(seasonTeam),
+            new FakeAtmacaCardReader(
+                new AtmacaCardSummary(
+                    activeCard.Value,
+                    Guid.NewGuid(),
+                    "Mert Yılmaz",
+                    "000124")));
 
         Result<SeasonTeamDetails> result = await handler.Handle(
             new GetSeasonTeamByIdQuery(seasonTeam.SeasonTeamId),
@@ -64,6 +71,8 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
             .Should().Be(endedCard.Value);
         result.Value.Memberships[0].IsActive.Should().BeFalse();
         result.Value.Memberships[0].Assignments.Should().BeEmpty();
+        result.Value.Memberships[0].AtmacaCardDisplayName
+            .Should().BeNull();
         result.Value.Memberships[1].AtmacaCardId
             .Should().Be(activeCard.Value);
         result.Value.Memberships[1].IsActive.Should().BeTrue();
@@ -71,6 +80,10 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
         result.Value.Memberships[1].Assignments
             .Select(x => x.DisplayNameSnapshot)
             .Should().BeEquivalentTo("Captain", "Player");
+        result.Value.Memberships[1].AtmacaCardDisplayName
+            .Should().Be("Mert Yılmaz");
+        result.Value.Memberships[1].AtmacaCardNumber
+            .Should().Be("000124");
     }
 
     [Fact]
@@ -78,7 +91,8 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
     {
         var handler = new GetSeasonTeamByIdQueryHandler(
             new GrantedAuthorizationService(),
-            new FakeSeasonTeamRepository(null));
+            new FakeSeasonTeamRepository(null),
+            new FakeAtmacaCardReader());
 
         Result<SeasonTeamDetails> result = await handler.Handle(
             new GetSeasonTeamByIdQuery(SeasonTeamId.New()),
@@ -93,7 +107,8 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
         FakeSeasonTeamRepository repository = new(CreateSeasonTeam());
         var handler = new GetSeasonTeamByIdQueryHandler(
             new DenyingAuthorizationService(),
-            repository);
+            repository,
+            new FakeAtmacaCardReader());
 
         Result<SeasonTeamDetails> result = await handler.Handle(
             new GetSeasonTeamByIdQuery(SeasonTeamId.New()),
@@ -150,5 +165,26 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
         public Task<IReadOnlyList<SeasonTeam>> ListAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SeasonTeam>>([]);
+    }
+
+    private sealed class FakeAtmacaCardReader
+        : IAtmacaCardReader
+    {
+        private readonly IReadOnlyList<AtmacaCardSummary> _summaries;
+
+        public FakeAtmacaCardReader(
+            params AtmacaCardSummary[] summaries)
+        {
+            _summaries = summaries;
+        }
+
+        public Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
+            IReadOnlyCollection<Guid> atmacaCardIds,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyDictionary<Guid, AtmacaCardSummary> result =
+                _summaries.ToDictionary(x => x.AtmacaCardId, x => x);
+            return Task.FromResult(result);
+        }
     }
 }

@@ -351,6 +351,8 @@ public sealed class SeasonTeamsController : ControllerBase
         return new SeasonTeamMembershipResponse(
             membership.Id,
             membership.AtmacaCardId,
+            membership.AtmacaCardDisplayName,
+            membership.AtmacaCardNumber,
             membership.StartDate,
             membership.EndDate,
             membership.IsActive,

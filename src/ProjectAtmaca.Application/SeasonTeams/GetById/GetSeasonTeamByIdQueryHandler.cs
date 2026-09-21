@@ -1,4 +1,5 @@
 using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.SeasonTeams;
 
@@ -8,13 +9,16 @@ public sealed class GetSeasonTeamByIdQueryHandler
 {
     private readonly IActorAuthorizationService _authorizationService;
     private readonly ISeasonTeamRepository _repository;
+    private readonly IAtmacaCardReader _atmacaCardReader;
 
     public GetSeasonTeamByIdQueryHandler(
         IActorAuthorizationService authorizationService,
-        ISeasonTeamRepository repository)
+        ISeasonTeamRepository repository,
+        IAtmacaCardReader atmacaCardReader)
     {
         _authorizationService = authorizationService;
         _repository = repository;
+        _atmacaCardReader = atmacaCardReader;
     }
 
     public async Task<Result<SeasonTeamDetails>> Handle(
@@ -35,6 +39,14 @@ public sealed class GetSeasonTeamByIdQueryHandler
                 SeasonTeamApplicationErrors.NotFound);
 
         var today = DateTime.UtcNow.Date;
+        var cardIds = seasonTeam.Memberships
+            .Select(x => x.AtmacaCardId.Value)
+            .Distinct()
+            .ToList();
+        var cardSummaries = await _atmacaCardReader.GetSummariesAsync(
+            cardIds,
+            cancellationToken);
+
         return Result<SeasonTeamDetails>.Success(
             new SeasonTeamDetails(
                 seasonTeam.SeasonTeamId.Value,
@@ -46,25 +58,33 @@ public sealed class GetSeasonTeamByIdQueryHandler
                 seasonTeam.Memberships
                     .OrderBy(x => x.Period.StartDate)
                     .ThenBy(x => x.AtmacaCardId.Value)
-                    .Select(x => new SeasonTeamMembershipDetails(
-                        x.SeasonTeamMembershipId.Value,
-                        x.AtmacaCardId.Value,
-                        x.Period.StartDate,
-                        x.Period.EndDate,
-                        x.IsActiveOn(today),
-                        x.Assignments
-                            .OrderBy(y => y.Period.StartDate)
-                            .ThenBy(y => y.Kind)
-                            .ThenBy(y => y.DefinitionId)
-                            .Select(y => new SeasonTeamMembershipAssignmentDetails(
-                                y.SeasonTeamMembershipAssignmentId.Value,
-                                y.Kind,
-                                y.DefinitionId,
-                                y.DisplayNameSnapshot,
-                                y.Period.StartDate,
-                                y.Period.EndDate,
-                                y.IsActiveOn(today)))
-                            .ToList()))
+                    .Select(x =>
+                    {
+                        cardSummaries.TryGetValue(
+                            x.AtmacaCardId.Value,
+                            out var cardSummary);
+                        return new SeasonTeamMembershipDetails(
+                            x.SeasonTeamMembershipId.Value,
+                            x.AtmacaCardId.Value,
+                            cardSummary?.FullName,
+                            cardSummary?.CardNumber,
+                            x.Period.StartDate,
+                            x.Period.EndDate,
+                            x.IsActiveOn(today),
+                            x.Assignments
+                                .OrderBy(y => y.Period.StartDate)
+                                .ThenBy(y => y.Kind)
+                                .ThenBy(y => y.DefinitionId)
+                                .Select(y => new SeasonTeamMembershipAssignmentDetails(
+                                    y.SeasonTeamMembershipAssignmentId.Value,
+                                    y.Kind,
+                                    y.DefinitionId,
+                                    y.DisplayNameSnapshot,
+                                    y.Period.StartDate,
+                                    y.Period.EndDate,
+                                    y.IsActiveOn(today)))
+                                .ToList());
+                    })
                     .ToList()));
     }
 }

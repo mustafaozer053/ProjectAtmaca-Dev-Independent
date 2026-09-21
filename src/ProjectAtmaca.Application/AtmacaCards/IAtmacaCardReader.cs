@@ -1,0 +1,13 @@
+namespace ProjectAtmaca.Application.AtmacaCards;
+
+/// <summary>
+/// Reads display-oriented AtmacaCard/Person data for other aggregates
+/// (e.g. SeasonTeam rosters) that reference an AtmacaCard by id only.
+/// This is a read model; it must never be used to author identity data.
+/// </summary>
+public interface IAtmacaCardReader
+{
+    Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
+        IReadOnlyCollection<Guid> atmacaCardIds,
+        CancellationToken cancellationToken = default);
+}
