@@ -318,6 +318,31 @@ public sealed class SeasonTeamsEndpointBehaviorTests
         body.RootElement.GetProperty("unclassifiedMemberships")
             .GetArrayLength()
             .Should().Be(1);
+        body.RootElement.GetProperty("totalMembershipCount")
+            .GetInt32()
+            .Should().Be(4);
+        body.RootElement.GetProperty("activeMembershipCount")
+            .GetInt32()
+            .Should().Be(4);
+        body.RootElement.GetProperty("inactiveMembershipCount")
+            .GetInt32()
+            .Should().Be(0);
+        body.RootElement.GetProperty("unclassifiedMembershipCount")
+            .GetInt32()
+            .Should().Be(1);
+        JsonElement classificationCounts =
+            body.RootElement.GetProperty("classificationCounts");
+        classificationCounts.GetArrayLength().Should().Be(2);
+        classificationCounts.EnumerateArray()
+            .Single(x => x.GetProperty("classification").GetString() == "Sporcu")
+            .GetProperty("membershipCount")
+            .GetInt32()
+            .Should().Be(2);
+        classificationCounts.EnumerateArray()
+            .Single(x => x.GetProperty("classification").GetString() == "Teknik Ekip")
+            .GetProperty("membershipCount")
+            .GetInt32()
+            .Should().Be(2);
     }
 
     private static WebApplicationFactory<global::Program> CreateFactory(

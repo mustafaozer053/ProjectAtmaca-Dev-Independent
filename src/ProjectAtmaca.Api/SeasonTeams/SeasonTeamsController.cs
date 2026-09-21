@@ -162,6 +162,9 @@ public sealed class SeasonTeamsController : ControllerBase
                 group.First().Classification,
                 group.Select(x => x.Membership)
                     .DistinctBy(x => x.Id)
+                    .Count(),
+                group.Select(x => x.Membership)
+                    .DistinctBy(x => x.Id)
                     .OrderBy(x => x.StartDate)
                     .ThenBy(x => x.AtmacaCardId)
                     .ToList()))
@@ -179,9 +182,20 @@ public sealed class SeasonTeamsController : ControllerBase
             .ThenBy(x => x.AtmacaCardId)
             .ToList();
 
+        var classificationCounts = groups
+            .Select(x => new SeasonTeamRosterClassificationCountResponse(
+                x.Classification,
+                x.MembershipCount))
+            .ToList();
+
         return Ok(new SeasonTeamRosterViewResponse(
             details.Id,
+            memberships.Count,
+            memberships.Count(x => x.IsActive),
+            memberships.Count(x => !x.IsActive),
+            unclassified.Count,
             groups,
+            classificationCounts,
             unclassified));
     }
 
