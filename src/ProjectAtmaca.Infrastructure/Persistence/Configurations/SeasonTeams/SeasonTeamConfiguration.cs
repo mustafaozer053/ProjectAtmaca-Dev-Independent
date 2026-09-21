@@ -65,6 +65,44 @@ public sealed class SeasonTeamConfiguration : IEntityTypeConfiguration<SeasonTea
                     .HasColumnName("Period")
                     .HasMaxLength(64)
                     .IsRequired();
+
+                memberships.OwnsMany(
+                    x => x.Assignments,
+                    assignments =>
+                    {
+                        assignments.ToTable("SeasonTeamMembershipAssignments");
+                        assignments.HasKey("Id");
+                        assignments.Property<Guid>("Id")
+                            .HasColumnName("Id")
+                            .ValueGeneratedNever();
+                        assignments.Property<Guid>("SeasonTeamMembershipId")
+                            .HasColumnName("SeasonTeamMembershipId")
+                            .IsRequired();
+                        assignments.Property(x => x.Kind)
+                            .HasConversion<int>()
+                            .HasColumnName("Kind")
+                            .IsRequired();
+                        assignments.Property(x => x.DefinitionId)
+                            .HasColumnName("DefinitionId")
+                            .IsRequired();
+                        assignments.Property(x => x.DisplayNameSnapshot)
+                            .HasColumnName("DisplayNameSnapshot")
+                            .HasMaxLength(200)
+                            .IsRequired();
+                        assignments.Property(x => x.Period)
+                            .HasConversion(
+                                period => SerializePeriod(period),
+                                value => DeserializePeriod(value))
+                            .HasColumnName("Period")
+                            .HasMaxLength(64)
+                            .IsRequired();
+                        assignments.HasIndex(
+                            "SeasonTeamMembershipId",
+                            nameof(SeasonTeamMembershipAssignment.Kind),
+                            nameof(SeasonTeamMembershipAssignment.DefinitionId));
+                        assignments.Ignore(x => x.SeasonTeamMembershipAssignmentId);
+                    });
+
                 memberships.Ignore(x => x.SeasonTeamMembershipId);
             });
 

@@ -38,4 +38,24 @@ public static class SeasonTeamErrors
         Error.Create(
             "SEASON_TEAM_MEMBERSHIP_NOT_FOUND",
             "Season team membership was not found.");
+
+    public static readonly Error AssignmentDefinitionRequired =
+        Error.Create(
+            "SEASON_TEAM_ASSIGNMENT_DEFINITION_REQUIRED",
+            "Assignment definition id is required.");
+
+    public static readonly Error AssignmentDisplayNameRequired =
+        Error.Create(
+            "SEASON_TEAM_ASSIGNMENT_DISPLAY_NAME_REQUIRED",
+            "Assignment display name is required.");
+
+    public static readonly Error AssignmentNotFound =
+        Error.Create(
+            "SEASON_TEAM_ASSIGNMENT_NOT_FOUND",
+            "Season team membership assignment was not found.");
+
+    public static readonly Error DuplicateAssignment =
+        Error.Create(
+            "SEASON_TEAM_DUPLICATE_ASSIGNMENT",
+            "The same assignment already exists with an overlapping period.");
 }

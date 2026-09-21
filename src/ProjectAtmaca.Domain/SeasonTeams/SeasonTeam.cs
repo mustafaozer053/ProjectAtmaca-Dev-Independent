@@ -151,6 +151,45 @@ public sealed class SeasonTeam : AuditableAggregateRoot
         return membership.End(endDate);
     }
 
+    public Result<SeasonTeamMembershipAssignment> AddMembershipAssignment(
+        SeasonTeamMembershipId membershipId,
+        SeasonTeamAssignmentKind kind,
+        Guid definitionId,
+        string displayNameSnapshot,
+        AssignmentPeriod period)
+    {
+        SeasonTeamMembership? membership = _memberships.SingleOrDefault(
+            x => x.SeasonTeamMembershipId == membershipId);
+        if (membership is null)
+        {
+            return Result<SeasonTeamMembershipAssignment>.Failure(
+                SeasonTeamErrors.MembershipNotFound);
+        }
+
+        return membership.AddAssignment(
+            kind,
+            definitionId,
+            displayNameSnapshot,
+            period);
+    }
+
+    public Result EndMembershipAssignment(
+        SeasonTeamMembershipId membershipId,
+        SeasonTeamMembershipAssignmentId assignmentId,
+        DateTime endDate)
+    {
+        SeasonTeamMembership? membership = _memberships.SingleOrDefault(
+            x => x.SeasonTeamMembershipId == membershipId);
+        if (membership is null)
+        {
+            return Result.Failure(SeasonTeamErrors.MembershipNotFound);
+        }
+
+        return membership.EndAssignment(
+            assignmentId,
+            endDate);
+    }
+
     public void Activate()
     {
         Status = SeasonTeamStatus.Active;

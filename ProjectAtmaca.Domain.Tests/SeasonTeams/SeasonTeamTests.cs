@@ -137,6 +137,87 @@ public sealed class SeasonTeamTests
             .Should().BeFalse();
     }
 
+    [Fact]
+    public void AddMembershipAssignment_Should_AllowMultipleKindsAtSameTime()
+    {
+        var team = CreateTeam();
+        var membership = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!).Value!;
+
+        var playerResult = team.AddMembershipAssignment(
+            membership.SeasonTeamMembershipId,
+            SeasonTeamAssignmentKind.Role,
+            Guid.NewGuid(),
+            "Player",
+            AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!);
+
+        var captainResult = team.AddMembershipAssignment(
+            membership.SeasonTeamMembershipId,
+            SeasonTeamAssignmentKind.Role,
+            Guid.NewGuid(),
+            "Captain",
+            AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!);
+
+        playerResult.IsSuccess.Should().BeTrue();
+        captainResult.IsSuccess.Should().BeTrue();
+        membership.Assignments.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void AddMembershipAssignment_Should_RejectOverlappingDuplicateDefinition()
+    {
+        var team = CreateTeam();
+        var membership = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!).Value!;
+        Guid definitionId = Guid.NewGuid();
+
+        team.AddMembershipAssignment(
+            membership.SeasonTeamMembershipId,
+            SeasonTeamAssignmentKind.Role,
+            definitionId,
+            "Player",
+            AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!)
+            .IsSuccess.Should().BeTrue();
+
+        var duplicate = team.AddMembershipAssignment(
+            membership.SeasonTeamMembershipId,
+            SeasonTeamAssignmentKind.Role,
+            definitionId,
+            "Player",
+            AssignmentPeriod.Create(new DateTime(2026, 8, 1)).Value!);
+
+        duplicate.IsFailure.Should().BeTrue();
+        duplicate.Error.Should().BeSameAs(SeasonTeamErrors.DuplicateAssignment);
+    }
+
+    [Fact]
+    public void EndMembershipAssignment_Should_SetAssignmentEndDate()
+    {
+        var team = CreateTeam();
+        var membership = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!).Value!;
+
+        var assignment = team.AddMembershipAssignment(
+            membership.SeasonTeamMembershipId,
+            SeasonTeamAssignmentKind.Duty,
+            Guid.NewGuid(),
+            "Takım Teknik Sorumlusu",
+            AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!)
+            .Value!;
+
+        var result = team.EndMembershipAssignment(
+            membership.SeasonTeamMembershipId,
+            assignment.SeasonTeamMembershipAssignmentId,
+            new DateTime(2026, 7, 31));
+
+        result.IsSuccess.Should().BeTrue();
+        membership.Assignments.Should().ContainSingle()
+            .Which.Period.EndDate.Should().Be(new DateTime(2026, 7, 31));
+    }
+
     private static SeasonTeam CreateTeam()
     {
         return SeasonTeam.Create(
