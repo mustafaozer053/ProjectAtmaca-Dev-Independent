@@ -1,0 +1,36 @@
+.registration-page { max-width: 960px; margin: 0 auto; color: #19243a; padding-bottom: 3rem; }
+.registration-header { margin-bottom: 1.5rem; }
+.eyebrow { color:#71809b; font-size:.72rem; font-weight:700; letter-spacing:.14em; margin-bottom:.65rem; }
+.registration-header h1 { font-size:1.75rem; font-weight:750; margin:0; letter-spacing:-.03em; }
+.muted { color:#8290a8; margin:.35rem 0 0; }
+
+.form-section { background:white; border:1px solid #e8ebf2; border-radius:12px; padding:1.4rem 1.6rem; margin-bottom:1.2rem; box-shadow:0 5px 18px #273b6810; }
+.form-section h2 { margin:0 0 1rem; font-size:1.02rem; }
+.form-section h2 small { color:#98a2b4; font-weight:500; font-size:.72rem; }
+.form-section.warning { border-color:#f2c98c; background:#fff8ec; }
+
+.form-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1rem; }
+.field { display:flex; flex-direction:column; gap:.4rem; font-size:.8rem; font-weight:650; color:#4a5670; }
+.field.full { grid-column: 1 / -1; }
+.form-input { border:1px solid #e1e5ee; border-radius:7px; padding:.65rem .75rem; font-weight:500; outline:0; font-size:.86rem; }
+.form-input:focus { border-color:#4058d6; }
+
+.citizenship-row { display:grid; grid-template-columns:1fr 2fr 1fr auto; gap:.6rem; align-items:center; margin-bottom:.6rem; }
+
+.btn { border:0; border-radius:8px; padding:.7rem 1.1rem; font-weight:650; cursor:pointer; font-size:.86rem; }
+.btn-primary { background:#4058d6; color:white; box-shadow:0 5px 12px #4058d633; }
+.btn-primary:disabled { opacity:.6; cursor:not-allowed; }
+.btn-light { background:#f3f5fa; color:#46536b; }
+
+.form-actions { display:flex; justify-content:flex-end; margin-top:1rem; }
+
+.error-banner { background:#fdecec; color:#b23c3c; border:1px solid #f3c6c6; border-radius:8px; padding:.9rem 1.1rem; margin-bottom:1rem; font-size:.85rem; }
+
+.result-card { background:white; border:1px solid #e8ebf2; border-radius:12px; padding:1.6rem 1.8rem; box-shadow:0 5px 18px #273b6810; }
+.result-card.success { border-color:#9fe0bf; background:#f3fbf7; }
+.result-card h2 { margin:0 0 1rem; }
+.result-card dl { display:grid; grid-template-columns:auto 1fr; gap:.5rem 1rem; margin:0 0 1.4rem; }
+.result-card dt { color:#8a95aa; font-size:.76rem; font-weight:650; }
+.result-card dd { margin:0; font-size:.88rem; }
+
+@media (max-width:720px) { .form-grid { grid-template-columns:1fr; } .citizenship-row { grid-template-columns:1fr; } }

@@ -1,0 +1,388 @@
+﻿@page "/people/register"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject PersonRegistrationsApiClient Api
+
+<PageTitle>Kişi Kaydı</PageTitle>
+
+<div class="registration-page">
+    <header class="registration-header">
+        <div class="eyebrow">KİŞİ YÖNETİMİ · YENİ KAYIT</div>
+        <h1>Kişi ve AtmacaCard Kaydı</h1>
+        <p class="muted">Bir kişiyi kimlik/vatandaşlık bilgileriyle sisteme kaydedin; kayıt tamamlandığında otomatik olarak bir AtmacaCard oluşturulur.</p>
+    </header>
+
+    @if (receipt is not null)
+    {
+        <div class="result-card success">
+            <h2>Kayıt tamamlandı</h2>
+            <dl>
+                <dt>Kişi No</dt><dd>@receipt.PersonId</dd>
+                <dt>AtmacaCard No</dt><dd>@receipt.CardNumber</dd>
+                <dt>AtmacaCard Kimliği</dt><dd>@receipt.AtmacaCardId</dd>
+                <dt>Oluşturulma</dt><dd>@receipt.IssuedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+            </dl>
+            <button class="btn btn-primary" @onclick="StartNewRegistration">Yeni kayıt oluştur</button>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="form" OnValidSubmit="SubmitAsync">
+            <section class="form-section">
+                <h2>Kimlik Bilgileri</h2>
+                <div class="form-grid">
+                    <label class="field">Ad Soyad
+                        <input class="form-input" @bind="form.FullName" placeholder="Ör. Mert Yılmaz" />
+                    </label>
+                    <label class="field">Doğum Tarihi
+                        <input type="date" class="form-input" @bind="form.BirthDate" />
+                    </label>
+                    <label class="field">Doğum Ülkesi Kodu
+                        <input class="form-input" @bind="form.BirthCountryCode" placeholder="TR" maxlength="2" />
+                    </label>
+                    <label class="field">Doğum Ülkesi Adı
+                        <input class="form-input" @bind="form.BirthCountryName" placeholder="Türkiye" />
+                    </label>
+                    <label class="field">Vatandaşlık Durumu
+                        <select class="form-input" @bind="form.Status">
+                            <option value="1">Doğuştan Türk vatandaşı</option>
+                            <option value="2">Sonradan Türk vatandaşlığına geçmiş</option>
+                            <option value="3">Türk vatandaşı değil</option>
+                        </select>
+                    </label>
+                    @if (form.Status is 1 or 2)
+                    {
+                        <label class="field">TC Kimlik Numarası
+                            <input class="form-input" @bind="form.NationalIdentityNumber" maxlength="11" />
+                        </label>
+                    }
+                    @if (form.Status == 2)
+                    {
+                        <label class="field">Vatandaşlığa Geçiş Tarihi
+                            <input type="date" class="form-input" @bind="form.TurkishCitizenshipAcquiredOn" />
+                        </label>
+                    }
+                    @if (form.Status == 3)
+                    {
+                        <label class="field">Pasaport Numarası
+                            <input class="form-input" @bind="form.PassportNumber" />
+                        </label>
+                    }
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Ek Vatandaşlıklar <small>(opsiyonel)</small></h2>
+                @foreach (var citizenship in form.Citizenships)
+                {
+                    <div class="citizenship-row">
+                        <input class="form-input" @bind="citizenship.CountryCode" placeholder="Ülke kodu (DE)" maxlength="2" />
+                        <input class="form-input" @bind="citizenship.CountryName" placeholder="Ülke adı (Almanya)" />
+                        <input type="date" class="form-input" @bind="citizenship.AcquiredOn" />
+                        <button type="button" class="btn btn-light" @onclick="() => RemoveCitizenship(citizenship)">Kaldır</button>
+                    </div>
+                }
+                <button type="button" class="btn btn-light" @onclick="AddCitizenship">+ Vatandaşlık ekle</button>
+            </section>
+
+            @if (showPassportDuplicateConfirmation)
+            {
+                <section class="form-section warning">
+                    <h2>Olası Pasaport Eşleşmesi</h2>
+                    <p class="muted">Bu pasaport numarasıyla eşleşen bir kayıt zaten var. Farklı bir kişi olduğundan eminseniz nedenini belirterek onaylayın.</p>
+                    <label class="field">
+                        <input type="checkbox" @bind="form.ConfirmPossiblePassportDuplicate" /> Farklı bir kişi olduğunu onaylıyorum
+                    </label>
+                    <label class="field">Onay Nedeni
+                        <input class="form-input" @bind="form.PassportDuplicateReason" placeholder="Ör. Aynı isimde farklı bir kişi, kimlik belgesiyle doğrulandı" />
+                    </label>
+                </section>
+            }
+
+            <section class="form-section">
+                <h2>Doğum Yeri <small>(opsiyonel)</small></h2>
+                <div class="form-grid">
+                    <label class="field">Ülke Kodu
+                        <input class="form-input" @bind="form.BirthPlaceCountryCode" maxlength="2" />
+                    </label>
+                    <label class="field">Ülke Adı
+                        <input class="form-input" @bind="form.BirthPlaceCountryName" />
+                    </label>
+                    <label class="field">Şehir
+                        <input class="form-input" @bind="form.BirthPlaceCity" />
+                    </label>
+                    <label class="field">İlçe
+                        <input class="form-input" @bind="form.BirthPlaceDistrict" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Aile ve Sağlık <small>(opsiyonel)</small></h2>
+                <div class="form-grid">
+                    <label class="field">Anne Adı
+                        <input class="form-input" @bind="form.MotherName" />
+                    </label>
+                    <label class="field">Baba Adı
+                        <input class="form-input" @bind="form.FatherName" />
+                    </label>
+                    <label class="field">Kan Grubu
+                        <select class="form-input" @bind="form.BloodType">
+                            <option value="0">Bilinmiyor</option>
+                            <option value="1">A Rh+</option>
+                            <option value="2">A Rh-</option>
+                            <option value="3">B Rh+</option>
+                            <option value="4">B Rh-</option>
+                            <option value="5">AB Rh+</option>
+                            <option value="6">AB Rh-</option>
+                            <option value="7">0 Rh+</option>
+                            <option value="8">0 Rh-</option>
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>İletişim <small>(opsiyonel)</small></h2>
+                <div class="form-grid">
+                    <label class="field">E-posta
+                        <input class="form-input" @bind="form.Email" placeholder="ornek@eposta.com" />
+                    </label>
+                    <label class="field">Birincil Telefon Ülke Kodu
+                        <input class="form-input" @bind="form.PrimaryPhoneCountryCode" placeholder="+90" />
+                    </label>
+                    <label class="field">Birincil Telefon Numarası
+                        <input class="form-input" @bind="form.PrimaryPhoneNumber" placeholder="5xx xxx xx xx" />
+                    </label>
+                    <label class="field">İkincil Telefon Ülke Kodu
+                        <input class="form-input" @bind="form.SecondaryPhoneCountryCode" placeholder="+90" />
+                    </label>
+                    <label class="field">İkincil Telefon Numarası
+                        <input class="form-input" @bind="form.SecondaryPhoneNumber" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Adres <small>(opsiyonel)</small></h2>
+                <div class="form-grid">
+                    <label class="field">Ülke Kodu
+                        <input class="form-input" @bind="form.AddressCountryCode" maxlength="2" />
+                    </label>
+                    <label class="field">Ülke Adı
+                        <input class="form-input" @bind="form.AddressCountryName" />
+                    </label>
+                    <label class="field">Şehir
+                        <input class="form-input" @bind="form.AddressCity" />
+                    </label>
+                    <label class="field">İlçe
+                        <input class="form-input" @bind="form.AddressDistrict" />
+                    </label>
+                    <label class="field full">Adres Metni
+                        <input class="form-input" @bind="form.AddressText" />
+                    </label>
+                    <label class="field">Posta Kodu
+                        <input class="form-input" @bind="form.PostalCode" />
+                    </label>
+                </div>
+            </section>
+
+            @if (errorMessage is not null)
+            {
+                <div class="error-banner">@errorMessage</div>
+            }
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    @(isSubmitting ? "Kaydediliyor..." : "Kaydet")
+                </button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private readonly RegistrationFormModel form = new();
+    private bool isSubmitting;
+    private string? errorMessage;
+    private bool showPassportDuplicateConfirmation;
+    private RegistrationReceiptResponse? receipt;
+
+    private void AddCitizenship() => form.Citizenships.Add(new CitizenshipRow());
+    private void RemoveCitizenship(CitizenshipRow row) => form.Citizenships.Remove(row);
+
+    private void StartNewRegistration()
+    {
+        receipt = null;
+        errorMessage = null;
+        showPassportDuplicateConfirmation = false;
+        form.Reset();
+    }
+
+    private async Task SubmitAsync()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = form.ToRequest();
+            var outcome = await Api.RegisterAsync(request);
+
+            if (outcome.IsSuccess)
+            {
+                receipt = outcome.Receipt;
+                return;
+            }
+
+            if (outcome.ErrorCode == "PersonRegistration.Passport.PossibleDuplicate")
+            {
+                showPassportDuplicateConfirmation = true;
+            }
+
+            errorMessage = outcome.ErrorDetail;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class CitizenshipRow
+    {
+        public string? CountryCode { get; set; }
+        public string? CountryName { get; set; }
+        public DateOnly? AcquiredOn { get; set; }
+    }
+
+    private sealed class RegistrationFormModel
+    {
+        public string OperationId { get; private set; } = Guid.NewGuid().ToString("D");
+        public string? FullName { get; set; }
+        public DateOnly? BirthDate { get; set; }
+        public string? BirthCountryCode { get; set; }
+        public string? BirthCountryName { get; set; }
+        public int Status { get; set; } = 1;
+        public string? NationalIdentityNumber { get; set; }
+        public string? PassportNumber { get; set; }
+        public DateOnly? TurkishCitizenshipAcquiredOn { get; set; }
+        public List<CitizenshipRow> Citizenships { get; } = [];
+        public bool ConfirmPossiblePassportDuplicate { get; set; }
+        public string? PassportDuplicateReason { get; set; }
+        public string? BirthPlaceCountryCode { get; set; }
+        public string? BirthPlaceCountryName { get; set; }
+        public string? BirthPlaceCity { get; set; }
+        public string? BirthPlaceDistrict { get; set; }
+        public string? MotherName { get; set; }
+        public string? FatherName { get; set; }
+        public int BloodType { get; set; }
+        public string? Email { get; set; }
+        public string? PrimaryPhoneCountryCode { get; set; }
+        public string? PrimaryPhoneNumber { get; set; }
+        public string? SecondaryPhoneCountryCode { get; set; }
+        public string? SecondaryPhoneNumber { get; set; }
+        public string? AddressCountryCode { get; set; }
+        public string? AddressCountryName { get; set; }
+        public string? AddressCity { get; set; }
+        public string? AddressDistrict { get; set; }
+        public string? AddressText { get; set; }
+        public string? PostalCode { get; set; }
+
+        public void Reset()
+        {
+            OperationId = Guid.NewGuid().ToString("D");
+            FullName = null;
+            BirthDate = null;
+            BirthCountryCode = null;
+            BirthCountryName = null;
+            Status = 1;
+            NationalIdentityNumber = null;
+            PassportNumber = null;
+            TurkishCitizenshipAcquiredOn = null;
+            Citizenships.Clear();
+            ConfirmPossiblePassportDuplicate = false;
+            PassportDuplicateReason = null;
+            BirthPlaceCountryCode = null;
+            BirthPlaceCountryName = null;
+            BirthPlaceCity = null;
+            BirthPlaceDistrict = null;
+            MotherName = null;
+            FatherName = null;
+            BloodType = 0;
+            Email = null;
+            PrimaryPhoneCountryCode = null;
+            PrimaryPhoneNumber = null;
+            SecondaryPhoneCountryCode = null;
+            SecondaryPhoneNumber = null;
+            AddressCountryCode = null;
+            AddressCountryName = null;
+            AddressCity = null;
+            AddressDistrict = null;
+            AddressText = null;
+            PostalCode = null;
+        }
+
+        public RegisterPersonRequest ToRequest()
+        {
+            var hasBirthPlace = !string.IsNullOrWhiteSpace(BirthPlaceCountryCode)
+                || !string.IsNullOrWhiteSpace(BirthPlaceCity);
+            var hasAddress = !string.IsNullOrWhiteSpace(AddressCountryCode)
+                || !string.IsNullOrWhiteSpace(AddressText);
+            var hasPrimaryPhone = !string.IsNullOrWhiteSpace(PrimaryPhoneNumber);
+            var hasSecondaryPhone = !string.IsNullOrWhiteSpace(SecondaryPhoneNumber);
+
+            return new RegisterPersonRequest
+            {
+                OperationId = OperationId,
+                FullName = FullName,
+                BirthDate = BirthDate?.ToString("yyyy-MM-dd"),
+                BirthCountry = new CountryRequest { Code = BirthCountryCode, Name = BirthCountryName },
+                Status = Status,
+                NationalIdentityNumber = NationalIdentityNumber,
+                PassportNumber = PassportNumber,
+                TurkishCitizenshipAcquiredOn = TurkishCitizenshipAcquiredOn?.ToString("yyyy-MM-dd"),
+                Citizenships = Citizenships.Count == 0
+                    ? null
+                    : Citizenships.Select(c => new CitizenshipRequest
+                    {
+                        Country = new CountryRequest { Code = c.CountryCode, Name = c.CountryName },
+                        AcquiredOn = c.AcquiredOn?.ToString("yyyy-MM-dd")
+                    }).ToArray(),
+                ConfirmPossiblePassportDuplicate = ConfirmPossiblePassportDuplicate,
+                PassportDuplicateReason = PassportDuplicateReason,
+                BirthPlace = hasBirthPlace
+                    ? new LocationRequest
+                    {
+                        Country = new CountryRequest { Code = BirthPlaceCountryCode, Name = BirthPlaceCountryName },
+                        City = BirthPlaceCity,
+                        District = BirthPlaceDistrict
+                    }
+                    : null,
+                MotherName = MotherName,
+                FatherName = FatherName,
+                BloodType = BloodType,
+                Email = Email,
+                PrimaryPhoneNumber = hasPrimaryPhone
+                    ? new PhoneRequest { CountryCode = PrimaryPhoneCountryCode, NationalNumber = PrimaryPhoneNumber }
+                    : null,
+                SecondaryPhoneNumber = hasSecondaryPhone
+                    ? new PhoneRequest { CountryCode = SecondaryPhoneCountryCode, NationalNumber = SecondaryPhoneNumber }
+                    : null,
+                Address = hasAddress
+                    ? new AddressRequest
+                    {
+                        Location = new LocationRequest
+                        {
+                            Country = new CountryRequest { Code = AddressCountryCode, Name = AddressCountryName },
+                            City = AddressCity,
+                            District = AddressDistrict
+                        },
+                        AddressText = AddressText,
+                        PostalCode = PostalCode
+                    }
+                    : null
+            };
+        }
+    }
+}
