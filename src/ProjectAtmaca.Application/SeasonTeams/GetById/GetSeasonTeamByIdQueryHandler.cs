@@ -58,7 +58,7 @@ public sealed class GetSeasonTeamByIdQueryHandler
                             .ThenBy(y => y.DefinitionId)
                             .Select(y => new SeasonTeamMembershipAssignmentDetails(
                                 y.SeasonTeamMembershipAssignmentId.Value,
-                                y.Kind.ToString(),
+                                y.Kind,
                                 y.DefinitionId,
                                 y.DisplayNameSnapshot,
                                 y.Period.StartDate,

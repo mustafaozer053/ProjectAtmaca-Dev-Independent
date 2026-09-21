@@ -123,30 +123,66 @@ public sealed class SeasonTeamsController : ControllerBase
         if (result.IsFailure)
             return ToProblem(result.Error!);
 
+        return Ok(ToDetailsResponse(result.Value!));
+    }
+
+    [HttpGet("{seasonTeamId}/roster-view")]
+    public async Task<ActionResult<SeasonTeamRosterViewResponse>> GetRosterView(
+        Guid seasonTeamId,
+        CancellationToken cancellationToken)
+    {
+        if (seasonTeamId == Guid.Empty)
+            return ToProblem(SeasonTeamApplicationErrors.NotFound);
+
+        var result = await _getByIdHandler.Handle(
+            new GetSeasonTeamByIdQuery(
+                SeasonTeamId.From(seasonTeamId)),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
         var details = result.Value!;
-        return Ok(new SeasonTeamDetailsResponse(
+        var memberships = details.Memberships
+            .Select(ToMembershipResponse)
+            .ToList();
+
+        var groups = memberships
+            .SelectMany(membership =>
+                membership.Assignments
+                    .Where(assignment =>
+                        assignment.IsActive &&
+                        IsClassificationKind(assignment.Kind))
+                    .Select(assignment => new
+                    {
+                        Classification = assignment.DisplayNameSnapshot,
+                        Membership = membership
+                    }))
+            .GroupBy(x => x.Classification, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new SeasonTeamRosterGroupResponse(
+                group.First().Classification,
+                group.Select(x => x.Membership)
+                    .DistinctBy(x => x.Id)
+                    .OrderBy(x => x.StartDate)
+                    .ThenBy(x => x.AtmacaCardId)
+                    .ToList()))
+            .OrderBy(x => x.Classification)
+            .ToList();
+
+        HashSet<Guid> classifiedMembershipIds = groups
+            .SelectMany(x => x.Memberships)
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        var unclassified = memberships
+            .Where(x => !classifiedMembershipIds.Contains(x.Id))
+            .OrderBy(x => x.StartDate)
+            .ThenBy(x => x.AtmacaCardId)
+            .ToList();
+
+        return Ok(new SeasonTeamRosterViewResponse(
             details.Id,
-            details.SeasonId,
-            details.OrganizationId,
-            details.AgeGroupId,
-            details.Name,
-            details.IsActive,
-            details.Memberships.Select(x =>
-                new SeasonTeamMembershipResponse(
-                    x.Id,
-                    x.AtmacaCardId,
-                    x.StartDate,
-                    x.EndDate,
-                    x.IsActive,
-                    x.Assignments.Select(y =>
-                        new SeasonTeamMembershipAssignmentResponse(
-                            y.Id,
-                            y.Kind,
-                            y.DefinitionId,
-                            y.DisplayNameSnapshot,
-                            y.StartDate,
-                            y.EndDate,
-                            y.IsActive)).ToList())).ToList()));
+            groups,
+            unclassified));
     }
 
     [HttpPatch("{seasonTeamId}/status")]
@@ -252,5 +288,46 @@ public sealed class SeasonTeamsController : ControllerBase
         var result = StatusCode(statusCode, details);
         result.ContentTypes.Add("application/problem+json");
         return result;
+    }
+
+    private static SeasonTeamDetailsResponse ToDetailsResponse(
+        SeasonTeamDetails details)
+    {
+        return new SeasonTeamDetailsResponse(
+            details.Id,
+            details.SeasonId,
+            details.OrganizationId,
+            details.AgeGroupId,
+            details.Name,
+            details.IsActive,
+            details.Memberships.Select(ToMembershipResponse).ToList());
+    }
+
+    private static SeasonTeamMembershipResponse ToMembershipResponse(
+        SeasonTeamMembershipDetails membership)
+    {
+        return new SeasonTeamMembershipResponse(
+            membership.Id,
+            membership.AtmacaCardId,
+            membership.StartDate,
+            membership.EndDate,
+            membership.IsActive,
+            membership.Assignments.Select(assignment =>
+                new SeasonTeamMembershipAssignmentResponse(
+                    assignment.Id,
+                    assignment.Kind.ToString(),
+                    assignment.DefinitionId,
+                    assignment.DisplayNameSnapshot,
+                    assignment.StartDate,
+                    assignment.EndDate,
+                    assignment.IsActive)).ToList());
+    }
+
+    private static bool IsClassificationKind(string kind)
+    {
+        return string.Equals(
+            kind,
+            SeasonTeamAssignmentKind.Classification.ToString(),
+            StringComparison.OrdinalIgnoreCase);
     }
 }

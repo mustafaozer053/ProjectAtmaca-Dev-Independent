@@ -1,3 +1,5 @@
+using ProjectAtmaca.Domain.SeasonTeams;
+
 namespace ProjectAtmaca.Application.SeasonTeams.GetById;
 
 public sealed record SeasonTeamDetails(
@@ -19,7 +21,7 @@ public sealed record SeasonTeamMembershipDetails(
 
 public sealed record SeasonTeamMembershipAssignmentDetails(
     Guid Id,
-    string Kind,
+    SeasonTeamAssignmentKind Kind,
     Guid DefinitionId,
     string DisplayNameSnapshot,
     DateTime StartDate,

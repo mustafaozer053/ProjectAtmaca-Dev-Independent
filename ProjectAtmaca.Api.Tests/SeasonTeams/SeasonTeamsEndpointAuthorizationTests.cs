@@ -29,6 +29,7 @@ public sealed class SeasonTeamsEndpointAuthorizationTests
     [InlineData("POST", "/api/season-teams")]
     [InlineData("GET", "/api/season-teams")]
     [InlineData("GET", "/api/season-teams/11111111-1111-1111-1111-111111111111")]
+    [InlineData("GET", "/api/season-teams/11111111-1111-1111-1111-111111111111/roster-view")]
     [InlineData("PATCH", "/api/season-teams/11111111-1111-1111-1111-111111111111/status")]
     [InlineData("POST", "/api/season-teams/11111111-1111-1111-1111-111111111111/memberships")]
     [InlineData("POST", "/api/season-teams/11111111-1111-1111-1111-111111111111/memberships/22222222-2222-2222-2222-222222222222/end")]

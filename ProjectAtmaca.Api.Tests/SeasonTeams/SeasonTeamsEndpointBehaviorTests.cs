@@ -240,6 +240,86 @@ public sealed class SeasonTeamsEndpointBehaviorTests
         repository.SaveChangesCalls.Should().Be(1);
     }
 
+    [Fact]
+    public async Task GetRosterView_Should_GroupMembershipsByActiveClassification()
+    {
+        SeasonTeam team = CreateTeam("U16");
+        SeasonTeamMembership player = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!)
+            .Value!;
+        player.AddAssignment(
+            SeasonTeamAssignmentKind.Classification,
+            Guid.NewGuid(),
+            "Sporcu",
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!);
+
+        SeasonTeamMembership technical = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!)
+            .Value!;
+        technical.AddAssignment(
+            SeasonTeamAssignmentKind.Classification,
+            Guid.NewGuid(),
+            "Teknik Ekip",
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!);
+
+        SeasonTeamMembership dual = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!)
+            .Value!;
+        dual.AddAssignment(
+            SeasonTeamAssignmentKind.Classification,
+            Guid.NewGuid(),
+            "Sporcu",
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!);
+        dual.AddAssignment(
+            SeasonTeamAssignmentKind.Classification,
+            Guid.NewGuid(),
+            "Teknik Ekip",
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!);
+
+        SeasonTeamMembership unclassified = team.AddMembership(
+            AtmacaCardId.New(),
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!)
+            .Value!;
+        unclassified.AddAssignment(
+            SeasonTeamAssignmentKind.Role,
+            Guid.NewGuid(),
+            "Captain",
+            AssignmentPeriod.Create(DateTime.UtcNow.Date.AddDays(-2)).Value!);
+
+        InMemoryRepository repository = new(team);
+        using var factory = CreateFactory(repository);
+        using HttpClient client = factory.CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync(
+            $"/api/season-teams/{team.SeasonTeamId.Value:D}/roster-view",
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using JsonDocument body = JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync(
+                TestContext.Current.CancellationToken));
+
+        JsonElement groups = body.RootElement.GetProperty("groups");
+        groups.GetArrayLength().Should().Be(2);
+        groups.EnumerateArray()
+            .Single(x => x.GetProperty("classification").GetString() == "Sporcu")
+            .GetProperty("memberships")
+            .GetArrayLength()
+            .Should().Be(2);
+        groups.EnumerateArray()
+            .Single(x => x.GetProperty("classification").GetString() == "Teknik Ekip")
+            .GetProperty("memberships")
+            .GetArrayLength()
+            .Should().Be(2);
+
+        body.RootElement.GetProperty("unclassifiedMemberships")
+            .GetArrayLength()
+            .Should().Be(1);
+    }
+
     private static WebApplicationFactory<global::Program> CreateFactory(
         InMemoryRepository repository)
     {
