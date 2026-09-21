@@ -1,0 +1,8 @@
+﻿<div class="summary-card @Tone"><div class="summary-icon">@Icon</div><div><span>@Label</span><strong>@Value</strong><small>@Detail</small></div></div>
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public int Value { get; set; }
+    [Parameter] public string Detail { get; set; } = string.Empty;
+    [Parameter] public string Tone { get; set; } = "blue";
+    private string Icon => Tone switch { "green" => "✓", "purple" => "♟", "orange" => "★", _ => "#" };
+}
