@@ -343,6 +343,19 @@ public sealed class SeasonTeamsEndpointBehaviorTests
             .GetProperty("membershipCount")
             .GetInt32()
             .Should().Be(2);
+        JsonElement primarySections =
+            body.RootElement.GetProperty("primaryRosterSections");
+        primarySections.GetArrayLength().Should().Be(2);
+        primarySections.EnumerateArray()
+            .Single(x => x.GetProperty("sectionKey").GetString() == "players")
+            .GetProperty("membershipCount")
+            .GetInt32()
+            .Should().Be(2);
+        primarySections.EnumerateArray()
+            .Single(x => x.GetProperty("sectionKey").GetString() == "technical-staff")
+            .GetProperty("membershipCount")
+            .GetInt32()
+            .Should().Be(2);
     }
 
     private static WebApplicationFactory<global::Program> CreateFactory(

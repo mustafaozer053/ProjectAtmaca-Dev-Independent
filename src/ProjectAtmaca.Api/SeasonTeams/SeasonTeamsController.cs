@@ -188,12 +188,40 @@ public sealed class SeasonTeamsController : ControllerBase
                 x.MembershipCount))
             .ToList();
 
+        int playerCount = groups
+            .Where(x => string.Equals(
+                x.Classification,
+                "Sporcu",
+                StringComparison.OrdinalIgnoreCase))
+            .Sum(x => x.MembershipCount);
+        int technicalStaffCount = groups
+            .Where(x => string.Equals(
+                x.Classification,
+                "Teknik Ekip",
+                StringComparison.OrdinalIgnoreCase))
+            .Sum(x => x.MembershipCount);
+
+        var primarySections = new[]
+        {
+            new SeasonTeamRosterPrimarySectionResponse(
+                "players",
+                "Sporcu",
+                playerCount,
+                playerCount > 0),
+            new SeasonTeamRosterPrimarySectionResponse(
+                "technical-staff",
+                "Teknik Ekip",
+                technicalStaffCount,
+                technicalStaffCount > 0)
+        };
+
         return Ok(new SeasonTeamRosterViewResponse(
             details.Id,
             memberships.Count,
             memberships.Count(x => x.IsActive),
             memberships.Count(x => !x.IsActive),
             unclassified.Count,
+            primarySections,
             groups,
             classificationCounts,
             unclassified));
