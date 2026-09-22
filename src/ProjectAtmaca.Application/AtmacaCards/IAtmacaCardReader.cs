@@ -10,4 +10,9 @@ public interface IAtmacaCardReader
     Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
         IReadOnlyCollection<Guid> atmacaCardIds,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AtmacaCardSummary>> SearchAsync(
+        string search,
+        int limit = 20,
+        CancellationToken cancellationToken = default);
 }

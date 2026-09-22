@@ -186,5 +186,11 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
                 _summaries.ToDictionary(x => x.AtmacaCardId, x => x);
             return Task.FromResult(result);
         }
+
+        public Task<IReadOnlyList<AtmacaCardSummary>> SearchAsync(
+            string search,
+            int limit = 20,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AtmacaCardSummary>>([]);
     }
 }

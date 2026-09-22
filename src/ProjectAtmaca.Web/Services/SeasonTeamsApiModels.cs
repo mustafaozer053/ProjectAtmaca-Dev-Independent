@@ -13,6 +13,12 @@ public sealed record SeasonTeamResponse(
     int MembershipCount,
     bool IsActive);
 
+public sealed record AtmacaCardSummary(
+    Guid AtmacaCardId,
+    Guid PersonId,
+    string FullName,
+    string CardNumber);
+
 public sealed record SeasonTeamRosterViewResponse(
     Guid SeasonTeamId,
     int TotalMembershipCount,

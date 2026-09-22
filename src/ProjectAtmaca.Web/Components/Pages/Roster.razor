@@ -111,7 +111,47 @@ else
 
         @if (showAddMember)
         {
-            <div class="detail-overlay" @onclick="CloseAddMember"><aside class="detail-panel add-panel" @onclick:stopPropagation><button class="close-button" @onclick="CloseAddMember">×</button><h2>Kadroya üye ekle</h2><p class="muted">Bir AtmacaCard seçerek bu sezon takımına üyelik oluşturun.</p><label class="form-label">AtmacaCard ara<input class="form-input" placeholder="İsim veya kart numarası" /></label><div class="empty-search">Arama sonucu burada görünecek.</div><button class="btn btn-primary full-width" @onclick="CloseAddMember">Devam et</button></aside></div>
+            <div class="detail-overlay" @onclick="CloseAddMember">
+                <aside class="detail-panel add-panel" @onclick:stopPropagation>
+                    <button class="close-button" @onclick="CloseAddMember">×</button>
+                    <h2>Kadroya üye ekle</h2>
+                    <p class="muted">İsim veya AtmacaCard numarasıyla arayın ve seçtiğiniz kartı bu takıma ekleyin.</p>
+                    <div class="search-box add-member-search">
+                        <input @bind="cardSearchTerm" placeholder="Ör. Ahmet veya ATM-000003" />
+                        <button type="button" class="btn btn-light" @onclick="SearchCardsAsync" disabled="@isSearchingCards">Ara</button>
+                    </div>
+                    @if (addMemberError is not null)
+                    {
+                        <div class="error-banner">@addMemberError</div>
+                    }
+                    @if (cardSearchResults.Count > 0)
+                    {
+                        <div class="card-search-results">
+                            @foreach (var card in cardSearchResults)
+                            {
+                                <button type="button" class="card-search-result @(selectedCard?.AtmacaCardId == card.AtmacaCardId ? "selected" : "")" @onclick="() => selectedCard = card">
+                                    <span><strong>@card.FullName</strong><small>@card.CardNumber</small></span>
+                                    <span>@(selectedCard?.AtmacaCardId == card.AtmacaCardId ? "Seçildi" : "Seç")</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                    else if (hasSearchedCards)
+                    {
+                        <div class="empty-search">Eşleşen AtmacaCard bulunamadı.</div>
+                    }
+                    @if (selectedCard is not null)
+                    {
+                        <div class="selected-card">
+                            <strong>@selectedCard.FullName</strong>
+                            <span>@selectedCard.CardNumber</span>
+                        </div>
+                        <button class="btn btn-primary full-width" @onclick="AddSelectedMemberAsync" disabled="@isAddingMember">
+                            @(isAddingMember ? "Ekleniyor..." : "Bu kartı kadroya ekle")
+                        </button>
+                    }
+                </aside>
+            </div>
         }
     </div>
 }
@@ -127,6 +167,13 @@ else
     private string searchTerm = string.Empty;
     private bool showAddMember;
     private Member? selectedMember;
+    private string cardSearchTerm = string.Empty;
+    private IReadOnlyList<AtmacaCardSummary> cardSearchResults = [];
+    private AtmacaCardSummary? selectedCard;
+    private bool isSearchingCards;
+    private bool isAddingMember;
+    private bool hasSearchedCards;
+    private string? addMemberError;
 
     private IEnumerable<Member> FilteredMembers => Members.Where(m =>
         (selectedSection == "Tümü" || (selectedSection == "Sınıflandırılmamış" ? string.IsNullOrEmpty(m.Classification) : m.Classification == selectedSection)) &&
@@ -253,11 +300,83 @@ else
         return AvatarPalette[index];
     }
 
-    private void OpenAddMember() => showAddMember = true;
+    private void OpenAddMember()
+    {
+        showAddMember = true;
+        cardSearchTerm = string.Empty;
+        cardSearchResults = [];
+        selectedCard = null;
+        hasSearchedCards = false;
+        addMemberError = null;
+    }
+
     private void CloseAddMember() => showAddMember = false;
+
+    private async Task SearchCardsAsync()
+    {
+        if (cardSearchTerm.Trim().Length < 2)
+        {
+            addMemberError = "Arama için en az 2 karakter girin.";
+            cardSearchResults = [];
+            hasSearchedCards = false;
+            return;
+        }
+
+        isSearchingCards = true;
+        addMemberError = null;
+        selectedCard = null;
+
+        try
+        {
+            cardSearchResults = await Api.SearchCardsAsync(cardSearchTerm);
+            hasSearchedCards = true;
+        }
+        catch (Exception ex)
+        {
+            addMemberError = $"Kartlar aranırken bir sorun oluştu: {ex.Message}";
+            cardSearchResults = [];
+        }
+        finally
+        {
+            isSearchingCards = false;
+        }
+    }
+
+    private async Task AddSelectedMemberAsync()
+    {
+        if (selectedTeam is null || selectedCard is null)
+            return;
+
+        isAddingMember = true;
+        addMemberError = null;
+
+        try
+        {
+            var added = await Api.AddMembershipAsync(
+                selectedTeam.Id,
+                selectedCard.AtmacaCardId,
+                DateTime.UtcNow);
+
+            if (!added)
+            {
+                addMemberError = "AtmacaCard kadroya eklenemedi.";
+                return;
+            }
+
+            await LoadRosterAsync(selectedTeam.Id);
+            CloseAddMember();
+        }
+        catch (Exception ex)
+        {
+            addMemberError = $"Üyelik oluşturulurken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAddingMember = false;
+        }
+    }
     private void CloseDetails() => selectedMember = null;
 
     private sealed record Member(string Name, string CardCode, string Initials, string AvatarColor, string Classification, string Period, bool IsActive, IReadOnlyList<Assignment> Assignments);
     private sealed record Assignment(string Kind, string Text, string Period);
 }
-

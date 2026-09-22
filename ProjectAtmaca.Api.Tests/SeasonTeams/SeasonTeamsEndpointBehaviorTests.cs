@@ -414,6 +414,12 @@ public sealed class SeasonTeamsEndpointBehaviorTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyDictionary<Guid, AtmacaCardSummary>>(
                 new Dictionary<Guid, AtmacaCardSummary>());
+
+        public Task<IReadOnlyList<AtmacaCardSummary>> SearchAsync(
+            string search,
+            int limit = 20,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AtmacaCardSummary>>([]);
     }
 
     private sealed class InMemoryRepository(params SeasonTeam[] values)

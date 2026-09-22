@@ -41,4 +41,41 @@ public sealed class AtmacaCardReader
             x => x.AtmacaCardId,
             x => x);
     }
+
+    public async Task<IReadOnlyList<AtmacaCardSummary>> SearchAsync(
+        string search,
+        int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedSearch = search.Trim();
+        if (normalizedSearch.Length < 2)
+            return [];
+
+        limit = Math.Clamp(limit, 1, 50);
+
+        var matches = await (
+            from card in _dbContext.Set<AtmacaCard>().AsNoTracking()
+            join person in _dbContext.Set<Person>().AsNoTracking()
+                on card.PersonId equals person.Id
+            select new { card, person })
+            .ToListAsync(cancellationToken);
+
+        return matches
+            .Where(x =>
+                x.person.Name.FullName.Contains(
+                    normalizedSearch,
+                    StringComparison.OrdinalIgnoreCase)
+                || x.card.CardNumber.Value.Contains(
+                    normalizedSearch,
+                    StringComparison.OrdinalIgnoreCase))
+            .Select(x => new AtmacaCardSummary(
+                x.card.Id,
+                x.person.Id,
+                x.person.Name.FullName,
+                x.card.CardNumber.Value))
+            .OrderBy(x => x.FullName)
+            .ThenBy(x => x.CardNumber)
+            .Take(limit)
+            .ToList();
+    }
 }
