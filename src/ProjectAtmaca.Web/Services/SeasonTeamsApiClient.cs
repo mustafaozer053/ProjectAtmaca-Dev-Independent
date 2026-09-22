@@ -98,4 +98,42 @@ public sealed class SeasonTeamsApiClient
 
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<Guid?> CreateSeasonTeamAsync(
+        Guid seasonId,
+        Guid organizationId,
+        Guid ageGroupId,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            "api/season-teams",
+            new
+            {
+                SeasonId = seasonId,
+                OrganizationId = organizationId,
+                AgeGroupId = ageGroupId,
+                Name = name
+            },
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadFromJsonAsync<Guid>(
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task<bool> ChangeTeamStatusAsync(
+        Guid seasonTeamId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PatchAsJsonAsync(
+            $"api/season-teams/{seasonTeamId:D}/status",
+            new { IsActive = isActive },
+            cancellationToken);
+
+        return response.IsSuccessStatusCode;
+    }
 }

@@ -19,7 +19,13 @@ else if (errorMessage is not null)
 }
 else if (selectedTeam is null)
 {
-    <div class="roster-page"><p class="muted">Henüz kayıtlı bir sezon takımı bulunmuyor.</p></div>
+    <div class="roster-page">
+        <div class="empty-state">
+            <h1>Henüz sezon takımı yok</h1>
+            <p class="muted">Kadro yönetimine başlamak için ilk sezon takımınızı oluşturun.</p>
+            <button class="btn btn-primary" @onclick="OpenCreateTeam">+ Sezon takımı oluştur</button>
+        </div>
+    </div>
 }
 else
 {
@@ -40,7 +46,10 @@ else
                         }
                     </select>
                 }
-                <span class="status-pill @(selectedTeam.IsActive ? "active" : "passive")"><span></span> @(selectedTeam.IsActive ? "Aktif takım" : "Pasif takım")</span>
+                <button class="status-pill @(selectedTeam.IsActive ? "active" : "passive") status-button" @onclick="ToggleTeamStatusAsync">
+                    <span></span> @(selectedTeam.IsActive ? "Aktif takım" : "Pasif takım")
+                </button>
+                <button class="btn btn-light" @onclick="OpenCreateTeam">+ Yeni takım</button>
                 <button class="btn btn-primary" @onclick="OpenAddMember">+ Kadroya üye ekle</button>
             </div>
         </header>
@@ -163,6 +172,36 @@ else
                                     <span>@(selectedCard?.AtmacaCardId == card.AtmacaCardId ? "Seçildi" : "Seç")</span>
                                 </button>
                             }
+
+                            @if (showCreateTeam)
+                            {
+                                <div class="detail-overlay" @onclick="CloseCreateTeam">
+                                    <aside class="detail-panel add-panel" @onclick:stopPropagation>
+                                        <button class="close-button" @onclick="CloseCreateTeam">×</button>
+                                        <h2>Sezon takımı oluştur</h2>
+                                        <p class="muted">Takımın bağlı olduğu sezon, organizasyon ve yaş grubu kimliklerini girin.</p>
+                                        <label class="form-label">Takım adı
+                                            <input class="form-input" @bind="createTeamName" placeholder="Ör. U16 Akademi" />
+                                        </label>
+                                        <label class="form-label">Sezon kimliği
+                                            <input class="form-input" @bind="createSeasonId" placeholder="GUID" />
+                                        </label>
+                                        <label class="form-label">Organizasyon kimliği
+                                            <input class="form-input" @bind="createOrganizationId" placeholder="GUID" />
+                                        </label>
+                                        <label class="form-label">Yaş grubu kimliği
+                                            <input class="form-input" @bind="createAgeGroupId" placeholder="GUID" />
+                                        </label>
+                                        @if (teamManagementError is not null)
+                                        {
+                                            <div class="error-banner">@teamManagementError</div>
+                                        }
+                                        <button class="btn btn-primary full-width" @onclick="CreateTeamAsync" disabled="@isCreatingTeam">
+                                            @(isCreatingTeam ? "Oluşturuluyor..." : "Sezon takımını oluştur")
+                                        </button>
+                                    </aside>
+                                </div>
+                            }
                         </div>
                     }
                     else if (hasSearchedCards)
@@ -203,6 +242,13 @@ else
     private bool isAddingMember;
     private bool hasSearchedCards;
     private string? addMemberError;
+    private bool showCreateTeam;
+    private bool isCreatingTeam;
+    private string createTeamName = string.Empty;
+    private string createSeasonId = string.Empty;
+    private string createOrganizationId = string.Empty;
+    private string createAgeGroupId = string.Empty;
+    private string? teamManagementError;
     private string assignmentKind = "Classification";
     private string assignmentName = string.Empty;
     private bool isAddingAssignment;
@@ -350,6 +396,83 @@ else
     }
 
     private void CloseAddMember() => showAddMember = false;
+
+    private void OpenCreateTeam()
+    {
+        showCreateTeam = true;
+        teamManagementError = null;
+        createTeamName = string.Empty;
+        createSeasonId = selectedTeam?.SeasonId.ToString("D") ?? string.Empty;
+        createOrganizationId = selectedTeam?.OrganizationId.ToString("D") ?? string.Empty;
+        createAgeGroupId = selectedTeam?.AgeGroupId.ToString("D") ?? string.Empty;
+    }
+
+    private void CloseCreateTeam() => showCreateTeam = false;
+
+    private async Task CreateTeamAsync()
+    {
+        if (!Guid.TryParse(createSeasonId, out var seasonId)
+            || !Guid.TryParse(createOrganizationId, out var organizationId)
+            || !Guid.TryParse(createAgeGroupId, out var ageGroupId)
+            || string.IsNullOrWhiteSpace(createTeamName))
+        {
+            teamManagementError = "Takım adı ve üç geçerli GUID alanı zorunludur.";
+            return;
+        }
+
+        isCreatingTeam = true;
+        teamManagementError = null;
+        try
+        {
+            var teamId = await Api.CreateSeasonTeamAsync(
+                seasonId,
+                organizationId,
+                ageGroupId,
+                createTeamName.Trim());
+
+            if (teamId is null)
+            {
+                teamManagementError = "Sezon takımı oluşturulamadı.";
+                return;
+            }
+
+            showCreateTeam = false;
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            teamManagementError = $"Takım oluşturulurken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isCreatingTeam = false;
+        }
+    }
+
+    private async Task ToggleTeamStatusAsync()
+    {
+        if (selectedTeam is null)
+            return;
+
+        teamManagementError = null;
+        try
+        {
+            var changed = await Api.ChangeTeamStatusAsync(
+                selectedTeam.Id,
+                !selectedTeam.IsActive);
+            if (!changed)
+            {
+                teamManagementError = "Takım durumu değiştirilemedi.";
+                return;
+            }
+
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            teamManagementError = $"Takım durumu değiştirilirken bir sorun oluştu: {ex.Message}";
+        }
+    }
 
     private async Task SearchCardsAsync()
     {
