@@ -99,6 +99,20 @@ public sealed class SeasonTeamsApiClient
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<bool> EndMembershipAsync(
+        Guid seasonTeamId,
+        Guid membershipId,
+        DateTime endDate,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            $"api/season-teams/{seasonTeamId:D}/memberships/{membershipId:D}/end",
+            new { EndDate = endDate },
+            cancellationToken);
+
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<Guid?> CreateSeasonTeamAsync(
         Guid seasonId,
         Guid organizationId,

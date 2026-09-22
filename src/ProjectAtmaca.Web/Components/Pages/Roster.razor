@@ -141,7 +141,17 @@ else
                             </button>
                         </div>
                     </div>
-                    <div class="detail-section"><h3>Üyelik dönemi</h3><p class="detail-period">@selectedMember.Period</p><span class="status-pill @(selectedMember.IsActive ? "active" : "passive")"><span></span>@(selectedMember.IsActive ? "Aktif üyelik" : "Sonlandırılmış üyelik")</span></div>
+                    <div class="detail-section">
+                        <h3>Üyelik dönemi</h3>
+                        <p class="detail-period">@selectedMember.Period</p>
+                        <span class="status-pill @(selectedMember.IsActive ? "active" : "passive")"><span></span>@(selectedMember.IsActive ? "Aktif üyelik" : "Sonlandırılmış üyelik")</span>
+                        @if (selectedMember.IsActive)
+                        {
+                            <button class="membership-end-button" @onclick="EndMembershipAsync" disabled="@isEndingMembership">
+                                @(isEndingMembership ? "Sonlandırılıyor..." : "Üyeliği sonlandır")
+                            </button>
+                        }
+                    </div>
                     <button class="btn btn-primary full-width" @onclick="CloseDetails">Üyelik detayını aç</button>
                 </aside>
             </div>
@@ -252,6 +262,7 @@ else
     private string assignmentKind = "Classification";
     private string assignmentName = string.Empty;
     private bool isAddingAssignment;
+    private bool isEndingMembership;
     private string? assignmentError;
 
     private IEnumerable<Member> FilteredMembers => Members.Where(m =>
@@ -610,6 +621,41 @@ else
         catch (Exception ex)
         {
             assignmentError = $"Atama sonlandırılırken bir sorun oluştu: {ex.Message}";
+        }
+    }
+
+    private async Task EndMembershipAsync()
+    {
+        if (selectedTeam is null || selectedMember is null)
+            return;
+
+        isEndingMembership = true;
+        assignmentError = null;
+        var membershipId = selectedMember.Id;
+
+        try
+        {
+            var ended = await Api.EndMembershipAsync(
+                selectedTeam.Id,
+                membershipId,
+                DateTime.UtcNow);
+
+            if (!ended)
+            {
+                assignmentError = "Üyelik sonlandırılamadı.";
+                return;
+            }
+
+            await LoadRosterAsync(selectedTeam.Id);
+            selectedMember = Members.FirstOrDefault(x => x.Id == membershipId);
+        }
+        catch (Exception ex)
+        {
+            assignmentError = $"Üyelik sonlandırılırken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isEndingMembership = false;
         }
     }
 
