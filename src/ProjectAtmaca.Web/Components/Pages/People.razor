@@ -43,7 +43,7 @@
                     <tbody>
                         @foreach (var person in people)
                         {
-                            <tr>
+                            <tr class="people-row" @onclick="() => selectedPerson = person">
                                 <td><strong>@person.FullName</strong></td>
                                 <td><span class="card-number">@person.CardNumber</span></td>
                                 <td><small>@person.PersonId</small></td>
@@ -54,6 +54,23 @@
             </div>
         }
     </section>
+
+    @if (selectedPerson is not null)
+    {
+        <div class="people-overlay" @onclick="CloseDetails">
+            <aside class="people-detail" @onclick:stopPropagation>
+                <button class="close-button" @onclick="CloseDetails">×</button>
+                <div class="eyebrow">ATMACACARD DETAYI</div>
+                <h2>@selectedPerson.FullName</h2>
+                <span class="card-number">@selectedPerson.CardNumber</span>
+                <div class="detail-list">
+                    <div><small>AtmacaCard ID</small><strong>@selectedPerson.AtmacaCardId</strong></div>
+                    <div><small>Kişi ID</small><strong>@selectedPerson.PersonId</strong></div>
+                </div>
+                <button class="btn btn-primary full-width" @onclick="CloseDetails">Kapat</button>
+            </aside>
+        </div>
+    }
 </div>
 
 <style>
@@ -63,11 +80,13 @@
     .btn { border:0; border-radius:8px; padding:.7rem 1rem; font-weight:650; cursor:pointer; text-decoration:none; font-size:.88rem; }.btn-primary { background:#4058d6; color:white; }.btn-light { background:#f3f5fa; color:#46536b; }
     .people-card { background:#fff; border:1px solid #e8ebf2; border-radius:12px; box-shadow:0 5px 18px #273b6810; overflow:hidden; }.people-toolbar { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1.25rem 1.4rem; border-bottom:1px solid #edf0f5; color:#77849a; font-size:.8rem; }.people-toolbar strong { color:#19243a; font-size:1.1rem; }
     .people-search { display:flex; gap:.5rem; }.people-search input { width:260px; border:1px solid #e1e5ee; border-radius:8px; padding:.7rem; outline:0; }.people-table-wrap { overflow-x:auto; }.people-table { width:100%; border-collapse:collapse; }.people-table th { text-align:left; color:#98a2b4; font-size:.67rem; letter-spacing:.08em; padding:.9rem 1.4rem; background:#fafbfc; }.people-table td { padding:1rem 1.4rem; border-top:1px solid #f0f2f6; }.people-table small { color:#8a95aa; font-family:monospace; }.card-number { color:#4058d6; font-weight:700; font-size:.82rem; }.people-empty { padding:3rem; text-align:center; color:#8a95aa; }.error-banner { margin:1rem; padding:.8rem; border-radius:8px; background:#fff1f1; color:#b45757; }
+    .people-row { cursor:pointer; }.people-row:hover { background:#f8f9ff; }.people-overlay { position:fixed; inset:0; z-index:10; display:flex; justify-content:flex-end; background:#17223a55; }.people-detail { position:relative; width:min(410px,100%); height:100%; overflow:auto; padding:2rem; background:#fff; box-shadow:-8px 0 25px #17223a22; }.people-detail h2 { margin:.3rem 0 .5rem; font-size:1.5rem; }.close-button { position:absolute; right:1.3rem; top:1rem; border:0; background:transparent; font-size:1.7rem; color:#8994a8; cursor:pointer; }.detail-list { display:grid; gap:1rem; margin:2rem 0; border-top:1px solid #edf0f5; padding-top:1.2rem; }.detail-list div { display:grid; gap:.3rem; }.detail-list small { color:#8994a8; text-transform:uppercase; letter-spacing:.06em; font-size:.65rem; }.detail-list strong { font-family:monospace; font-size:.72rem; font-weight:500; overflow-wrap:anywhere; }.full-width { width:100%; }
     @@media(max-width:700px) { .people-header,.people-toolbar { flex-direction:column; align-items:stretch; }.people-search input { width:100%; } }
 </style>
 
 @code {
     private IReadOnlyList<AtmacaCardSummary> people = [];
+    private AtmacaCardSummary? selectedPerson;
     private string searchTerm = string.Empty;
     private bool isLoading = true;
     private string? errorMessage;
@@ -97,4 +116,6 @@
             isLoading = false;
         }
     }
+
+    private void CloseDetails() => selectedPerson = null;
 }
