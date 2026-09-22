@@ -13,7 +13,13 @@ public sealed class AtmacaCardsController(
         [FromQuery] string? search,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(search) || search.Trim().Length < 2)
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            var all = await reader.ListAsync(cancellationToken: cancellationToken);
+            return Ok(all);
+        }
+
+        if (search.Trim().Length < 2)
             return Ok(Array.Empty<AtmacaCardSummary>());
 
         var results = await reader.SearchAsync(

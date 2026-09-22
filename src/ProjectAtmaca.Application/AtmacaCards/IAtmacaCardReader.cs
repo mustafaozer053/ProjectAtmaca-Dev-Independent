@@ -7,6 +7,10 @@ namespace ProjectAtmaca.Application.AtmacaCards;
 /// </summary>
 public interface IAtmacaCardReader
 {
+    Task<IReadOnlyList<AtmacaCardSummary>> ListAsync(
+        int limit = 100,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
         IReadOnlyCollection<Guid> atmacaCardIds,
         CancellationToken cancellationToken = default);

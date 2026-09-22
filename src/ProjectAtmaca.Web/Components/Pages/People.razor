@@ -1,0 +1,100 @@
+@page "/people"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Web
+@using ProjectAtmaca.Web.Services
+@inject PeopleApiClient Api
+
+<PageTitle>Kişiler | ProjectAtmaca</PageTitle>
+
+<div class="people-page">
+    <div class="people-header">
+        <div>
+            <div class="eyebrow">PERSONEL VE SPORCU DİZİNİ</div>
+            <h1>Kişiler</h1>
+            <p class="muted">Kayıtlı kişileri AtmacaCard numarası veya adlarına göre görüntüleyin.</p>
+        </div>
+        <a class="btn btn-primary" href="people/register">+ Yeni kişi kaydı</a>
+    </div>
+    <section class="people-card">
+        <div class="people-toolbar">
+            <div><strong>@people.Count</strong> kayıt gösteriliyor</div>
+            <div class="people-search">
+                <input @bind="searchTerm" @bind:event="oninput" @onkeydown="OnSearchKeyDown" placeholder="Ad veya ATM-000003" aria-label="Kişi ara" />
+                <button class="btn btn-light" @onclick="LoadAsync" disabled="@isLoading">Ara</button>
+            </div>
+        </div>
+        @if (isLoading)
+        {
+            <div class="people-empty">Kişiler yükleniyor...</div>
+        }
+        else if (errorMessage is not null)
+        {
+            <div class="error-banner">@errorMessage</div>
+        }
+        else if (people.Count == 0)
+        {
+            <div class="people-empty">Gösterilecek kişi bulunamadı.</div>
+        }
+        else
+        {
+            <div class="people-table-wrap">
+                <table class="people-table">
+                    <thead><tr><th>KİŞİ</th><th>ATMACACARD</th><th>KİŞİ ID</th></tr></thead>
+                    <tbody>
+                        @foreach (var person in people)
+                        {
+                            <tr>
+                                <td><strong>@person.FullName</strong></td>
+                                <td><span class="card-number">@person.CardNumber</span></td>
+                                <td><small>@person.PersonId</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+<style>
+    .people-page { max-width: 1200px; margin: 0 auto; color: #19243a; }
+    .people-header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:2rem; }
+    .people-header h1 { font-size:2rem; margin:0; }.eyebrow { color:#71809b; font-size:.72rem; font-weight:700; letter-spacing:.14em; margin-bottom:.65rem; }.muted { color:#8290a8; margin:.35rem 0 0; }
+    .btn { border:0; border-radius:8px; padding:.7rem 1rem; font-weight:650; cursor:pointer; text-decoration:none; font-size:.88rem; }.btn-primary { background:#4058d6; color:white; }.btn-light { background:#f3f5fa; color:#46536b; }
+    .people-card { background:#fff; border:1px solid #e8ebf2; border-radius:12px; box-shadow:0 5px 18px #273b6810; overflow:hidden; }.people-toolbar { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1.25rem 1.4rem; border-bottom:1px solid #edf0f5; color:#77849a; font-size:.8rem; }.people-toolbar strong { color:#19243a; font-size:1.1rem; }
+    .people-search { display:flex; gap:.5rem; }.people-search input { width:260px; border:1px solid #e1e5ee; border-radius:8px; padding:.7rem; outline:0; }.people-table-wrap { overflow-x:auto; }.people-table { width:100%; border-collapse:collapse; }.people-table th { text-align:left; color:#98a2b4; font-size:.67rem; letter-spacing:.08em; padding:.9rem 1.4rem; background:#fafbfc; }.people-table td { padding:1rem 1.4rem; border-top:1px solid #f0f2f6; }.people-table small { color:#8a95aa; font-family:monospace; }.card-number { color:#4058d6; font-weight:700; font-size:.82rem; }.people-empty { padding:3rem; text-align:center; color:#8a95aa; }.error-banner { margin:1rem; padding:.8rem; border-radius:8px; background:#fff1f1; color:#b45757; }
+    @@media(max-width:700px) { .people-header,.people-toolbar { flex-direction:column; align-items:stretch; }.people-search input { width:100%; } }
+</style>
+
+@code {
+    private IReadOnlyList<AtmacaCardSummary> people = [];
+    private string searchTerm = string.Empty;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            people = await Api.ListAsync(searchTerm);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Kişiler yüklenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

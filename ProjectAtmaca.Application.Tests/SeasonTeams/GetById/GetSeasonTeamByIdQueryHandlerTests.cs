@@ -178,6 +178,12 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
             _summaries = summaries;
         }
 
+        public Task<IReadOnlyList<AtmacaCardSummary>> ListAsync(
+            int limit = 100,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AtmacaCardSummary>>(
+                _summaries.Take(limit).ToList());
+
         public Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
             IReadOnlyCollection<Guid> atmacaCardIds,
             CancellationToken cancellationToken = default)

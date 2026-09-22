@@ -409,6 +409,11 @@ public sealed class SeasonTeamsEndpointBehaviorTests
 
     private sealed class EmptyAtmacaCardReader : IAtmacaCardReader
     {
+        public Task<IReadOnlyList<AtmacaCardSummary>> ListAsync(
+            int limit = 100,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AtmacaCardSummary>>([]);
+
         public Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
             IReadOnlyCollection<Guid> atmacaCardIds,
             CancellationToken cancellationToken = default) =>
