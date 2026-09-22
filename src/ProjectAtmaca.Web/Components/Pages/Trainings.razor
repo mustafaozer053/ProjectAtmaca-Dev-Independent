@@ -84,6 +84,10 @@
     {
         if (!Guid.TryParse(seasonTeamId, out var teamId) || !Guid.TryParse(trainingTypeId, out var typeId) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(location))
         { createError = "Başlık, takım, antrenman türü ve konum zorunludur."; return; }
+        if (endTime <= startTime)
+        { createError = "Bitiş saati başlangıç saatinden sonra olmalıdır."; return; }
+        if ((endTime - startTime).TotalMinutes > 12 * 60)
+        { createError = "Antrenman süresi 12 saatten uzun olamaz."; return; }
         isCreating = true; createError = null;
         try
         {
