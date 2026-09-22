@@ -33,6 +33,14 @@ builder.Services.AddHttpClient<PeopleApiClient>(client =>
     client.BaseAddress = new Uri(baseUrl);
 });
 
+builder.Services.AddHttpClient<TrainingsApiClient>(client =>
+{
+    var baseUrl = builder.Configuration["ProjectAtmacaApi:BaseUrl"]
+        ?? throw new InvalidOperationException(
+            "ProjectAtmacaApi:BaseUrl configuration is missing.");
+    client.BaseAddress = new Uri(baseUrl);
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

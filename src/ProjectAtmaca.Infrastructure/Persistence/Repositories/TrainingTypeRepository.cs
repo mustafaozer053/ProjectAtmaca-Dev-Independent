@@ -38,9 +38,10 @@ public sealed class TrainingTypeRepository : ITrainingTypeRepository
         if (activeOnly)
             query = query.Where(x => x.IsActive);
 
-        return await query
+        var types = await query.ToListAsync(cancellationToken);
+        return types
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Code.Value)
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 }

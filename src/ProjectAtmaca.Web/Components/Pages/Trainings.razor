@@ -1,0 +1,106 @@
+@page "/trainings"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject TrainingsApiClient Api
+@inject SeasonTeamsApiClient SeasonTeamsApi
+
+<PageTitle>Antrenmanlar | ProjectAtmaca</PageTitle>
+
+<div class="training-page">
+    <div class="training-header">
+        <div><div class="eyebrow">AKADEMİ OPERASYONLARI</div><h1>Antrenmanlar</h1><p class="muted">Planlanan ve gerçekleşen antrenmanları yönetin.</p></div>
+        <button class="btn btn-primary" @onclick="OpenCreateAsync">+ Antrenman oluştur</button>
+    </div>
+    <section class="training-card">
+        <div class="training-toolbar"><strong>@trainings.Count kayıt</strong><button class="btn btn-light" @onclick="LoadAsync">Yenile</button></div>
+        @if (isLoading) { <div class="empty">Antrenmanlar yükleniyor...</div> }
+        else if (errorMessage is not null) { <div class="error-banner">@errorMessage</div> }
+        else if (trainings.Count == 0) { <div class="empty">Henüz antrenman kaydı bulunmuyor.</div> }
+        else
+        {
+            <table class="training-table">
+                <thead><tr><th>TARİH</th><th>ANTRENMAN</th><th>TAKIM</th><th>KONUM</th><th>DURUM</th></tr></thead>
+                <tbody>
+                    @foreach (var training in trainings.OrderBy(x => x.Date).ThenBy(x => x.StartTime))
+                    {
+                        <tr><td><strong>@training.Date.ToString("dd.MM.yyyy")</strong><small>@training.StartTime - @training.EndTime</small></td><td>@training.Title</td><td>@TeamName(training.SeasonTeamId)</td><td>@training.Location</td><td><span class="status">@training.Status</span>@if (training.Status == "PLANNED") { <button class="action" @onclick="() => ConfirmTrainingAsync(training.Id)">Onayla</button><button class="action cancel" @onclick="() => CancelTrainingAsync(training.Id)">İptal</button> }</td></tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+</div>
+
+@if (showCreate)
+{
+    <div class="overlay" @onclick="CloseCreate">
+        <aside class="panel" @onclick:stopPropagation>
+            <button class="close" @onclick="CloseCreate">×</button>
+            <h2>Antrenman oluştur</h2>
+            <p class="muted">Antrenmanı gerçek bir sezon takımına ve antrenman türüne bağlayın.</p>
+            <label>Başlık<input @bind="title" placeholder="Ör. U15 Teknik çalışma" /></label>
+            <label>Sezon takımı<select @bind="seasonTeamId"><option value="">Takım seçin</option>@foreach (var team in teams) { <option value="@team.Id">@team.Name</option> }</select></label>
+            <label>Antrenman türü<select @bind="trainingTypeId"><option value="">Tür seçin</option>@foreach (var type in types) { <option value="@type.Id">@type.Name</option> }</select></label>
+            <label>Tarih<input type="date" @bind="date" /></label>
+            <div class="time-grid"><label>Başlangıç<input type="time" @bind="startTime" /></label><label>Bitiş<input type="time" @bind="endTime" /></label></div>
+            <label>Konum<input @bind="location" placeholder="Ör. Akademi sahası" /></label>
+            @if (createError is not null) { <div class="error-banner">@createError</div> }
+            <button class="btn btn-primary full" @onclick="CreateAsync" disabled="@isCreating">@(isCreating ? "Oluşturuluyor..." : "Antrenmanı oluştur")</button>
+        </aside>
+    </div>
+}
+
+<style>
+ .training-page{max-width:1200px;margin:0 auto;color:#19243a}.training-header{display:flex;justify-content:space-between;gap:1rem;margin-bottom:2rem}.training-header h1{margin:0;font-size:2rem}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em;margin-bottom:.65rem}.muted{color:#8290a8;margin:.35rem 0 0}.btn{border:0;border-radius:8px;padding:.7rem 1rem;font-weight:650;cursor:pointer}.btn-primary{background:#4058d6;color:#fff}.btn-light{background:#f3f5fa;color:#46536b}.training-card{background:#fff;border:1px solid #e8ebf2;border-radius:12px;overflow:hidden}.training-toolbar{display:flex;justify-content:space-between;padding:1.25rem 1.4rem;border-bottom:1px solid #edf0f5}.training-table{width:100%;border-collapse:collapse}.training-table th{padding:.9rem 1.4rem;text-align:left;color:#98a2b4;font-size:.67rem;background:#fafbfc}.training-table td{padding:1rem 1.4rem;border-top:1px solid #f0f2f6}.training-table td small{display:block;color:#8a95aa;margin-top:.25rem}.status{padding:.3rem .55rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.72rem}.empty{text-align:center;padding:3rem;color:#8a95aa}.overlay{position:fixed;inset:0;z-index:10;background:#17223a55;display:flex;justify-content:flex-end}.panel{width:min(430px,100%);height:100%;overflow:auto;background:#fff;padding:2rem;position:relative}.panel h2{margin:.5rem 0}.close{position:absolute;right:1.3rem;top:1rem;border:0;background:transparent;font-size:1.7rem;color:#8994a8}.panel label{display:block;margin-top:1rem;color:#56647b;font-size:.78rem;font-weight:650}.panel input,.panel select{display:block;width:100%;box-sizing:border-box;margin-top:.45rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px}.time-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.full{width:100%;margin-top:1.4rem}.error-banner{margin-top:1rem;padding:.8rem;border-radius:8px;background:#fff1f1;color:#b45757}
+</style>
+
+@code {
+    private IReadOnlyList<TrainingListItemResponse> trainings = [];
+    private IReadOnlyList<SeasonTeamResponse> teams = [];
+    private IReadOnlyList<TrainingTypeResponse> types = [];
+    private bool isLoading = true, showCreate, isCreating;
+    private string? errorMessage, createError;
+    private string title = "", location = "", seasonTeamId = "", trainingTypeId = "";
+    private DateOnly date = DateOnly.FromDateTime(DateTime.Today);
+    private TimeOnly startTime = new(18, 0), endTime = new(20, 0);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        isLoading = true; errorMessage = null;
+        try { trainings = await Api.ListAsync(); teams = await SeasonTeamsApi.GetSeasonTeamsAsync(); }
+        catch (Exception ex) { errorMessage = $"Antrenmanlar yüklenirken bir sorun oluştu: {ex.Message}"; }
+        finally { isLoading = false; }
+    }
+    private async Task OpenCreateAsync()
+    {
+        createError = null;
+        try { teams = await SeasonTeamsApi.GetSeasonTeamsAsync(); types = await Api.ListTypesAsync(); showCreate = true; }
+        catch (Exception ex) { createError = $"Form verileri yüklenemedi: {ex.Message}"; }
+    }
+    private void CloseCreate() => showCreate = false;
+    private string TeamName(Guid? id) => teams.FirstOrDefault(x => x.Id == id)?.Name ?? "—";
+    private async Task CreateAsync()
+    {
+        if (!Guid.TryParse(seasonTeamId, out var teamId) || !Guid.TryParse(trainingTypeId, out var typeId) || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(location))
+        { createError = "Başlık, takım, antrenman türü ve konum zorunludur."; return; }
+        isCreating = true; createError = null;
+        try
+        {
+            var team = teams.First(x => x.Id == teamId);
+            var id = await Api.CreateAsync(team.SeasonId, team.OrganizationId, teamId, title.Trim(), location.Trim(), date, startTime, endTime, typeId, (int)(endTime - startTime).TotalMinutes);
+            if (id is null) { createError = "Antrenman oluşturulamadı."; return; }
+            showCreate = false; await LoadAsync();
+        }
+        catch (Exception ex) { createError = $"Antrenman oluşturulurken bir sorun oluştu: {ex.Message}"; }
+        finally { isCreating = false; }
+    }
+    private Task ConfirmTrainingAsync(Guid id) => ChangeStatusAsync(id, "confirm");
+    private Task CancelTrainingAsync(Guid id) => ChangeStatusAsync(id, "cancel");
+
+    private async Task ChangeStatusAsync(Guid id, string action)
+    {
+        try { if (await Api.ChangeStatusAsync(id, action)) await LoadAsync(); }
+        catch (Exception ex) { errorMessage = $"Antrenman durumu güncellenemedi: {ex.Message}"; }
+    }
+}
