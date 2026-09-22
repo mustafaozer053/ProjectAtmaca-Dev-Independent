@@ -102,7 +102,36 @@ else
                 <aside class="detail-panel" @onclick:stopPropagation>
                     <button class="close-button" @onclick="CloseDetails">×</button>
                     <div class="detail-profile"><div class="avatar large @selectedMember.AvatarColor">@selectedMember.Initials</div><div><h2>@selectedMember.Name</h2><p>@selectedMember.CardCode</p></div></div>
-                    <div class="detail-section"><h3>Bu kadrodaki atamalar</h3>@foreach (var assignment in selectedMember.Assignments) { <div class="detail-assignment"><span class="assignment-tag @assignment.Kind">@assignment.Text</span><small>@assignment.Period</small></div> }</div>
+                    <div class="detail-section">
+                        <h3>Bu kadrodaki atamalar</h3>
+                        @foreach (var assignment in selectedMember.Assignments)
+                        {
+                            <div class="detail-assignment">
+                                <span class="assignment-tag @assignment.Kind">@assignment.Text</span>
+                                <small>@assignment.Period</small>
+                                @if (assignment.IsActive)
+                                {
+                                    <button class="assignment-end-button" @onclick="() => EndAssignmentAsync(assignment)">Sonlandır</button>
+                                }
+                            </div>
+                        }
+                        @if (assignmentError is not null)
+                        {
+                            <div class="error-banner">@assignmentError</div>
+                        }
+                        <div class="assignment-form">
+                            <select class="form-input" @bind="assignmentKind">
+                                <option value="Classification">Sınıflandırma</option>
+                                <option value="Role">Rol</option>
+                                <option value="Duty">Görev</option>
+                                <option value="Title">Ünvan</option>
+                            </select>
+                            <input class="form-input" @bind="assignmentName" placeholder="Ör. Sporcu, Kaptan, Antrenör" />
+                            <button class="btn btn-light" @onclick="AddAssignmentAsync" disabled="@isAddingAssignment">
+                                @(isAddingAssignment ? "Ekleniyor..." : "Atama ekle")
+                            </button>
+                        </div>
+                    </div>
                     <div class="detail-section"><h3>Üyelik dönemi</h3><p class="detail-period">@selectedMember.Period</p><span class="status-pill @(selectedMember.IsActive ? "active" : "passive")"><span></span>@(selectedMember.IsActive ? "Aktif üyelik" : "Sonlandırılmış üyelik")</span></div>
                     <button class="btn btn-primary full-width" @onclick="CloseDetails">Üyelik detayını aç</button>
                 </aside>
@@ -174,6 +203,10 @@ else
     private bool isAddingMember;
     private bool hasSearchedCards;
     private string? addMemberError;
+    private string assignmentKind = "Classification";
+    private string assignmentName = string.Empty;
+    private bool isAddingAssignment;
+    private string? assignmentError;
 
     private IEnumerable<Member> FilteredMembers => Members.Where(m =>
         (selectedSection == "Tümü" || (selectedSection == "Sınıflandırılmamış" ? string.IsNullOrEmpty(m.Classification) : m.Classification == selectedSection)) &&
@@ -250,10 +283,16 @@ else
 
         var assignments = membership.Assignments
             .Where(a => a.IsActive)
-            .Select(a => new Assignment(ToTagCssClass(a.Kind, a.DisplayNameSnapshot), a.DisplayNameSnapshot, FormatAssignmentPeriod(a)))
+            .Select(a => new Assignment(
+                a.Id,
+                ToTagCssClass(a.Kind, a.DisplayNameSnapshot),
+                a.DisplayNameSnapshot,
+                FormatAssignmentPeriod(a),
+                a.IsActive))
             .ToList();
 
         return new Member(
+            membership.Id,
             name,
             cardCode,
             ToInitials(name),
@@ -377,6 +416,88 @@ else
     }
     private void CloseDetails() => selectedMember = null;
 
-    private sealed record Member(string Name, string CardCode, string Initials, string AvatarColor, string Classification, string Period, bool IsActive, IReadOnlyList<Assignment> Assignments);
-    private sealed record Assignment(string Kind, string Text, string Period);
+    private async Task AddAssignmentAsync()
+    {
+        if (selectedTeam is null || selectedMember is null)
+            return;
+
+        var name = assignmentName.Trim();
+        if (name.Length < 2)
+        {
+            assignmentError = "Atama adı en az 2 karakter olmalıdır.";
+            return;
+        }
+
+        isAddingAssignment = true;
+        assignmentError = null;
+
+        try
+        {
+            var added = await Api.AddMembershipAssignmentAsync(
+                selectedTeam.Id,
+                selectedMember.Id,
+                assignmentKind,
+                CreateDefinitionId(assignmentKind, name),
+                name,
+                DateTime.UtcNow);
+
+            if (!added)
+            {
+                assignmentError = "Atama oluşturulamadı.";
+                return;
+            }
+
+            await LoadRosterAsync(selectedTeam.Id);
+            selectedMember = Members.FirstOrDefault(x => x.Id == selectedMember.Id);
+            assignmentName = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            assignmentError = $"Atama oluşturulurken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAddingAssignment = false;
+        }
+    }
+
+    private async Task EndAssignmentAsync(Assignment assignment)
+    {
+        if (selectedTeam is null || selectedMember is null)
+            return;
+
+        assignmentError = null;
+        try
+        {
+            var ended = await Api.EndMembershipAssignmentAsync(
+                selectedTeam.Id,
+                selectedMember.Id,
+                assignment.Id,
+                DateTime.UtcNow);
+
+            if (!ended)
+            {
+                assignmentError = "Atama sonlandırılamadı.";
+                return;
+            }
+
+            await LoadRosterAsync(selectedTeam.Id);
+            selectedMember = Members.FirstOrDefault(x => x.Id == selectedMember.Id);
+        }
+        catch (Exception ex)
+        {
+            assignmentError = $"Atama sonlandırılırken bir sorun oluştu: {ex.Message}";
+        }
+    }
+
+    private static Guid CreateDefinitionId(string kind, string name)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(
+                $"{kind.Trim().ToUpperInvariant()}:{name.Trim().ToUpperInvariant()}"));
+        return new Guid(bytes[..16]);
+    }
+
+    private sealed record Member(Guid Id, string Name, string CardCode, string Initials, string AvatarColor, string Classification, string Period, bool IsActive, IReadOnlyList<Assignment> Assignments);
+    private sealed record Assignment(Guid Id, string Kind, string Text, string Period, bool IsActive);
 }

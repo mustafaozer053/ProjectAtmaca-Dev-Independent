@@ -60,4 +60,42 @@ public sealed class SeasonTeamsApiClient
 
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<bool> AddMembershipAssignmentAsync(
+        Guid seasonTeamId,
+        Guid membershipId,
+        string kind,
+        Guid definitionId,
+        string displayNameSnapshot,
+        DateTime startDate,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            $"api/season-teams/{seasonTeamId:D}/memberships/{membershipId:D}/assignments",
+            new
+            {
+                Kind = kind,
+                DefinitionId = definitionId,
+                DisplayNameSnapshot = displayNameSnapshot,
+                StartDate = startDate
+            },
+            cancellationToken);
+
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> EndMembershipAssignmentAsync(
+        Guid seasonTeamId,
+        Guid membershipId,
+        Guid assignmentId,
+        DateTime endDate,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            $"api/season-teams/{seasonTeamId:D}/memberships/{membershipId:D}/assignments/{assignmentId:D}/end",
+            new { EndDate = endDate },
+            cancellationToken);
+
+        return response.IsSuccessStatusCode;
+    }
 }
