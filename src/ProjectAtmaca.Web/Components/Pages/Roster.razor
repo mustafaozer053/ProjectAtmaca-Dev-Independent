@@ -189,18 +189,36 @@ else
                                     <aside class="detail-panel add-panel" @onclick:stopPropagation>
                                         <button class="close-button" @onclick="CloseCreateTeam">×</button>
                                         <h2>Sezon takımı oluştur</h2>
-                                        <p class="muted">Takımın bağlı olduğu sezon, organizasyon ve yaş grubu kimliklerini girin.</p>
+                                        <p class="muted">Takımın bağlı olduğu sezon, organizasyon ve yaş grubunu seçin.</p>
                                         <label class="form-label">Takım adı
                                             <input class="form-input" @bind="createTeamName" placeholder="Ör. U16 Akademi" />
                                         </label>
-                                        <label class="form-label">Sezon kimliği
-                                            <input class="form-input" @bind="createSeasonId" placeholder="GUID" />
+                                        <label class="form-label">Sezon
+                                            <select class="form-input" @bind="createSeasonId">
+                                                <option value="">Sezon seçin</option>
+                                                @foreach (var item in seasons)
+                                                {
+                                                    <option value="@item.Id">@item.Name</option>
+                                                }
+                                            </select>
                                         </label>
-                                        <label class="form-label">Organizasyon kimliği
-                                            <input class="form-input" @bind="createOrganizationId" placeholder="GUID" />
+                                        <label class="form-label">Organizasyon
+                                            <select class="form-input" @bind="createOrganizationId">
+                                                <option value="">Organizasyon seçin</option>
+                                                @foreach (var item in organizations)
+                                                {
+                                                    <option value="@item.Id">@item.Name</option>
+                                                }
+                                            </select>
                                         </label>
-                                        <label class="form-label">Yaş grubu kimliği
-                                            <input class="form-input" @bind="createAgeGroupId" placeholder="GUID" />
+                                        <label class="form-label">Yaş grubu
+                                            <select class="form-input" @bind="createAgeGroupId">
+                                                <option value="">Yaş grubu seçin</option>
+                                                @foreach (var item in ageGroups)
+                                                {
+                                                    <option value="@item.Id">@item.Name</option>
+                                                }
+                                            </select>
                                         </label>
                                         @if (teamManagementError is not null)
                                         {
@@ -238,6 +256,9 @@ else
     private bool isLoading = true;
     private string? errorMessage;
     private IReadOnlyList<SeasonTeamResponse> teams = [];
+    private IReadOnlyList<CatalogItemResponse> seasons = [];
+    private IReadOnlyList<CatalogItemResponse> organizations = [];
+    private IReadOnlyList<CatalogItemResponse> ageGroups = [];
     private SeasonTeamResponse? selectedTeam;
     private IReadOnlyList<Member> Members = [];
 
@@ -408,8 +429,11 @@ else
 
     private void CloseAddMember() => showAddMember = false;
 
-    private void OpenCreateTeam()
+    private async Task OpenCreateTeam()
     {
+        seasons = await Api.GetCatalogAsync("seasons");
+        organizations = await Api.GetCatalogAsync("organizations");
+        ageGroups = await Api.GetCatalogAsync("age-groups");
         showCreateTeam = true;
         teamManagementError = null;
         createTeamName = string.Empty;

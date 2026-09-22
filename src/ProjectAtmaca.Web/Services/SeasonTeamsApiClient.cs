@@ -25,6 +25,15 @@ public sealed class SeasonTeamsApiClient
         return teams ?? [];
     }
 
+    public async Task<IReadOnlyList<CatalogItemResponse>> GetCatalogAsync(
+        string catalog,
+        CancellationToken cancellationToken = default)
+    {
+        var items = await _httpClient.GetFromJsonAsync<List<CatalogItemResponse>>(
+            $"api/catalogs/{catalog}", cancellationToken);
+        return items ?? [];
+    }
+
     public async Task<SeasonTeamRosterViewResponse?> GetRosterViewAsync(
         Guid seasonTeamId,
         CancellationToken cancellationToken = default)

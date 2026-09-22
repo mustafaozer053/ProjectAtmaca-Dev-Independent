@@ -1,5 +1,7 @@
 namespace ProjectAtmaca.Web.Services;
 
+public sealed record CatalogItemResponse(Guid Id, string Name);
+
 // Client-side mirrors of ProjectAtmaca.Api.SeasonTeams response contracts.
 // Kept separate from the API project so the Web app only depends on the
 // wire shape (JSON) rather than referencing the Api assembly directly.
