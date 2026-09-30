@@ -15,6 +15,15 @@ public sealed record SeasonTeamResponse(
     int MembershipCount,
     bool IsActive);
 
+public sealed record SeasonTeamDetailsResponse(
+    Guid Id,
+    Guid SeasonId,
+    Guid OrganizationId,
+    Guid AgeGroupId,
+    string Name,
+    bool IsActive,
+    IReadOnlyList<SeasonTeamMembershipResponse> Memberships);
+
 public sealed record AtmacaCardSummary(
     Guid AtmacaCardId,
     Guid PersonId,

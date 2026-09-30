@@ -44,6 +44,15 @@ public sealed class SeasonTeamsApiClient
             cancellationToken);
     }
 
+    public async Task<SeasonTeamDetailsResponse?> GetSeasonTeamDetailsAsync(
+        Guid seasonTeamId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _httpClient.GetFromJsonAsync<SeasonTeamDetailsResponse>(
+            $"api/season-teams/{seasonTeamId:D}",
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AtmacaCardSummary>> SearchCardsAsync(
         string search,
         CancellationToken cancellationToken = default)

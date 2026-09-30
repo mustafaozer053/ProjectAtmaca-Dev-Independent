@@ -1,0 +1,271 @@
+@page "/trainings/{TrainingId:guid}"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject TrainingsApiClient TrainingsApi
+@inject SeasonTeamsApiClient SeasonTeamsApi
+@inject NavigationManager Navigation
+
+<PageTitle>Antrenman detayı | ProjectAtmaca</PageTitle>
+
+<div class="training-detail-page">
+    <button class="back-link" @onclick="BackToTrainings">← Antrenmanlara dön</button>
+
+    @if (isLoading)
+    {
+        <div class="state-card">Antrenman ve katılım bilgileri yükleniyor...</div>
+    }
+    else if (errorMessage is not null)
+    {
+        <div class="error-banner">@errorMessage</div>
+        <button class="btn btn-light" @onclick="LoadAsync">Tekrar dene</button>
+    }
+    else if (training is not null)
+    {
+        <header class="detail-header">
+            <div>
+                <div class="eyebrow">ANTRENMAN DETAYI</div>
+                <h1>@training.Title</h1>
+                <p class="muted">@TeamName · @training.Location</p>
+            </div>
+            <span class="status">@training.Status</span>
+        </header>
+
+        <section class="info-grid">
+            <div class="info-card"><span>TARİH</span><strong>@training.Date.ToString("dd.MM.yyyy")</strong></div>
+            <div class="info-card"><span>SAAT</span><strong>@training.StartTime.ToString("HH:mm") – @training.EndTime.ToString("HH:mm")</strong></div>
+            <div class="info-card"><span>KONUM</span><strong>@training.Location</strong></div>
+        </section>
+
+        <section class="attendance-card">
+            <div class="attendance-heading">
+                <div>
+                    <div class="eyebrow">KATILIM YÖNETİMİ</div>
+                    <h2>Sporcu katılımı</h2>
+                    <p class="muted">Antrenman tarihinde takımda Sporcu olarak sınıflandırılmış üyeler listelenir.</p>
+                </div>
+                <button class="btn btn-primary" @onclick="PrepareAttendanceAsync" disabled="@isPreparing">
+                    @(isPreparing ? "Liste hazırlanıyor..." : "Kadrodan katılım listesini hazırla")
+                </button>
+            </div>
+
+            <div class="summary-grid">
+                <div><strong>@EligibleAthletes.Count</strong><span>Uygun sporcu</span></div>
+                <div><strong>@(summary?.Present ?? 0)</strong><span>Katıldı</span></div>
+                <div><strong>@(summary?.Absent ?? 0)</strong><span>Katılmadı</span></div>
+                <div><strong>@(summary?.NotRecorded ?? 0)</strong><span>Durum bekliyor</span></div>
+            </div>
+
+            @if (actionMessage is not null)
+            {
+                <div class="success-banner">@actionMessage</div>
+            }
+            @if (actionError is not null)
+            {
+                <div class="error-banner">@actionError</div>
+            }
+
+            @if (EligibleAthletes.Count == 0)
+            {
+                <div class="state-card">
+                    Bu antrenman tarihinde aktif ve “Sporcu” sınıflandırmasına sahip kadro üyesi bulunamadı.
+                    Önce sezon kadrosunda üyelik ve Sporcu sınıflandırmasını kontrol edin.
+                </div>
+            }
+            else if (attendanceRows.Count == 0)
+            {
+                <div class="state-card">Katılım listesi henüz oluşturulmadı. Kadrodaki sporcuları eklemek için yukarıdaki düğmeyi kullanın.</div>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="attendance-table">
+                        <thead>
+                            <tr><th>SPORCU</th><th>ATMacaCARD</th><th>DURUM</th><th>İŞLEM</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in attendanceRows)
+                            {
+                                <tr>
+                                    <td>@(row.Membership?.AtmacaCardDisplayName ?? "Kadro kaydı bulunamadı")</td>
+                                    <td>@(row.Membership?.AtmacaCardNumber ?? row.Participation.AtmacaCardId.ToString("D"))</td>
+                                    <td><span class="attendance-status @StatusClass(row.Participation.Status)">@StatusLabel(row.Participation.Status)</span></td>
+                                    <td class="actions">
+                                        <button class="small-action present" @onclick="() => SetStatusAsync(row.Participation.Id, true)" disabled="@isUpdating">Katıldı</button>
+                                        <button class="small-action absent" @onclick="() => SetStatusAsync(row.Participation.Id, false)" disabled="@isUpdating">Katılmadı</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+<style>
+    .training-detail-page{max-width:1100px;margin:0 auto;color:#19243a}.back-link{border:0;background:none;color:#4058d6;font-weight:650;cursor:pointer;padding:0;margin-bottom:1.5rem}.detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1.5rem}.detail-header h1{margin:0;font-size:2rem}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em;margin-bottom:.55rem}.muted{color:#8290a8;margin:.35rem 0 0}.status,.attendance-status{padding:.35rem .65rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:650}.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}.info-card,.attendance-card{background:#fff;border:1px solid #e8ebf2;border-radius:12px;padding:1.25rem}.info-card span,.summary-grid span{display:block;color:#8a95aa;font-size:.7rem;font-weight:700;letter-spacing:.08em}.info-card strong{display:block;margin-top:.55rem}.attendance-heading{display:flex;justify-content:space-between;gap:1rem;align-items:center}.attendance-heading h2{margin:0}.btn{border:0;border-radius:8px;padding:.7rem 1rem;font-weight:650;cursor:pointer}.btn-primary{background:#4058d6;color:#fff}.btn-light{background:#f3f5fa;color:#46536b}.btn:disabled,.small-action:disabled{opacity:.55;cursor:wait}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:1.5rem 0}.summary-grid>div{padding:1rem;background:#f8f9fc;border-radius:9px}.summary-grid strong{display:block;font-size:1.35rem;margin-bottom:.3rem}.table-wrap{overflow:auto}.attendance-table{width:100%;border-collapse:collapse}.attendance-table th{text-align:left;color:#98a2b4;background:#fafbfc;font-size:.68rem}.attendance-table th,.attendance-table td{padding:.9rem 1rem;border-bottom:1px solid #edf0f5}.attendance-status.present{background:#e7f7ee;color:#25804a}.attendance-status.absent{background:#fff0ef;color:#b94b45}.attendance-status.pending{background:#fff6df;color:#9b761b}.actions{white-space:nowrap}.small-action{border:0;border-radius:6px;padding:.45rem .65rem;margin-right:.35rem;cursor:pointer;font-weight:600}.small-action.present{background:#e7f7ee;color:#25804a}.small-action.absent{background:#fff0ef;color:#b94b45}.state-card{padding:1.5rem;text-align:center;color:#8290a8;background:#fafbfc;border-radius:9px;margin-top:1rem}.error-banner,.success-banner{margin:1rem 0;padding:.8rem;border-radius:8px}.error-banner{background:#fff1f1;color:#b45757}.success-banner{background:#e7f7ee;color:#25804a}@@media(max-width:720px){.detail-header,.attendance-heading{align-items:flex-start;flex-direction:column}.info-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+@code {
+    [Parameter]
+    public Guid TrainingId { get; set; }
+
+    private TrainingDetailsResponse? training;
+    private SeasonTeamDetailsResponse? seasonTeam;
+    private IReadOnlyList<ParticipationListItemResponse> participations = [];
+    private ParticipationSummaryResponse? summary;
+    private bool isLoading = true;
+    private bool isPreparing;
+    private bool isUpdating;
+    private string? errorMessage;
+    private string? actionError;
+    private string? actionMessage;
+
+    private string TeamName => seasonTeam?.Name ?? "Takım bilgisi yok";
+
+    private List<SeasonTeamMembershipResponse> EligibleAthletes
+    {
+        get
+        {
+            if (training is null || seasonTeam is null)
+                return [];
+
+            var activityDate = training.Date.ToDateTime(TimeOnly.MinValue).Date;
+            return seasonTeam.Memberships
+                .Where(membership =>
+                    membership.StartDate.Date <= activityDate
+                    && (membership.EndDate is null || membership.EndDate.Value.Date >= activityDate))
+                .Where(membership => membership.Assignments.Any(assignment =>
+                    string.Equals(assignment.Kind, "Classification", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(assignment.DisplayNameSnapshot, "Sporcu", StringComparison.OrdinalIgnoreCase)
+                    && assignment.StartDate.Date <= activityDate
+                    && (assignment.EndDate is null || assignment.EndDate.Value.Date >= activityDate)))
+                .OrderBy(membership => membership.AtmacaCardDisplayName)
+                .ToList();
+        }
+    }
+
+    private List<AttendanceRow> attendanceRows
+    {
+        get
+        {
+            var membershipsByCard = EligibleAthletes.ToDictionary(x => x.AtmacaCardId);
+            return participations
+                .Select(participation => new AttendanceRow(
+                    membershipsByCard.GetValueOrDefault(participation.AtmacaCardId),
+                    participation))
+                .OrderBy(row => row.Membership?.AtmacaCardDisplayName ?? row.Participation.AtmacaCardId.ToString("D"))
+                .ToList();
+        }
+    }
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        actionError = null;
+        actionMessage = null;
+        try
+        {
+            training = await TrainingsApi.GetByIdAsync(TrainingId);
+            if (training is null)
+            {
+                errorMessage = "Antrenman bulunamadı.";
+                return;
+            }
+
+            if (training.SeasonTeamId is Guid teamId)
+                seasonTeam = await SeasonTeamsApi.GetSeasonTeamDetailsAsync(teamId);
+
+            var participationTask = TrainingsApi.ListParticipationsAsync(TrainingId);
+            var summaryTask = TrainingsApi.GetParticipationSummaryAsync(TrainingId);
+            await Task.WhenAll(participationTask, summaryTask);
+            participations = await participationTask;
+            summary = await summaryTask;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Antrenman detayları yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task PrepareAttendanceAsync()
+    {
+        isPreparing = true;
+        actionError = null;
+        actionMessage = null;
+        var existingCardIds = participations.Select(x => x.AtmacaCardId).ToHashSet();
+        var addedCount = 0;
+        try
+        {
+            foreach (var athlete in EligibleAthletes.Where(x => !existingCardIds.Contains(x.AtmacaCardId)))
+            {
+                await TrainingsApi.AddParticipationAsync(TrainingId, athlete.AtmacaCardId);
+                addedCount++;
+            }
+
+            await LoadAsync();
+            actionMessage = addedCount == 0
+                ? "Katılım listesi güncel; eklenecek yeni sporcu yok."
+                : $"{addedCount} sporcu katılım listesine eklendi.";
+        }
+        catch (Exception ex)
+        {
+            var failureMessage = $"Katılım listesi hazırlanırken işlem tamamlanamadı: {ex.Message}";
+            await LoadAsync();
+            actionError = failureMessage;
+        }
+        finally
+        {
+            isPreparing = false;
+        }
+    }
+
+    private async Task SetStatusAsync(Guid participationId, bool present)
+    {
+        isUpdating = true;
+        actionError = null;
+        actionMessage = null;
+        try
+        {
+            await TrainingsApi.SetParticipationStatusAsync(participationId, present);
+            await LoadAsync();
+            actionMessage = present ? "Katılım durumu “Katıldı” olarak kaydedildi." : "Katılım durumu “Katılmadı” olarak kaydedildi.";
+        }
+        catch (Exception ex)
+        {
+            actionError = $"Katılım durumu kaydedilemedi: {ex.Message}";
+        }
+        finally
+        {
+            isUpdating = false;
+        }
+    }
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "PRESENT" => "Katıldı",
+        "ABSENT" => "Katılmadı",
+        _ => "Bekliyor"
+    };
+
+    private static string StatusClass(string status) => status switch
+    {
+        "PRESENT" => "present",
+        "ABSENT" => "absent",
+        _ => "pending"
+    };
+
+    private void BackToTrainings() => Navigation.NavigateTo("/trainings");
+
+    private sealed record AttendanceRow(
+        SeasonTeamMembershipResponse? Membership,
+        ParticipationListItemResponse Participation);
+}

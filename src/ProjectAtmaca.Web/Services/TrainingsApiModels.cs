@@ -12,6 +12,19 @@ public sealed record TrainingListItemResponse(
     Guid OrganizationId,
     Guid? SeasonTeamId);
 
+public sealed record TrainingDetailsResponse(
+    Guid Id,
+    string Title,
+    string Description,
+    string Location,
+    DateOnly Date,
+    TimeOnly StartTime,
+    TimeOnly EndTime,
+    string Status,
+    Guid SeasonId,
+    Guid OrganizationId,
+    Guid? SeasonTeamId);
+
 public sealed record TrainingTypeResponse(
     Guid Id,
     string Code,

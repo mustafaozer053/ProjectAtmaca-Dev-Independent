@@ -20,6 +20,15 @@ public sealed class TrainingsApiClient(HttpClient httpClient)
         return result ?? [];
     }
 
+    public async Task<TrainingDetailsResponse?> GetByIdAsync(
+        Guid trainingId,
+        CancellationToken cancellationToken = default)
+    {
+        return await httpClient.GetFromJsonAsync<TrainingDetailsResponse>(
+            $"api/trainings/{trainingId:D}",
+            cancellationToken);
+    }
+
     public async Task<Guid?> CreateAsync(
         Guid seasonId,
         Guid organizationId,
@@ -73,5 +82,67 @@ public sealed class TrainingsApiClient(HttpClient httpClient)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<IReadOnlyList<ParticipationListItemResponse>> ListParticipationsAsync(
+        Guid trainingId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await httpClient.GetFromJsonAsync<List<ParticipationListItemResponse>>(
+            $"api/participations?activityTypeCode=TRAINING&activityId={trainingId:D}",
+            cancellationToken);
+        return result ?? [];
+    }
+
+    public async Task<ParticipationSummaryResponse?> GetParticipationSummaryAsync(
+        Guid trainingId,
+        CancellationToken cancellationToken = default)
+    {
+        return await httpClient.GetFromJsonAsync<ParticipationSummaryResponse>(
+            $"api/participations/summary?activityTypeCode=TRAINING&activityId={trainingId:D}",
+            cancellationToken);
+    }
+
+    public async Task AddParticipationAsync(
+        Guid trainingId,
+        Guid atmacaCardId,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            $"api/trainings/{trainingId:D}/participations",
+            new { AtmacaCardId = atmacaCardId },
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task SetParticipationStatusAsync(
+        Guid participationId,
+        bool present,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = present
+            ? await httpClient.PostAsJsonAsync(
+                $"api/participations/{participationId:D}/mark-present",
+                new { ConditionCode = (string?)null },
+                cancellationToken)
+            : await httpClient.PostAsync(
+                $"api/participations/{participationId:D}/mark-absent",
+                content: null,
+                cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
     private sealed record CreateTrainingResponse(Guid Id);
 }
+
+public sealed record ParticipationListItemResponse(
+    Guid Id,
+    Guid AtmacaCardId,
+    string Status,
+    string? ConditionCode,
+    DateTimeOffset? JoinedAt,
+    DateTimeOffset? LeftAt);
+
+public sealed record ParticipationSummaryResponse(
+    int Total,
+    int NotRecorded,
+    int Present,
+    int Absent);
