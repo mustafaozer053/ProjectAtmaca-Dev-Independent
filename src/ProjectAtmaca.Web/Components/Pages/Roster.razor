@@ -592,7 +592,7 @@ else
 
         try
         {
-            var added = await Api.AddMembershipAssignmentAsync(
+            var result = await Api.AddMembershipAssignmentAsync(
                 selectedTeam.Id,
                 selectedMember.Id,
                 assignmentKind,
@@ -600,9 +600,9 @@ else
                 name,
                 DateTime.UtcNow);
 
-            if (!added)
+            if (!result.Succeeded)
             {
-                assignmentError = "Atama oluşturulamadı.";
+                assignmentError = $"Atama oluşturulamadı: {result.ErrorMessage}";
                 return;
             }
 

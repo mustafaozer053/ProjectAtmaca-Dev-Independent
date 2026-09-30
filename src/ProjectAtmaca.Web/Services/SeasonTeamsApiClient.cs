@@ -79,7 +79,7 @@ public sealed class SeasonTeamsApiClient
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<bool> AddMembershipAssignmentAsync(
+    public async Task<SeasonTeamApiResult> AddMembershipAssignmentAsync(
         Guid seasonTeamId,
         Guid membershipId,
         string kind,
@@ -88,18 +88,46 @@ public sealed class SeasonTeamsApiClient
         DateTime startDate,
         CancellationToken cancellationToken = default)
     {
+        var kindValue = kind switch
+        {
+            "Role" => 1,
+            "Duty" => 2,
+            "Title" => 3,
+            "Classification" => 4,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported season team assignment kind.")
+        };
+
         using var response = await _httpClient.PostAsJsonAsync(
             $"api/season-teams/{seasonTeamId:D}/memberships/{membershipId:D}/assignments",
             new
             {
-                Kind = kind,
+                Kind = kindValue,
                 DefinitionId = definitionId,
                 DisplayNameSnapshot = displayNameSnapshot,
                 StartDate = startDate
             },
             cancellationToken);
 
-        return response.IsSuccessStatusCode;
+        if (response.IsSuccessStatusCode)
+            return new SeasonTeamApiResult(true, null);
+
+        var problem = await response.Content.ReadFromJsonAsync<SeasonTeamApiProblem>(
+            cancellationToken: cancellationToken);
+        var message = !string.IsNullOrWhiteSpace(problem?.Detail)
+            ? problem.Detail
+            : !string.IsNullOrWhiteSpace(problem?.Title)
+                ? problem.Title
+                : $"Atama isteği reddedildi (HTTP {(int)response.StatusCode}).";
+
+        return new SeasonTeamApiResult(false, message);
+    }
+
+    public sealed record SeasonTeamApiResult(bool Succeeded, string? ErrorMessage);
+
+    internal sealed class SeasonTeamApiProblem
+    {
+        public string? Title { get; init; }
+        public string? Detail { get; init; }
     }
 
     public async Task<bool> EndMembershipAssignmentAsync(
