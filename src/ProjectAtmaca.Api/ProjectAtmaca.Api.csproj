@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>ProjectAtmaca.Api-7a9c314b-4c5f-4d8e-8b41-1cf23a7520d7</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

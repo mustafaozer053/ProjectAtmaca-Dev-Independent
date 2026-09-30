@@ -35,6 +35,8 @@ public static class DependencyInjection
         services.AddScoped<
             AuditableEntitySaveChangesInterceptor>();
 
+        services.AddSingleton<SqlSessionOptionsInterceptor>();
+
         services.AddDbContext<ProjectAtmacaDbContext>(
             (serviceProvider, options) =>
                 options
@@ -43,7 +45,10 @@ public static class DependencyInjection
                     .AddInterceptors(
                         serviceProvider
                             .GetRequiredService<
-                                AuditableEntitySaveChangesInterceptor>()));
+                                AuditableEntitySaveChangesInterceptor>(),
+                        serviceProvider
+                            .GetRequiredService<
+                                SqlSessionOptionsInterceptor>()));
 
         services.AddHealthChecks()
             .AddDbContextCheck<ProjectAtmacaDbContext>(
