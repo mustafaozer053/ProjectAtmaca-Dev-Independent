@@ -183,53 +183,6 @@ else
                                 </button>
                             }
 
-                            @if (showCreateTeam)
-                            {
-                                <div class="detail-overlay" @onclick="CloseCreateTeam">
-                                    <aside class="detail-panel add-panel" @onclick:stopPropagation>
-                                        <button class="close-button" @onclick="CloseCreateTeam">×</button>
-                                        <h2>Sezon takımı oluştur</h2>
-                                        <p class="muted">Takımın bağlı olduğu sezon, organizasyon ve yaş grubunu seçin.</p>
-                                        <label class="form-label">Takım adı
-                                            <input class="form-input" @bind="createTeamName" placeholder="Ör. U16 Akademi" />
-                                        </label>
-                                        <label class="form-label">Sezon
-                                            <select class="form-input" @bind="createSeasonId">
-                                                <option value="">Sezon seçin</option>
-                                                @foreach (var item in seasons)
-                                                {
-                                                    <option value="@item.Id">@item.Name</option>
-                                                }
-                                            </select>
-                                        </label>
-                                        <label class="form-label">Organizasyon
-                                            <select class="form-input" @bind="createOrganizationId">
-                                                <option value="">Organizasyon seçin</option>
-                                                @foreach (var item in organizations)
-                                                {
-                                                    <option value="@item.Id">@item.Name</option>
-                                                }
-                                            </select>
-                                        </label>
-                                        <label class="form-label">Yaş grubu
-                                            <select class="form-input" @bind="createAgeGroupId">
-                                                <option value="">Yaş grubu seçin</option>
-                                                @foreach (var item in ageGroups)
-                                                {
-                                                    <option value="@item.Id">@item.Name</option>
-                                                }
-                                            </select>
-                                        </label>
-                                        @if (teamManagementError is not null)
-                                        {
-                                            <div class="error-banner">@teamManagementError</div>
-                                        }
-                                        <button class="btn btn-primary full-width" @onclick="CreateTeamAsync" disabled="@isCreatingTeam">
-                                            @(isCreatingTeam ? "Oluşturuluyor..." : "Sezon takımını oluştur")
-                                        </button>
-                                    </aside>
-                                </div>
-                            }
                         </div>
                     }
                     else if (hasSearchedCards)
@@ -249,6 +202,54 @@ else
                 </aside>
             </div>
         }
+    </div>
+}
+
+@if (showCreateTeam)
+{
+    <div class="detail-overlay" @onclick="CloseCreateTeam">
+        <aside class="detail-panel add-panel" @onclick:stopPropagation>
+            <button class="close-button" @onclick="CloseCreateTeam">×</button>
+            <h2>Sezon takımı oluştur</h2>
+            <p class="muted">Takımın bağlı olduğu sezon, organizasyon ve yaş grubunu seçin.</p>
+            <label class="form-label">Takım adı
+                <input class="form-input" @bind="createTeamName" placeholder="Ör. U16 Akademi" />
+            </label>
+            <label class="form-label">Sezon
+                <select class="form-input" @bind="createSeasonId">
+                    <option value="">Sezon seçin</option>
+                    @foreach (var item in seasons)
+                    {
+                        <option value="@item.Id">@item.Name</option>
+                    }
+                </select>
+            </label>
+            <label class="form-label">Organizasyon
+                <select class="form-input" @bind="createOrganizationId">
+                    <option value="">Organizasyon seçin</option>
+                    @foreach (var item in organizations)
+                    {
+                        <option value="@item.Id">@item.Name</option>
+                    }
+                </select>
+            </label>
+            <label class="form-label">Yaş grubu
+                <select class="form-input" @bind="createAgeGroupId">
+                    <option value="">Yaş grubu seçin</option>
+                    @foreach (var item in ageGroups)
+                    {
+                        <option value="@item.Id">@item.Name</option>
+                    }
+                </select>
+            </label>
+            @if (teamManagementError is not null)
+            {
+                <div class="error-banner">@teamManagementError</div>
+            }
+            <button class="btn btn-primary full-width" @onclick="CreateTeamAsync" disabled="@isCreatingTeam">
+                @(isCreatingTeam ? "Oluşturuluyor..." : "Sezon takımını oluştur")
+            </button>
+        </aside>
     </div>
 }
 
