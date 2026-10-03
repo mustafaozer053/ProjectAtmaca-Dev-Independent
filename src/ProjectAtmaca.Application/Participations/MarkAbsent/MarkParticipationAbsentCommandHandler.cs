@@ -1,5 +1,6 @@
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Participations;
 
@@ -9,15 +10,18 @@ public sealed class MarkParticipationAbsentCommandHandler
 {
     private readonly IActorAuthorizationService _authorizationService;
     private readonly IParticipationRepository _participationRepository;
+    private readonly BtaEligibilityValidator _btaEligibilityValidator;
     private readonly IUnitOfWork _unitOfWork;
 
     public MarkParticipationAbsentCommandHandler(
         IActorAuthorizationService authorizationService,
         IParticipationRepository participationRepository,
+        BtaEligibilityValidator btaEligibilityValidator,
         IUnitOfWork unitOfWork)
     {
         _authorizationService = authorizationService;
         _participationRepository = participationRepository;
+        _btaEligibilityValidator = btaEligibilityValidator;
         _unitOfWork = unitOfWork;
     }
 
@@ -38,7 +42,16 @@ public sealed class MarkParticipationAbsentCommandHandler
             return Result.Failure(
                 MarkParticipationAbsentErrors.NotFound);
 
-        var result = participation.MarkAbsent(ParticipationCondition.Bta);
+        if (command.IsBta)
+        {
+            var eligibility = await _btaEligibilityValidator.ValidateAsync(
+                participation, cancellationToken);
+            if (eligibility.IsFailure)
+                return eligibility;
+        }
+
+        var result = participation.MarkAbsent(
+            command.IsBta ? ParticipationCondition.Bta : null);
         if (result.IsFailure)
             return result;
 

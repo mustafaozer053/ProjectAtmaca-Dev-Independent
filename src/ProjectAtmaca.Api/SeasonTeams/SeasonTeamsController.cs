@@ -342,6 +342,8 @@ public sealed class SeasonTeamsController : ControllerBase
             details.AgeGroupId,
             details.Name,
             details.IsActive,
+            details.SeasonStartDate,
+            details.SeasonEndDate,
             details.Memberships.Select(ToMembershipResponse).ToList());
     }
 

@@ -28,10 +28,34 @@ public sealed class CatalogsController(ProjectAtmacaDbContext db) : ControllerBa
     {
         var rows = await db.Organizations.AsNoTracking()
             .Where(x => x.IsActive)
-            .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
-        var items = rows.Select(x => new CatalogItemResponse(x.Id, x.Name)).ToList();
+        var rowsById = rows.ToDictionary(organization => organization.Id);
+        var items = rows
+            .Select(x => new CatalogItemResponse(
+                x.Id,
+                x.Name,
+                x.ParentOrganizationId,
+                GetHierarchyPath(x, rowsById, [])))
+            .OrderBy(x => x.HierarchyPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         return Ok(items);
+    }
+
+    private static string GetHierarchyPath(
+        ProjectAtmaca.Domain.Organizations.Organization organization,
+        IReadOnlyDictionary<Guid, ProjectAtmaca.Domain.Organizations.Organization> organizations,
+        HashSet<Guid> ancestors)
+    {
+        if (!ancestors.Add(organization.Id))
+            return organization.Name;
+
+        string path = organization.Name;
+        if (organization.ParentOrganizationId is Guid parentId &&
+            organizations.TryGetValue(parentId, out var parent))
+            path = $"{GetHierarchyPath(parent, organizations, ancestors)} / {organization.Name}";
+
+        ancestors.Remove(organization.Id);
+        return path;
     }
 
     [HttpGet("age-groups")]
@@ -50,4 +74,8 @@ public sealed class CatalogsController(ProjectAtmacaDbContext db) : ControllerBa
     }
 }
 
-public sealed record CatalogItemResponse(Guid Id, string Name);
+public sealed record CatalogItemResponse(
+    Guid Id,
+    string Name,
+    Guid? ParentOrganizationId = null,
+    string? HierarchyPath = null);

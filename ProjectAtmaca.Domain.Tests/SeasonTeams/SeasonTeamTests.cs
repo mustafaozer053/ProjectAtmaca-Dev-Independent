@@ -119,6 +119,28 @@ public sealed class SeasonTeamTests
     }
 
     [Fact]
+    public void HasActiveAthleteMembership_Should_RequireActiveAthleteClassification()
+    {
+        var team = CreateTeam();
+        var cardId = AtmacaCardId.New();
+        var membershipPeriod = AssignmentPeriod.Create(new DateTime(2026, 7, 1)).Value!;
+        var membership = team.AddMembership(cardId, membershipPeriod).Value!;
+        team.AddMembershipAssignment(
+            membership.SeasonTeamMembershipId,
+            SeasonTeamAssignmentKind.Classification,
+            Guid.NewGuid(),
+            "Sporcu",
+            AssignmentPeriod.Create(
+                new DateTime(2026, 7, 1),
+                new DateTime(2026, 7, 31)).Value!).IsSuccess.Should().BeTrue();
+
+        team.HasActiveAthleteMembership(cardId, new DateTime(2026, 7, 15))
+            .Should().BeTrue();
+        team.HasActiveAthleteMembership(cardId, new DateTime(2026, 8, 1))
+            .Should().BeFalse();
+    }
+
+    [Fact]
     public void EndMembership_Should_PreserveMembershipAndSetEndDate()
     {
         var team = CreateTeam();

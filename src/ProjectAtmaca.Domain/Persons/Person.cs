@@ -6,6 +6,8 @@ namespace ProjectAtmaca.Domain.Persons;
 
 public sealed class Person : AuditableAggregateRoot
 {
+    private readonly List<PersonProfessionalTitle> _professionalTitles = [];
+
     public PersonName Name { get; private set; }
 
     public Country BirthCountry { get; private set; }
@@ -27,6 +29,9 @@ public sealed class Person : AuditableAggregateRoot
     public PhoneNumber? SecondaryPhoneNumber { get; private set; }
 
     public Address? Address { get; private set; }
+
+    public IReadOnlyCollection<PersonProfessionalTitle> ProfessionalTitles =>
+        _professionalTitles.AsReadOnly();
 
     private Person(
         PersonName name,
@@ -138,6 +143,94 @@ public sealed class Person : AuditableAggregateRoot
     public void ChangeEmail(Email? email)
     {
         Email = email;
+    }
+
+    public Result<PersonProfessionalTitle> AddProfessionalTitle(
+        string title,
+        DateOnly startedOn)
+    {
+        var titleResult = PersonProfessionalTitle.Create(Id, title, startedOn);
+        if (titleResult.IsFailure)
+            return titleResult;
+
+        PersonProfessionalTitle newTitle = titleResult.Value!;
+        bool overlapsExisting = _professionalTitles.Any(existing =>
+            string.Equals(existing.Title, newTitle.Title, StringComparison.OrdinalIgnoreCase) &&
+            existing.StartedOn <= (newTitle.EndedOn ?? DateOnly.MaxValue) &&
+            newTitle.StartedOn <= (existing.EndedOn ?? DateOnly.MaxValue));
+        if (overlapsExisting)
+            return Result<PersonProfessionalTitle>.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_DUPLICATE",
+                "The same professional title already exists for an overlapping period."));
+
+        _professionalTitles.Add(newTitle);
+        return Result<PersonProfessionalTitle>.Success(newTitle);
+    }
+
+    public Result EndProfessionalTitle(Guid titleId, DateOnly endedOn)
+    {
+        PersonProfessionalTitle? title = _professionalTitles.SingleOrDefault(
+            item => item.Id == titleId);
+        if (title is null)
+            return Result.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_NOT_FOUND",
+                "Professional title was not found."));
+
+        return title.End(endedOn);
+    }
+
+    public Result UpdateProfessionalTitle(
+        Guid titleId,
+        string title,
+        DateOnly startedOn)
+    {
+        PersonProfessionalTitle? professionalTitle = _professionalTitles.SingleOrDefault(
+            item => item.Id == titleId);
+        if (professionalTitle is null)
+            return Result.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_NOT_FOUND",
+                "Professional title was not found."));
+        if (professionalTitle.EndedOn.HasValue)
+            return Result.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_ALREADY_ENDED",
+                "A professional title in history cannot be edited."));
+
+        var updatedTitle = PersonProfessionalTitle.Create(Id, title, startedOn);
+        if (updatedTitle.IsFailure)
+            return Result.Failure(updatedTitle.Error!);
+
+        bool overlapsExisting = _professionalTitles.Any(existing =>
+            existing.Id != titleId &&
+            string.Equals(existing.Title, updatedTitle.Value!.Title, StringComparison.OrdinalIgnoreCase) &&
+            existing.StartedOn <= (existing.EndedOn ?? DateOnly.MaxValue) &&
+            updatedTitle.Value.StartedOn <= (existing.EndedOn ?? DateOnly.MaxValue));
+        if (overlapsExisting)
+            return Result.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_DUPLICATE",
+                "The same professional title already exists for an overlapping period."));
+
+        return professionalTitle.Update(title, startedOn);
+    }
+
+    public Result RemoveProfessionalTitle(Guid titleId)
+    {
+        PersonProfessionalTitle? professionalTitle = _professionalTitles.SingleOrDefault(
+            item => item.Id == titleId);
+        if (professionalTitle is null)
+            return Result.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_NOT_FOUND",
+                "Professional title was not found."));
+        if (professionalTitle.EndedOn.HasValue)
+            return Result.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_ALREADY_ENDED",
+                "A professional title in history cannot be deleted."));
+        if (professionalTitle.EvidenceDocuments.Count > 0)
+            return Result.Failure(Error.Create(
+                "PERSON_PROFESSIONAL_TITLE_HAS_EVIDENCE",
+                "A professional title with linked evidence documents cannot be deleted."));
+
+        _professionalTitles.Remove(professionalTitle);
+        return Result.Success();
     }
 
     public void ChangePrimaryPhoneNumber(PhoneNumber? phoneNumber)

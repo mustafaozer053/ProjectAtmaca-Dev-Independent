@@ -9,6 +9,11 @@ using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Domain.TrainingTypes;
 using ProjectAtmaca.Domain.SeasonTeams;
+using ProjectAtmaca.Domain.Fixtures;
+using ProjectAtmaca.Domain.AtmacaCards;
+using ProjectAtmaca.Domain.Positions;
+using ProjectAtmaca.Application.Abstractions.Files;
+using ProjectAtmaca.Infrastructure.Persistence.Persons;
 using ProjectAtmaca.Infrastructure.Persistence;
 using ProjectAtmaca.Infrastructure.Persistence.Auditing;
 using ProjectAtmaca.Infrastructure.Persistence.Decisions;
@@ -76,8 +81,22 @@ public static class DependencyInjection
             SeasonTeamRepository>();
 
         services.AddScoped<
+            IOrganizationDutyAssignmentRepository,
+            OrganizationDutyAssignmentRepository>();
+
+        services.AddScoped<IFixtureRepository, FixtureRepository>();
+        services.AddScoped<IPositionRepository, PositionRepository>();
+        services.AddScoped<IOrganizationCatalogRepository, OrganizationCatalogRepository>();
+        services.AddScoped<IAtmacaCardDocumentStorage>(
+            _ => new PhysicalAtmacaCardDocumentStorage(configuration));
+        services.AddScoped<IAtmacaCardRepository, AtmacaCardRepository>();
+        services.AddScoped<ProjectAtmaca.Domain.Persons.IPersonRepository,
+            PersonRepository>();
+
+        services.AddScoped<
             ProjectAtmaca.Application.AtmacaCards.IAtmacaCardReader,
             AtmacaCardReader>();
+        services.AddScoped<ISeasonPeriodReader, SeasonPeriodReader>();
 
         services.AddScoped<
             IDecisionRepository,

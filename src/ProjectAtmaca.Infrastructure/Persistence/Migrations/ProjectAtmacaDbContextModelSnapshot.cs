@@ -27,6 +27,21 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                 .HasMin(1L)
                 .HasMax(999999L);
 
+            modelBuilder.Entity("AtmacaCardSportsProfilePositions", b =>
+                {
+                    b.Property<Guid>("AtmacaCardSportsProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PositionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("AtmacaCardSportsProfileId", "PositionId");
+
+                    b.HasIndex("PositionId");
+
+                    b.ToTable("AtmacaCardSportsProfilePositions", (string)null);
+                });
+
             modelBuilder.Entity("ProjectAtmaca.Application.Decisions.ApplyParticipationClassification.DecisionApplicationOperation", b =>
                 {
                     b.Property<Guid>("OperationId")
@@ -81,6 +96,54 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.ToTable("AgeGroups", (string)null);
                 });
 
+            modelBuilder.Entity("ProjectAtmaca.Domain.Assignments.OrganizationDutyAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtmacaCardId");
+
+                    b.HasIndex("OrganizationId", "AtmacaCardId", "StartDate");
+
+                    b.ToTable("OrganizationDutyAssignments", (string)null);
+                });
+
             modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", b =>
                 {
                     b.Property<Guid>("Id")
@@ -97,6 +160,16 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedByActorId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsCurrentlyStudying")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime>("IssuedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -109,6 +182,26 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("PersonId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("PhotoContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PhotoStorageKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SchoolGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SchoolName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("SchoolNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CardNumber")
@@ -118,6 +211,130 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("AtmacaCards", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("IssuedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Issuer")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtmacaCardId");
+
+                    b.ToTable("AtmacaCardDocuments", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardMeasurement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("HeightCentimeters")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateOnly>("MeasuredOn")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("WeightKilograms")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtmacaCardId", "MeasuredOn")
+                        .IsUnique();
+
+                    b.ToTable("AtmacaCardMeasurements", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardSportsProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("ClubRegisteredOn")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("CompetitionLevel")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool?>("IsNationalAthlete")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LicenseNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SportName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateOnly?>("StartedSportOn")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtmacaCardId", "SportName")
+                        .IsUnique();
+
+                    b.ToTable("AtmacaCardSportsProfiles", (string)null);
                 });
 
             modelBuilder.Entity("ProjectAtmaca.Domain.Decisions.Decision", b =>
@@ -225,6 +442,189 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.ToTable("DecisionApplications", (string)null);
                 });
 
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.Fixture", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("MatchNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Opponent")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Referee")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("SeasonTeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Venue")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("VenueSide")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeasonTeamId", "Date", "StartTime");
+
+                    b.ToTable("Fixtures", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureCorrection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FixtureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTime>("ReopenedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ReopenedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FixtureId", "ReopenedAtUtc");
+
+                    b.ToTable("FixtureCorrections", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureMatchEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FixtureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Minute")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("RelatedAtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FixtureId", "Minute");
+
+                    b.ToTable("FixtureMatchEvents", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureScoreEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FixtureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Minute")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ScoreTypeCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ScoreValue")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Side")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtmacaCardId");
+
+                    b.HasIndex("FixtureId", "Side", "ScoreTypeCode", "Minute");
+
+                    b.ToTable("FixtureScoreEvents", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureSquadMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AtmacaCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FixtureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FixtureId", "AtmacaCardId")
+                        .IsUnique();
+
+                    b.ToTable("FixtureSquadMembers", (string)null);
+                });
+
             modelBuilder.Entity("ProjectAtmaca.Domain.Organizations.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -268,6 +668,8 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .HasColumnType("rowversion");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentOrganizationId");
 
                     b.ToTable("Organizations", (string)null);
                 });
@@ -458,6 +860,53 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.ToTable("PersonCitizenships", (string)null);
                 });
 
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonProfessionalTitle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("EndedOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("StartedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId", "Title");
+
+                    b.ToTable("PersonProfessionalTitles", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonProfessionalTitleEvidenceDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AtmacaCardDocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PersonProfessionalTitleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtmacaCardDocumentId");
+
+                    b.HasIndex("PersonProfessionalTitleId", "AtmacaCardDocumentId")
+                        .IsUnique();
+
+                    b.ToTable("PersonProfessionalTitleEvidenceDocuments", (string)null);
+                });
+
             modelBuilder.Entity("ProjectAtmaca.Domain.Persons.Registration.PersonRegistration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -503,6 +952,49 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("PersonRegistrations", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Positions.Position", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastModifiedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastModifiedByActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SportName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SportName", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Positions", (string)null);
                 });
 
             modelBuilder.Entity("ProjectAtmaca.Domain.SeasonTeams.SeasonTeam", b =>
@@ -810,6 +1302,36 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.ToTable("ActorPermissionGrants", (string)null);
                 });
 
+            modelBuilder.Entity("AtmacaCardSportsProfilePositions", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardSportsProfile", null)
+                        .WithMany()
+                        .HasForeignKey("AtmacaCardSportsProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ProjectAtmaca.Domain.Positions.Position", null)
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Assignments.OrganizationDutyAssignment", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", null)
+                        .WithMany()
+                        .HasForeignKey("AtmacaCardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ProjectAtmaca.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", b =>
                 {
                     b.HasOne("ProjectAtmaca.Domain.Persons.Person", null)
@@ -819,12 +1341,116 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardDocument", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", null)
+                        .WithMany("Documents")
+                        .HasForeignKey("AtmacaCardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardMeasurement", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", null)
+                        .WithMany("Measurements")
+                        .HasForeignKey("AtmacaCardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardSportsProfile", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", null)
+                        .WithMany("SportsProfiles")
+                        .HasForeignKey("AtmacaCardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.Fixture", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.SeasonTeams.SeasonTeam", null)
+                        .WithMany()
+                        .HasForeignKey("SeasonTeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureCorrection", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Fixtures.Fixture", null)
+                        .WithMany("Corrections")
+                        .HasForeignKey("FixtureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureMatchEvent", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Fixtures.Fixture", null)
+                        .WithMany("MatchEvents")
+                        .HasForeignKey("FixtureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureScoreEvent", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Fixtures.Fixture", null)
+                        .WithMany("ScoreEvents")
+                        .HasForeignKey("FixtureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.FixtureSquadMember", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Fixtures.Fixture", null)
+                        .WithMany("SquadMembers")
+                        .HasForeignKey("FixtureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Organizations.Organization", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("ParentOrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonCitizenship", b =>
                 {
                     b.HasOne("ProjectAtmaca.Domain.Persons.Person", null)
                         .WithMany()
                         .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonProfessionalTitle", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.Persons.Person", null)
+                        .WithMany("ProfessionalTitles")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonProfessionalTitleEvidenceDocument", b =>
+                {
+                    b.HasOne("ProjectAtmaca.Domain.AtmacaCards.AtmacaCardDocument", null)
+                        .WithMany()
+                        .HasForeignKey("AtmacaCardDocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ProjectAtmaca.Domain.Persons.PersonProfessionalTitle", null)
+                        .WithMany("EvidenceDocuments")
+                        .HasForeignKey("PersonProfessionalTitleId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -960,6 +1586,36 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.AtmacaCards.AtmacaCard", b =>
+                {
+                    b.Navigation("Documents");
+
+                    b.Navigation("Measurements");
+
+                    b.Navigation("SportsProfiles");
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Fixtures.Fixture", b =>
+                {
+                    b.Navigation("Corrections");
+
+                    b.Navigation("MatchEvents");
+
+                    b.Navigation("ScoreEvents");
+
+                    b.Navigation("SquadMembers");
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.Person", b =>
+                {
+                    b.Navigation("ProfessionalTitles");
+                });
+
+            modelBuilder.Entity("ProjectAtmaca.Domain.Persons.PersonProfessionalTitle", b =>
+                {
+                    b.Navigation("EvidenceDocuments");
                 });
 #pragma warning restore 612, 618
         }

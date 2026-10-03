@@ -381,6 +381,9 @@ public sealed class SeasonTeamsEndpointBehaviorTests
                     services.RemoveAll<IAtmacaCardReader>();
                     services.AddSingleton<IAtmacaCardReader>(
                         new EmptyAtmacaCardReader());
+                    services.RemoveAll<ISeasonPeriodReader>();
+                    services.AddSingleton<ISeasonPeriodReader>(
+                        new ActiveSeasonPeriodReader());
                 }));
     }
 
@@ -409,6 +412,11 @@ public sealed class SeasonTeamsEndpointBehaviorTests
 
     private sealed class EmptyAtmacaCardReader : IAtmacaCardReader
     {
+        public Task<AtmacaCardSummary?> GetByPersonIdAsync(
+            Guid personId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<AtmacaCardSummary?>(null);
+
         public Task<IReadOnlyList<AtmacaCardSummary>> ListAsync(
             int limit = 100,
             CancellationToken cancellationToken = default) =>
@@ -425,6 +433,15 @@ public sealed class SeasonTeamsEndpointBehaviorTests
             int limit = 20,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<AtmacaCardSummary>>([]);
+    }
+
+    private sealed class ActiveSeasonPeriodReader : ISeasonPeriodReader
+    {
+        public Task<DateRange?> GetPeriodAsync(
+            Guid seasonId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<DateRange?>(
+                DateRange.Create(new DateTime(2000, 1, 1), new DateTime(2100, 12, 31)));
     }
 
     private sealed class InMemoryRepository(params SeasonTeam[] values)

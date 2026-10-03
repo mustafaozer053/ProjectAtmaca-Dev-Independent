@@ -11,6 +11,7 @@ using ProjectAtmaca.Api.Participations.GetSummaryByActivity;
 using ProjectAtmaca.Api.Participations.ListByActivity;
 using ProjectAtmaca.Api.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Api.Participations.MarkPresent;
+using ProjectAtmaca.Api.Participations.CorrectClassification;
 using ProjectAtmaca.Api.Participations.RecordArrival;
 using ProjectAtmaca.Api.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Abstractions.Security;
@@ -22,6 +23,7 @@ using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.MarkAbsent;
+using ProjectAtmaca.Application.Participations.CorrectClassification;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Domain.AtmacaCards;
@@ -62,6 +64,8 @@ public sealed class ParticipationsController
         _markParticipationPresentHandler;
     private readonly MarkParticipationAbsentCommandHandler
         _markParticipationAbsentHandler;
+    private readonly CorrectParticipationClassificationCommandHandler
+        _correctParticipationClassificationHandler;
 
     private readonly RecordParticipationArrivalCommandHandler
         _recordParticipationArrivalHandler;
@@ -86,6 +90,8 @@ public sealed class ParticipationsController
             markParticipationPresentHandler,
         MarkParticipationAbsentCommandHandler
             markParticipationAbsentHandler,
+        CorrectParticipationClassificationCommandHandler
+            correctParticipationClassificationHandler,
         RecordParticipationArrivalCommandHandler
             recordParticipationArrivalHandler,
         RecordParticipationDepartureCommandHandler
@@ -107,6 +113,9 @@ public sealed class ParticipationsController
 
         ArgumentNullException.ThrowIfNull(
             listParticipationHistoryByAtmacaCardHandler);
+
+        ArgumentNullException.ThrowIfNull(
+            correctParticipationClassificationHandler);
 
         ArgumentNullException.ThrowIfNull(
             markParticipationPresentHandler);
@@ -140,6 +149,8 @@ public sealed class ParticipationsController
             markParticipationPresentHandler;
         _markParticipationAbsentHandler =
             markParticipationAbsentHandler;
+        _correctParticipationClassificationHandler =
+            correctParticipationClassificationHandler;
 
         _recordParticipationArrivalHandler =
             recordParticipationArrivalHandler;
@@ -634,6 +645,56 @@ public sealed class ParticipationsController
         return NoContent();
     }
 
+    [HttpPost("{participationId}/mark-bta")]
+    public async Task<IActionResult> MarkBta(
+        string participationId,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParseExact(
+                participationId,
+                "D",
+                out Guid parsedParticipationId) ||
+            parsedParticipationId == Guid.Empty)
+        {
+            return ToProblem(
+                ParticipationEndpointErrors.InvalidParticipationId);
+        }
+
+        var result = await _markParticipationAbsentHandler.Handle(
+            new MarkParticipationAbsentCommand(
+                ParticipationId.From(parsedParticipationId),
+                IsBta: true),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
+    }
+
+    [HttpPost("{participationId}/correct-classification")]
+    public async Task<IActionResult> CorrectClassification(
+        string participationId,
+        [FromBody] CorrectParticipationClassificationRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParseExact(participationId, "D", out Guid parsedId) ||
+            parsedId == Guid.Empty)
+        {
+            return ToProblem(ParticipationEndpointErrors.InvalidParticipationId);
+        }
+
+        var result = await _correctParticipationClassificationHandler.Handle(
+            new CorrectParticipationClassificationCommand(
+                ParticipationId.From(parsedId),
+                request.Status,
+                request.IsBta),
+            cancellationToken);
+        if (result.IsFailure)
+            return ToProblem(result.Error!);
+
+        return NoContent();
+    }
+
     [HttpPost("{participationId}/record-arrival")]
     public async Task<IActionResult> RecordArrival(
         string participationId,
@@ -779,6 +840,10 @@ public sealed class ParticipationsController
                 StringComparison.Ordinal) ||
             string.Equals(
                 error.Code,
+                CorrectParticipationClassificationErrors.NotFound.Code,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                error.Code,
                 CreateTrainingParticipationErrors.TrainingNotFound.Code,
                 StringComparison.Ordinal)
         )
@@ -796,6 +861,12 @@ public sealed class ParticipationsController
                 error.Code,
                 ParticipationErrors
                     .ClassificationCorrectionRequired.Code,
+                StringComparison.Ordinal)
+            ||
+            string.Equals(
+                error.Code,
+                ParticipationErrors
+                    .ClassificationCorrectionConflictsWithTimes.Code,
                 StringComparison.Ordinal)
             ||
             string.Equals(

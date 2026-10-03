@@ -6,6 +6,61 @@ public static class Permissions
     {
         public static readonly Permission RegisterWithAtmacaCard =
             Permission.Create("Persons.RegisterWithAtmacaCard");
+
+        public static readonly Permission ChangeAtmacaCardStatus =
+            Permission.Create("Persons.ChangeAtmacaCardStatus");
+
+        public static readonly Permission ManageAthleteSportsProfile =
+            Permission.Create("Persons.ManageAthleteSportsProfile");
+
+        public static readonly Permission ReadAthleteSportsProfiles =
+            Permission.Create("Persons.ReadAthleteSportsProfiles");
+
+        public static readonly Permission ReadAtmacaCardMeasurements =
+            Permission.Create("Persons.ReadAtmacaCardMeasurements");
+
+        public static readonly Permission RecordAtmacaCardMeasurement =
+            Permission.Create("Persons.RecordAtmacaCardMeasurement");
+
+        public static readonly Permission ReadAtmacaCardEducation =
+            Permission.Create("Persons.ReadAtmacaCardEducation");
+
+        public static readonly Permission ManageAtmacaCardEducation =
+            Permission.Create("Persons.ManageAtmacaCardEducation");
+
+        public static readonly Permission ReadAtmacaCardDocuments =
+            Permission.Create("Persons.ReadAtmacaCardDocuments");
+
+        public static readonly Permission ManageAtmacaCardDocuments =
+            Permission.Create("Persons.ManageAtmacaCardDocuments");
+
+        public static readonly Permission ReadProfessionalTitles =
+            Permission.Create("Persons.ReadProfessionalTitles");
+
+        public static readonly Permission ManageProfessionalTitles =
+            Permission.Create("Persons.ManageProfessionalTitles");
+
+    }
+
+    public static class Positions
+    {
+        public static readonly Permission List = Permission.Create("Positions.List");
+        public static readonly Permission Create = Permission.Create("Positions.Create");
+        public static readonly Permission ChangeStatus = Permission.Create("Positions.ChangeStatus");
+    }
+
+    public static class OrganizationAssignments
+    {
+        public static readonly Permission Read =
+            Permission.Create("OrganizationAssignments.Read");
+        public static readonly Permission Manage =
+            Permission.Create("OrganizationAssignments.Manage");
+    }
+
+    public static class Organizations
+    {
+        public static readonly Permission Manage =
+            Permission.Create("Organizations.Manage");
     }
 
     public static class Decisions
@@ -118,6 +173,18 @@ public static class Permissions
             Permission.Create("SeasonTeams.EndMembershipAssignment");
     }
 
+    public static class Fixtures
+    {
+        public static readonly Permission Create =
+            Permission.Create("Fixtures.Create");
+        public static readonly Permission List =
+            Permission.Create("Fixtures.List");
+        public static readonly Permission Update =
+            Permission.Create("Fixtures.Update");
+        public static readonly Permission Cancel =
+            Permission.Create("Fixtures.Cancel");
+    }
+
     private static readonly IReadOnlyList<Permission>
         AllPermissions =
             Array.AsReadOnly(
@@ -138,6 +205,23 @@ public static class Permissions
                     Participations.MarkAbsent,
                     Participations.RecordArrival,
                     Persons.RegisterWithAtmacaCard,
+                    Persons.ChangeAtmacaCardStatus,
+                    Persons.ManageAthleteSportsProfile,
+                    Persons.ReadAthleteSportsProfiles,
+                    Persons.ReadAtmacaCardMeasurements,
+                    Persons.RecordAtmacaCardMeasurement,
+                    Persons.ReadAtmacaCardEducation,
+                    Persons.ManageAtmacaCardEducation,
+                    Persons.ReadAtmacaCardDocuments,
+                    Persons.ManageAtmacaCardDocuments,
+                    Persons.ReadProfessionalTitles,
+                    Persons.ManageProfessionalTitles,
+                    OrganizationAssignments.Read,
+                    OrganizationAssignments.Manage,
+                    Organizations.Manage,
+                    Positions.List,
+                    Positions.Create,
+                    Positions.ChangeStatus,
                     Participations.RecordDeparture,
                     Trainings.Create,
                     Trainings.Confirm,
@@ -154,7 +238,11 @@ public static class Permissions
                     SeasonTeams.EndMembership,
                     SeasonTeams.ChangeStatus,
                     SeasonTeams.AddMembershipAssignment,
-                    SeasonTeams.EndMembershipAssignment
+                    SeasonTeams.EndMembershipAssignment,
+                    Fixtures.Create,
+                    Fixtures.List,
+                    Fixtures.Update,
+                    Fixtures.Cancel
                 });
 
     public static IReadOnlyList<Permission> All

@@ -17,6 +17,25 @@ public sealed class AtmacaCardReader
         _dbContext = dbContext;
     }
 
+    public async Task<AtmacaCardSummary?> GetByPersonIdAsync(
+        Guid personId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await (
+            from card in _dbContext.Set<AtmacaCard>().AsNoTracking()
+            join person in _dbContext.Set<Person>().AsNoTracking()
+                on card.PersonId equals person.Id
+            where person.Id == personId
+            select new AtmacaCardSummary(
+                card.Id,
+                person.Id,
+                person.Name.FullName,
+                card.CardNumber.Value,
+                card.IsActive))
+            .SingleOrDefaultAsync(cancellationToken);
+        return result;
+    }
+
     public async Task<IReadOnlyDictionary<Guid, AtmacaCardSummary>> GetSummariesAsync(
         IReadOnlyCollection<Guid> atmacaCardIds,
         CancellationToken cancellationToken = default)
@@ -33,7 +52,8 @@ public sealed class AtmacaCardReader
                 card.Id,
                 person.Id,
                 person.Name.FullName,
-                card.CardNumber.Value);
+                card.CardNumber.Value,
+                card.IsActive);
 
         var summaries = await query.ToListAsync(cancellationToken);
 
@@ -60,7 +80,8 @@ public sealed class AtmacaCardReader
                 x.card.Id,
                 x.person.Id,
                 x.person.Name.FullName,
-                x.card.CardNumber.Value))
+                x.card.CardNumber.Value,
+                x.card.IsActive))
             .OrderBy(x => x.FullName)
             .ThenBy(x => x.CardNumber)
             .Take(limit)
@@ -97,10 +118,12 @@ public sealed class AtmacaCardReader
                 x.card.Id,
                 x.person.Id,
                 x.person.Name.FullName,
-                x.card.CardNumber.Value))
+                x.card.CardNumber.Value,
+                x.card.IsActive))
             .OrderBy(x => x.FullName)
             .ThenBy(x => x.CardNumber)
             .Take(limit)
             .ToList();
     }
+
 }

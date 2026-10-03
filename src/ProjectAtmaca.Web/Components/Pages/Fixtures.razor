@@ -1,0 +1,160 @@
+@page "/fixtures"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject FixturesApiClient FixturesApi
+@inject SeasonTeamsApiClient TeamsApi
+
+<PageTitle>Müsabakalar | ProjectAtmaca</PageTitle>
+
+<div class="fixture-page">
+    <header><div><div class="eyebrow">TAKIM OPERASYONLARI</div><h1>Müsabakalar</h1>
+        <p>Resmi ve hazırlık maçlarını sezon takımına göre planlayın.</p></div>
+        <button class="primary" @onclick="OpenForm" disabled="@(loading || !teams.Any(x => x.IsActive))">+ Müsabaka ekle</button>
+    </header>
+    @if (error is not null) { <div class="error">@error</div> }
+    @if (success is not null) { <div class="success">@success</div> }
+    <section class="card">
+        @if (loading) { <p class="empty">Müsabakalar yükleniyor...</p> }
+        else if (fixtures.Count == 0)
+        {
+            <p class="empty">@(teams.Any(x => x.IsActive) ? "Henüz müsabaka kaydı yok." : "Müsabaka eklemek için önce aktif bir sezon takımı oluşturun.")</p>
+        }
+        else
+        {
+            <div class="table-wrap"><table><thead><tr><th>TARİH</th><th>TÜR</th><th>TAKIM</th><th>RAKİP</th><th>SAHA</th><th>DURUM</th><th>NOT</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var item in fixtures)
+            {
+                <tr><td>@item.Date.ToString("dd.MM.yyyy")<small>@item.StartTime.ToString("HH:mm")</small></td>
+                    <td>@(item.Type == 1 ? "Resmi" : "Hazırlık")</td>
+                    <td>@TeamName(item.SeasonTeamId)</td><td><a href="@($"/fixtures/{item.Id:D}")">@item.Opponent</a></td>
+                    <td>@(item.VenueSide == 1 ? "Ev sahibi" : "Deplasman") · @item.Venue</td>
+                    <td><span class="status @(item.Status == 2 ? "cancelled" : item.Status == 3 ? "completed" : item.Status == 4 ? "correction" : "")">@(item.Status == 2 ? "İptal edildi" : item.Status == 3 ? "Tamamlandı" : item.Status == 4 ? "Düzeltme için açıldı" : "Planlandı")</span></td>
+                    <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "—" : item.Notes)</td>
+                    <td class="actions">
+                        <a class="text-action" href="@($"/fixtures/{item.Id:D}")">Detay</a>
+                        @if (item.Status == 1)
+                        {
+                            <button class="text-action" @onclick="() => OpenEdit(item)">Düzenle</button>
+                            @if (cancelConfirmationId == item.Id)
+                            {
+                                <span>İptal edilsin mi?</span>
+                                <button class="text-action cancel" @onclick="() => CancelAsync(item.Id)" disabled="@isCancelling">Evet</button>
+                                <button class="text-action" @onclick="() => cancelConfirmationId = null">Hayır</button>
+                            }
+                            else
+                            {
+                                <button class="text-action cancel" @onclick="() => cancelConfirmationId = item.Id">İptal et</button>
+                            }
+                        }
+                    </td></tr>
+            }
+            </tbody></table></div>
+        }
+    </section>
+</div>
+
+@if (showForm)
+{
+    <div class="overlay" @onclick="CloseForm"><section class="panel" @onclick:stopPropagation>
+        <button class="close" @onclick="CloseForm">×</button><h2>@(editingFixture is null ? "Müsabaka ekle" : "Müsabakayı düzenle")</h2>
+        <label>Sezon takımı<select @bind="teamId"><option value="">Takım seçin</option>@foreach (var team in teams.Where(x => x.IsActive)) { <option value="@team.Id">@team.Name</option> }</select></label>
+        <label>Müsabaka türü<select @bind="type"><option value="1">Resmi maç</option><option value="2">Hazırlık maçı</option></select></label>
+        <label>Rakip<input maxlength="120" @bind="opponent" /></label>
+        <div class="grid"><label>Tarih<input type="date" @bind="date" /></label><label>Saat<input type="time" @bind="time" /></label></div>
+        <label>Konum<select @bind="venueSide"><option value="1">Ev sahibi</option><option value="2">Deplasman</option></select></label>
+        <label>Saha / tesis<input maxlength="200" @bind="venue" /></label>
+        <label>Notlar<textarea maxlength="1000" rows="3" @bind="notes"></textarea></label>
+        @if (formError is not null) { <div class="error">@formError</div> }
+        <button class="primary full" @onclick="SaveAsync" disabled="@saving">@(saving ? "Kaydediliyor..." : editingFixture is null ? "Müsabakayı kaydet" : "Değişiklikleri kaydet")</button>
+    </section></div>
+}
+
+<style>
+.fixture-page{max-width:1200px;margin:0 auto;color:#19243a}.fixture-page header{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:1.5rem}.fixture-page h1{margin:0}.fixture-page header p,.empty{color:#8290a8}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.primary{border:0;border-radius:8px;padding:.7rem 1rem;background:#4058d6;color:white;font-weight:650;cursor:pointer}.card{background:white;border:1px solid #e8ebf2;border-radius:12px;overflow:hidden}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:.9rem 1rem;border-bottom:1px solid #edf0f5}th{font-size:.68rem;color:#98a2b4;background:#fafbfc}td small{display:block;color:#8a95aa;margin-top:.25rem}.empty{text-align:center;padding:2.5rem}.overlay{position:fixed;inset:0;z-index:10;background:#17223a55;display:flex;justify-content:flex-end}.panel{width:min(450px,100%);height:100%;overflow:auto;background:white;padding:2rem;position:relative;box-sizing:border-box}.panel h2{margin-top:.3rem}.panel label{display:block;margin-top:1rem;color:#56647b;font-size:.78rem;font-weight:650}.panel input,.panel select,.panel textarea{display:block;width:100%;box-sizing:border-box;margin-top:.4rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.full{width:100%;margin-top:1.4rem}.close{position:absolute;right:1rem;top:.8rem;border:0;background:none;font-size:1.6rem;color:#8994a8}.error,.success{margin:.8rem 0;padding:.8rem;border-radius:8px}.error{background:#fff1f1;color:#b45757}.success{background:#e7f7ee;color:#25804a}.status{padding:.3rem .55rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.72rem}.status.cancelled{background:#fff0ef;color:#b94b45}.status.completed{background:#e7f7ee;color:#25804a}.status.correction{background:#fff5dc;color:#8a6500}.actions{white-space:nowrap}.text-action{border:0;background:none;color:#4058d6;cursor:pointer;font-weight:650;margin-right:.4rem}.text-action.cancel{color:#b94b45}
+</style>
+
+@code {
+    private IReadOnlyList<FixtureResponse> fixtures = [];
+    private IReadOnlyList<SeasonTeamResponse> teams = [];
+    private bool loading = true, showForm, saving, isCancelling;
+    private string? error, success, formError;
+    private string teamId = "", opponent = "", venue = "", notes = "";
+    private int type = 1, venueSide = 1;
+    private FixtureResponse? editingFixture;
+    private Guid? cancelConfirmationId;
+    private DateOnly date = DateOnly.FromDateTime(DateTime.Today);
+    private TimeOnly time = new(15, 0);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        loading = true; error = null;
+        try
+        {
+            var fixturesTask = FixturesApi.ListAsync();
+            var teamsTask = TeamsApi.GetSeasonTeamsAsync();
+            await Task.WhenAll(fixturesTask, teamsTask);
+            fixtures = await fixturesTask;
+            teams = await teamsTask;
+        }
+        catch (Exception ex) { error = $"Müsabakalar yüklenemedi: {ex.Message}"; }
+        finally { loading = false; }
+    }
+    private string TeamName(Guid id) => teams.FirstOrDefault(x => x.Id == id)?.Name ?? "—";
+    private void OpenForm()
+    {
+        formError = null; success = null; editingFixture = null;
+        teamId = ""; opponent = ""; venue = ""; notes = "";
+        type = 1; venueSide = 1; date = DateOnly.FromDateTime(DateTime.Today);
+        time = new TimeOnly(15, 0); showForm = true;
+    }
+    private void OpenEdit(FixtureResponse item)
+    {
+        formError = null; success = null; editingFixture = item;
+        teamId = item.SeasonTeamId.ToString(); opponent = item.Opponent;
+        venue = item.Venue; notes = item.Notes ?? "";
+        type = item.Type; venueSide = item.VenueSide;
+        date = item.Date; time = item.StartTime; showForm = true;
+    }
+    private void CloseForm() { showForm = false; editingFixture = null; }
+    private async Task SaveAsync()
+    {
+        if (!Guid.TryParse(teamId, out var id) || string.IsNullOrWhiteSpace(opponent) || string.IsNullOrWhiteSpace(venue))
+        { formError = "Takım, rakip ve saha zorunludur."; return; }
+        saving = true; formError = null;
+        try
+        {
+            if (editingFixture is null)
+            {
+                await FixturesApi.CreateAsync(id, type, opponent.Trim(), date, time,
+                    venue.Trim(), venueSide, string.IsNullOrWhiteSpace(notes) ? null : notes.Trim());
+                success = "Müsabaka kaydedildi.";
+            }
+            else
+            {
+                await FixturesApi.UpdateAsync(editingFixture.Id, id, type, opponent.Trim(),
+                    date, time, venue.Trim(), venueSide,
+                    string.IsNullOrWhiteSpace(notes) ? null : notes.Trim());
+                success = "Müsabaka bilgileri güncellendi.";
+            }
+            showForm = false; editingFixture = null;
+            await LoadAsync();
+        }
+        catch (Exception ex) { formError = $"Müsabaka kaydedilemedi: {ex.Message}"; }
+        finally { saving = false; }
+    }
+    private async Task CancelAsync(Guid fixtureId)
+    {
+        isCancelling = true; error = null; success = null;
+        try
+        {
+            await FixturesApi.CancelAsync(fixtureId);
+            cancelConfirmationId = null;
+            success = "Müsabaka iptal edildi; kayıt geçmişte korundu.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { error = $"Müsabaka iptal edilemedi: {ex.Message}"; }
+        finally { isCancelling = false; }
+    }
+}

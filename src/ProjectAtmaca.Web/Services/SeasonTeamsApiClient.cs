@@ -53,6 +53,45 @@ public sealed class SeasonTeamsApiClient
             cancellationToken);
     }
 
+    public async Task<IReadOnlyList<OrganizationDutyAssignmentResponse>> GetOrganizationDutyAssignmentsAsync(
+        Guid organizationId,
+        Guid atmacaCardId,
+        CancellationToken cancellationToken = default)
+    {
+        var assignments = await _httpClient.GetFromJsonAsync<List<OrganizationDutyAssignmentResponse>>(
+            $"api/organizations/{organizationId:D}/duty-assignments?atmacaCardId={atmacaCardId:D}",
+            cancellationToken);
+        return assignments ?? [];
+    }
+
+    public async Task<SeasonTeamApiResult> AddOrganizationDutyAssignmentAsync(
+        Guid organizationId,
+        Guid atmacaCardId,
+        string title,
+        DateTime startDate,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            $"api/organizations/{organizationId:D}/duty-assignments",
+            new { AtmacaCardId = atmacaCardId, Title = title, StartDate = startDate },
+            cancellationToken);
+        return await ToResultAsync(response, "Kurum görevi eklenemedi.", cancellationToken);
+    }
+
+    public async Task<SeasonTeamApiResult> EndOrganizationDutyAssignmentAsync(
+        Guid organizationId,
+        Guid atmacaCardId,
+        Guid assignmentId,
+        DateTime endDate,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync(
+            $"api/organizations/{organizationId:D}/duty-assignments/{assignmentId:D}/end",
+            new { AtmacaCardId = atmacaCardId, EndDate = endDate },
+            cancellationToken);
+        return await ToResultAsync(response, "Kurum görevi sonlandırılamadı.", cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AtmacaCardSummary>> SearchCardsAsync(
         string search,
         CancellationToken cancellationToken = default)
@@ -69,11 +108,12 @@ public sealed class SeasonTeamsApiClient
         Guid seasonTeamId,
         Guid atmacaCardId,
         DateTime startDate,
+        DateTime? endDate = null,
         CancellationToken cancellationToken = default)
     {
         using var response = await _httpClient.PostAsJsonAsync(
             $"api/season-teams/{seasonTeamId:D}/memberships",
-            new { AtmacaCardId = atmacaCardId, StartDate = startDate },
+            new { AtmacaCardId = atmacaCardId, StartDate = startDate, EndDate = endDate },
             cancellationToken);
 
         return response.IsSuccessStatusCode;
@@ -124,10 +164,29 @@ public sealed class SeasonTeamsApiClient
 
     public sealed record SeasonTeamApiResult(bool Succeeded, string? ErrorMessage);
 
+    private static async Task<SeasonTeamApiResult> ToResultAsync(
+        HttpResponseMessage response,
+        string fallback,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+            return new SeasonTeamApiResult(true, null);
+
+        var problem = await response.Content.ReadFromJsonAsync<SeasonTeamApiProblem>(
+            cancellationToken: cancellationToken);
+        var message = !string.IsNullOrWhiteSpace(problem?.Detail)
+            ? problem.Detail
+            : !string.IsNullOrWhiteSpace(problem?.Title)
+                ? problem.Title
+                : $"{fallback} (HTTP {(int)response.StatusCode}).";
+        return new SeasonTeamApiResult(false, message);
+    }
+
     internal sealed class SeasonTeamApiProblem
     {
         public string? Title { get; init; }
         public string? Detail { get; init; }
+        public string? Code { get; init; }
     }
 
     public async Task<bool> EndMembershipAssignmentAsync(
@@ -156,7 +215,20 @@ public sealed class SeasonTeamsApiClient
             new { EndDate = endDate },
             cancellationToken);
 
-        return response.IsSuccessStatusCode;
+        if (response.IsSuccessStatusCode)
+            return true;
+
+        var problem = await response.Content.ReadFromJsonAsync<SeasonTeamApiProblem>(
+            cancellationToken: cancellationToken);
+        if (problem?.Code == "ASSIGNMENT_ALREADY_ENDED")
+            throw new HttpRequestException("Üyelik zaten sonlandırılmış.");
+
+        var message = !string.IsNullOrWhiteSpace(problem?.Detail)
+            ? problem.Detail
+            : !string.IsNullOrWhiteSpace(problem?.Title)
+                ? problem.Title
+                : $"Üyelik sonlandırma isteği reddedildi (HTTP {(int)response.StatusCode}).";
+        throw new HttpRequestException(message);
     }
 
     public async Task<Guid?> CreateSeasonTeamAsync(

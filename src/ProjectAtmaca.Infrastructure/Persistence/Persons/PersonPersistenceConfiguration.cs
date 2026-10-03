@@ -72,6 +72,13 @@ public sealed class RegistrationCardConfiguration : IEntityTypeConfiguration<Atm
         b.Ignore(x => x.AtmacaCardId);
         b.Property(x => x.CardNumber).HasConversion(x => x.Value, x => AtmacaCardNumber.Create(x).Value!).HasMaxLength(10);
         b.Property(x => x.IssuedAtUtc).HasConversion(x => x, x => DateTime.SpecifyKind(x, DateTimeKind.Utc));
+        b.Property(x => x.IsActive).HasDefaultValue(true);
+        b.Property(x => x.PhotoStorageKey).HasMaxLength(200);
+        b.Property(x => x.PhotoContentType).HasMaxLength(100);
+        b.Property(x => x.IsCurrentlyStudying).HasDefaultValue(false);
+        b.Property(x => x.SchoolName).HasMaxLength(150);
+        b.Property(x => x.SchoolGrade).HasMaxLength(50);
+        b.Property(x => x.SchoolNumber).HasMaxLength(30);
         b.HasIndex(x => x.CardNumber).IsUnique();
         b.HasIndex(x => x.PersonId).IsUnique();
         b.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);

@@ -180,6 +180,48 @@ public sealed class Participation : AuditableAggregateRoot
         return Result.Success();
     }
 
+    public Result CorrectClassification(
+        ParticipationStatus correctedStatus,
+        ParticipationCondition? condition = null)
+    {
+        if (correctedStatus is not ParticipationStatus.Present
+            and not ParticipationStatus.Absent)
+        {
+            return Result.Failure(ParticipationErrors.InvalidStatus);
+        }
+
+        Result conditionValidation = ValidateCondition(correctedStatus, condition);
+        if (conditionValidation.IsFailure)
+            return conditionValidation;
+
+        if (Status == ParticipationStatus.NotRecorded)
+        {
+            return Result.Failure(
+                ParticipationErrors.ClassificationCorrectionRequired);
+        }
+
+        if (Status == correctedStatus && Condition == condition)
+            return Result.Success();
+
+        if (JoinedAt.HasValue || LeftAt.HasValue)
+        {
+            return Result.Failure(
+                ParticipationErrors.ClassificationCorrectionConflictsWithTimes);
+        }
+
+        Status = correctedStatus;
+        Condition = condition;
+
+        if (correctedStatus == ParticipationStatus.Present)
+        {
+            RaiseDomainEvent(
+                new ParticipationMarkedPresentDomainEvent(
+                    ParticipationId));
+        }
+
+        return Result.Success();
+    }
+
     public Result RecordArrival(
         DateTimeOffset joinedAt)
     {

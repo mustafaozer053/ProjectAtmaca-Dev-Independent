@@ -57,16 +57,16 @@ else
         <section class="summary-grid" aria-label="Kadro özeti">
             <SummaryCard Label="Toplam üye" Value="@Members.Count" Detail="Bu sezon kayıtlı" Tone="blue" />
             <SummaryCard Label="Aktif üyelik" Value="@Members.Count(m => m.IsActive)" Detail="Bugün geçerli" Tone="green" />
-            <SummaryCard Label="Sporcu" Value="@Members.Count(m => m.Classification == "Sporcu")" Detail="Aktif sınıflandırma" Tone="purple" />
-            <SummaryCard Label="Teknik ekip" Value="@Members.Count(m => m.Classification == "Teknik Ekip")" Detail="Aktif sınıflandırma" Tone="orange" />
+            <SummaryCard Label="Sporcu" Value="@Members.Count(m => m.Classifications.Contains("Sporcu", StringComparer.OrdinalIgnoreCase))" Detail="Aktif sınıflandırma" Tone="purple" />
+            <SummaryCard Label="Teknik ekip" Value="@Members.Count(m => m.Classifications.Contains("Teknik Ekip", StringComparer.OrdinalIgnoreCase))" Detail="Aktif sınıflandırma" Tone="orange" />
         </section>
 
         <div class="toolbar">
             <div class="section-tabs" role="tablist" aria-label="Kadro bölümü">
                 <button class="tab @(selectedSection == "Tümü" ? "selected" : "")" @onclick='@(() => selectedSection = "Tümü")'>Tümü <b>@Members.Count</b></button>
-                <button class="tab @(selectedSection == "Sporcu" ? "selected" : "")" @onclick='@(() => selectedSection = "Sporcu")'>Sporcular <b>@Members.Count(m => m.Classification == "Sporcu")</b></button>
-                <button class="tab @(selectedSection == "Teknik Ekip" ? "selected" : "")" @onclick='@(() => selectedSection = "Teknik Ekip")'>Teknik ekip <b>@Members.Count(m => m.Classification == "Teknik Ekip")</b></button>
-                <button class="tab @(selectedSection == "Sınıflandırılmamış" ? "selected" : "")" @onclick='@(() => selectedSection = "Sınıflandırılmamış")'>Sınıflandırılmamış <b>@Members.Count(m => string.IsNullOrEmpty(m.Classification))</b></button>
+                <button class="tab @(selectedSection == "Sporcu" ? "selected" : "")" @onclick='@(() => selectedSection = "Sporcu")'>Sporcular <b>@Members.Count(m => m.Classifications.Contains("Sporcu", StringComparer.OrdinalIgnoreCase))</b></button>
+                <button class="tab @(selectedSection == "Teknik Ekip" ? "selected" : "")" @onclick='@(() => selectedSection = "Teknik Ekip")'>Teknik ekip <b>@Members.Count(m => m.Classifications.Contains("Teknik Ekip", StringComparer.OrdinalIgnoreCase))</b></button>
+                <button class="tab @(selectedSection == "Sınıflandırılmamış" ? "selected" : "")" @onclick='@(() => selectedSection = "Sınıflandırılmamış")'>Sınıflandırılmamış <b>@Members.Count(m => m.Classifications.Count == 0)</b></button>
             </div>
             <label class="search-box">
                 <span aria-hidden="true">⌕</span>
@@ -95,8 +95,8 @@ else
                                     <td><div class="member-name"><div class="avatar @member.AvatarColor">@member.Initials</div><div><strong>@member.Name</strong><small>@member.CardCode</small></div></div></td>
                                     <td><div class="assignment-list">@foreach (var assignment in member.Assignments) { <span class="assignment-tag @assignment.Kind">@assignment.Text</span> }</div></td>
                                     <td><span class="period">@member.Period</span></td>
-                                    <td><span class="status-pill @(member.IsActive ? "active" : "passive")"><span></span>@(member.IsActive ? "Aktif" : "Pasif")</span></td>
-                                    <td><button class="more-button" aria-label="@member.Name detayları" @onclick="() => selectedMember = member">•••</button></td>
+                                    <td><span class="status-pill @(member.IsActive ? "active" : "passive")"><span></span>@MemberStatus(member)</span></td>
+                                    <td><button class="more-button" aria-label="@member.Name detayları" @onclick="() => OpenMemberDetails(member)">•••</button></td>
                                 </tr>
                             }
                         </tbody>
@@ -129,27 +129,86 @@ else
                             <div class="error-banner">@assignmentError</div>
                         }
                         <div class="assignment-form">
-                            <select class="form-input" @bind="assignmentKind">
-                                <option value="Classification">Sınıflandırma</option>
-                                <option value="Role">Rol</option>
-                                <option value="Duty">Görev</option>
-                                <option value="Title">Ünvan</option>
+                            <select class="form-input" @bind="assignmentScope">
+                                <option value="SeasonTeam">Sezon takımı görevi</option>
+                                <option value="Organization">Kulüp geneli görevi</option>
                             </select>
-                            <input class="form-input" @bind="assignmentName" placeholder="Ör. Sporcu, Kaptan, Antrenör" />
+                            @if (assignmentScope == "SeasonTeam")
+                            {
+                                <select class="form-input" @bind="assignmentKind">
+                                    <option value="Classification">Sınıflandırma</option>
+                                    <option value="Role">Rol</option>
+                                    <option value="Duty">Görev</option>
+                                    <option value="Title">Ünvan</option>
+                                </select>
+                            }
+                            else
+                            {
+                                <p class="muted">Bu görev sezonlardan bağımsızdır; görev bitiş tarihini ayrıca girerek sonlandırabilirsiniz.</p>
+                                <label class="form-label">Görev başlangıç tarihi
+                                    <input type="date" class="form-input" @bind="organizationDutyStartDate" />
+                                </label>
+                            }
+                            <input class="form-input" @bind="assignmentName" list="roster-duty-titles"
+                                   placeholder="@(assignmentScope == "SeasonTeam" && assignmentKind == "Classification" ? "Sınıflandırma seçin veya yazın" : "Görev adını yazın veya seçin")" />
                             <button class="btn btn-light" @onclick="AddAssignmentAsync" disabled="@isAddingAssignment">
                                 @(isAddingAssignment ? "Ekleniyor..." : "Atama ekle")
                             </button>
                         </div>
                     </div>
+                    @if (selectedTeam is not null)
+                    {
+                        <div class="detail-section">
+                            <h3>Kulüp genelindeki görevler</h3>
+                            <p class="muted">Sezondan bağımsız görevlendirmeler; ör. Başkan veya Muhasebe Müdürü.</p>
+                            @if (isLoadingOrganizationDuties)
+                            {
+                                <p class="muted">Kurum görevleri yükleniyor...</p>
+                            }
+                            else if (organizationDutyAssignments.Count == 0)
+                            {
+                                <p class="muted">Bu kişiye bu kulüpte henüz görev atanmamış.</p>
+                            }
+                            @foreach (var duty in organizationDutyAssignments)
+                            {
+                                <div class="detail-assignment">
+                                    <span class="assignment-tag duty">@duty.Title</span>
+                                    <small>@FormatOrganizationDutyPeriod(duty)</small>
+                                    @if (!duty.EndDate.HasValue && duty.StartDate.Date <= DateTime.Today)
+                                    {
+                                        <button class="assignment-end-button" @onclick="() => EndOrganizationDutyAsync(duty)" disabled="@isAddingAssignment">Sonlandır</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
                     <div class="detail-section">
                         <h3>Üyelik dönemi</h3>
                         <p class="detail-period">@selectedMember.Period</p>
-                        <span class="status-pill @(selectedMember.IsActive ? "active" : "passive")"><span></span>@(selectedMember.IsActive ? "Aktif üyelik" : "Sonlandırılmış üyelik")</span>
-                        @if (selectedMember.IsActive)
+                        <span class="status-pill @(selectedMember.IsActive ? "active" : "passive")"><span></span>@MembershipStatus(selectedMember)</span>
+                        @if (selectedMember.IsActive && selectedMember.EndDate is null)
                         {
-                            <button class="membership-end-button" @onclick="EndMembershipAsync" disabled="@isEndingMembership">
-                                @(isEndingMembership ? "Sonlandırılıyor..." : "Üyeliği sonlandır")
-                            </button>
+                            @if (!showMembershipEndForm)
+                            {
+                                <button class="membership-end-button" @onclick="OpenMembershipEndForm">
+                                    Üyeliği sonlandır
+                                </button>
+                            }
+                            else
+                            {
+                                <label class="membership-end-date">
+                                    Üyeliğin son günü
+                                    <input type="date" @bind="membershipEndDate" />
+                                </label>
+                                <button class="membership-end-button" @onclick="EndMembershipAsync" disabled="@isEndingMembership">
+                                    @(isEndingMembership ? "Sonlandırılıyor..." : "Seçilen tarihte sonlandır")
+                                </button>
+                                <button class="text-button" @onclick="() => showMembershipEndForm = false" disabled="@isEndingMembership">Vazgeç</button>
+                            }
+                        }
+                        @if (assignmentError is not null)
+                        {
+                            <div class="error-banner">@assignmentError</div>
                         }
                     </div>
                     <button class="btn btn-primary full-width" @onclick="CloseDetails">Üyelik detayını aç</button>
@@ -195,8 +254,18 @@ else
                             <strong>@selectedCard.FullName</strong>
                             <span>@selectedCard.CardNumber</span>
                         </div>
-                        <button class="btn btn-primary full-width" @onclick="AddSelectedMemberAsync" disabled="@isAddingMember">
-                            @(isAddingMember ? "Ekleniyor..." : "Bu kartı kadroya ekle")
+                        <label class="form-label">Kadroya katılım tarihi
+                            <input type="date" class="form-input" @bind="membershipStartDate" />
+                        </label>
+                        <label class="form-label">Kadrodan ayrılma tarihi (isteğe bağlı)
+                            <input type="date" class="form-input" @bind="membershipEndDateInput" />
+                        </label>
+                        @if (HasOverlappingMembership)
+                        {
+                            <div class="error-banner">Bu kart, seçilen tarihlerde zaten bu takımın kadrosunda görünüyor.</div>
+                        }
+                        <button class="btn btn-primary full-width" @onclick="AddSelectedMemberAsync" disabled="@(isAddingMember || HasOverlappingMembership)">
+                            @(isAddingMember ? "Ekleniyor..." : HasMembershipHistory ? "Yeni üyelik dönemi aç" : "Bu kartı kadroya ekle")
                         </button>
                     }
                 </aside>
@@ -229,7 +298,7 @@ else
                     <option value="">Organizasyon seçin</option>
                     @foreach (var item in organizations)
                     {
-                        <option value="@item.Id">@item.Name</option>
+                        <option value="@item.Id">@OrganizationDisplayName(item)</option>
                     }
                 </select>
             </label>
@@ -252,6 +321,13 @@ else
         </aside>
     </div>
 }
+
+<datalist id="roster-duty-titles">
+    @foreach (var title in AssignmentNameSuggestions)
+    {
+        <option value="@title"></option>
+    }
+</datalist>
 
 @code {
     private bool isLoading = true;
@@ -282,14 +358,52 @@ else
     private string createAgeGroupId = string.Empty;
     private string? teamManagementError;
     private string assignmentKind = "Classification";
+    private string assignmentScope = "SeasonTeam";
+    private DateTime membershipStartDate = DateTime.Today;
+    private DateTime? membershipEndDateInput;
+    private static readonly IReadOnlyList<string> ClassificationSuggestions =
+        ["Sporcu", "Teknik Ekip"];
+    private IReadOnlyList<string> AssignmentNameSuggestions =>
+        assignmentScope == "SeasonTeam" && assignmentKind == "Classification"
+            ? ClassificationSuggestions
+            : DutyTitleSuggestions;
     private string assignmentName = string.Empty;
+    private DateTime organizationDutyStartDate = DateTime.Today;
+    private IReadOnlyList<OrganizationDutyAssignmentResponse> organizationDutyAssignments = [];
+    private bool isLoadingOrganizationDuties;
+    private static IReadOnlyList<string> DutyTitleSuggestions =>
+        OrganizationDutyTitleSuggestions.Values;
     private bool isAddingAssignment;
     private bool isEndingMembership;
+    private bool showMembershipEndForm;
+    private DateOnly membershipEndDate = DateOnly.FromDateTime(DateTime.Today);
     private string? assignmentError;
 
     private IEnumerable<Member> FilteredMembers => Members.Where(m =>
-        (selectedSection == "Tümü" || (selectedSection == "Sınıflandırılmamış" ? string.IsNullOrEmpty(m.Classification) : m.Classification == selectedSection)) &&
+        (selectedSection == "Tümü" ||
+         (selectedSection == "Sınıflandırılmamış"
+             ? m.Classifications.Count == 0
+             : m.Classifications.Contains(selectedSection, StringComparer.OrdinalIgnoreCase))) &&
         (string.IsNullOrWhiteSpace(searchTerm) || m.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || m.CardCode.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
+
+    private bool HasMembershipHistory =>
+        selectedCard is not null &&
+        Members.Any(member => member.AtmacaCardId == selectedCard.AtmacaCardId);
+
+    private bool HasOverlappingMembership
+    {
+        get
+        {
+            if (selectedCard is null)
+                return false;
+
+            DateTime requestedEnd = membershipEndDateInput?.Date ?? DateTime.MaxValue.Date;
+            return Members.Any(member =>
+                member.AtmacaCardId == selectedCard.AtmacaCardId &&
+                membershipStartDate.Date <= (member.EndDate?.Date ?? DateTime.MaxValue.Date) &&
+                member.StartDate.Date <= requestedEnd);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -344,13 +458,15 @@ else
         Members = roster is null
             ? []
             : roster.Groups
-                .SelectMany(group => group.Memberships.Select(membership => ToMember(membership, group.Classification)))
-                .Concat(roster.UnclassifiedMemberships.Select(membership => ToMember(membership, string.Empty)))
+                .SelectMany(group => group.Memberships)
+                .Concat(roster.UnclassifiedMemberships)
+                .DistinctBy(membership => membership.Id)
+                .Select(ToMember)
                 .OrderBy(m => m.Name)
                 .ToList();
     }
 
-    private static Member ToMember(SeasonTeamMembershipResponse membership, string classification)
+    private static Member ToMember(SeasonTeamMembershipResponse membership)
     {
         var name = !string.IsNullOrWhiteSpace(membership.AtmacaCardDisplayName)
             ? membership.AtmacaCardDisplayName!
@@ -370,17 +486,37 @@ else
                 a.IsActive))
             .ToList();
 
+        var classifications = membership.Assignments
+            .Where(assignment =>
+                assignment.Kind.Equals("Classification", StringComparison.OrdinalIgnoreCase) &&
+                assignment.IsActive)
+            .Select(assignment => assignment.DisplayNameSnapshot)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         return new Member(
             membership.Id,
             name,
             cardCode,
             ToInitials(name),
             ToAvatarColor(name),
-            classification,
+            classifications,
+            membership.StartDate,
             period,
             membership.IsActive,
-            assignments);
+            membership.EndDate,
+            assignments,
+            membership.AtmacaCardId);
     }
+
+    private static string MemberStatus(Member member) =>
+        member.IsActive && member.EndDate.HasValue ? "Son gün" :
+        member.IsActive ? "Aktif" : "Pasif";
+
+    private static string MembershipStatus(Member member) =>
+        member.IsActive && member.EndDate.HasValue
+            ? "Son gün (gün sonunda pasif olur)"
+            : member.IsActive ? "Aktif üyelik" : "Sonlandırılmış üyelik";
 
     private static string ToTagCssClass(string kind, string label)
     {
@@ -426,6 +562,8 @@ else
         selectedCard = null;
         hasSearchedCards = false;
         addMemberError = null;
+        membershipStartDate = DateTime.Today;
+        membershipEndDateInput = null;
     }
 
     private void CloseAddMember() => showAddMember = false;
@@ -544,6 +682,12 @@ else
     {
         if (selectedTeam is null || selectedCard is null)
             return;
+        if (membershipEndDateInput.HasValue &&
+            membershipEndDateInput.Value.Date < membershipStartDate.Date)
+        {
+            addMemberError = "Kadrodan ayrılma tarihi, katılım tarihinden önce olamaz.";
+            return;
+        }
 
         isAddingMember = true;
         addMemberError = null;
@@ -553,7 +697,8 @@ else
             var added = await Api.AddMembershipAsync(
                 selectedTeam.Id,
                 selectedCard.AtmacaCardId,
-                DateTime.UtcNow);
+                membershipStartDate,
+                membershipEndDateInput);
 
             if (!added)
             {
@@ -573,7 +718,46 @@ else
             isAddingMember = false;
         }
     }
-    private void CloseDetails() => selectedMember = null;
+    private async Task OpenMemberDetails(Member member)
+    {
+        selectedMember = member;
+        assignmentError = null;
+        showMembershipEndForm = false;
+        membershipEndDate = DateOnly.FromDateTime(DateTime.Today);
+        organizationDutyStartDate = DateTime.Today;
+        organizationDutyAssignments = [];
+        if (selectedTeam is null)
+            return;
+
+        isLoadingOrganizationDuties = true;
+        try
+        {
+            organizationDutyAssignments = await Api.GetOrganizationDutyAssignmentsAsync(
+                selectedTeam.OrganizationId,
+                member.AtmacaCardId);
+        }
+        catch (Exception ex)
+        {
+            assignmentError = $"Kulüp görevleri yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingOrganizationDuties = false;
+        }
+    }
+
+    private void OpenMembershipEndForm()
+    {
+        assignmentError = null;
+        showMembershipEndForm = true;
+        membershipEndDate = DateOnly.FromDateTime(DateTime.Today);
+    }
+
+    private void CloseDetails()
+    {
+        selectedMember = null;
+        showMembershipEndForm = false;
+    }
 
     private async Task AddAssignmentAsync()
     {
@@ -592,6 +776,26 @@ else
 
         try
         {
+            if (assignmentScope == "Organization")
+            {
+                var organizationResult = await Api.AddOrganizationDutyAssignmentAsync(
+                    selectedTeam.OrganizationId,
+                    selectedMember.AtmacaCardId,
+                    name,
+                    organizationDutyStartDate.Date);
+                if (!organizationResult.Succeeded)
+                {
+                    assignmentError = $"Kulüp görevi eklenemedi: {organizationResult.ErrorMessage}";
+                    return;
+                }
+
+                organizationDutyAssignments = await Api.GetOrganizationDutyAssignmentsAsync(
+                    selectedTeam.OrganizationId,
+                    selectedMember.AtmacaCardId);
+                assignmentName = string.Empty;
+                return;
+            }
+
             var result = await Api.AddMembershipAssignmentAsync(
                 selectedTeam.Id,
                 selectedMember.Id,
@@ -613,6 +817,40 @@ else
         catch (Exception ex)
         {
             assignmentError = $"Atama oluşturulurken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAddingAssignment = false;
+        }
+    }
+
+    private async Task EndOrganizationDutyAsync(OrganizationDutyAssignmentResponse duty)
+    {
+        if (selectedTeam is null || selectedMember is null)
+            return;
+
+        isAddingAssignment = true;
+        assignmentError = null;
+        try
+        {
+            var result = await Api.EndOrganizationDutyAssignmentAsync(
+                selectedTeam.OrganizationId,
+                selectedMember.AtmacaCardId,
+                duty.Id,
+                DateTime.Today);
+            if (!result.Succeeded)
+            {
+                assignmentError = $"Kulüp görevi sonlandırılamadı: {result.ErrorMessage}";
+                return;
+            }
+
+            organizationDutyAssignments = await Api.GetOrganizationDutyAssignmentsAsync(
+                selectedTeam.OrganizationId,
+                selectedMember.AtmacaCardId);
+        }
+        catch (Exception ex)
+        {
+            assignmentError = $"Kulüp görevi sonlandırılırken bir sorun oluştu: {ex.Message}";
         }
         finally
         {
@@ -663,7 +901,7 @@ else
             var ended = await Api.EndMembershipAsync(
                 selectedTeam.Id,
                 membershipId,
-                DateTime.UtcNow);
+                membershipEndDate.ToDateTime(TimeOnly.MinValue));
 
             if (!ended)
             {
@@ -673,6 +911,7 @@ else
 
             await LoadRosterAsync(selectedTeam.Id);
             selectedMember = Members.FirstOrDefault(x => x.Id == membershipId);
+            showMembershipEndForm = false;
         }
         catch (Exception ex)
         {
@@ -692,6 +931,14 @@ else
         return new Guid(bytes[..16]);
     }
 
-    private sealed record Member(Guid Id, string Name, string CardCode, string Initials, string AvatarColor, string Classification, string Period, bool IsActive, IReadOnlyList<Assignment> Assignments);
+    private sealed record Member(Guid Id, string Name, string CardCode, string Initials, string AvatarColor, IReadOnlyList<string> Classifications, DateTime StartDate, string Period, bool IsActive, DateTime? EndDate, IReadOnlyList<Assignment> Assignments, Guid AtmacaCardId);
     private sealed record Assignment(Guid Id, string Kind, string Text, string Period, bool IsActive);
+
+    private static string FormatOrganizationDutyPeriod(OrganizationDutyAssignmentResponse duty) =>
+        duty.EndDate is null
+            ? $"{duty.StartDate:dd.MM.yyyy} - devam ediyor"
+            : $"{duty.StartDate:dd.MM.yyyy} - {duty.EndDate:dd.MM.yyyy}";
+
+    private static string OrganizationDisplayName(CatalogItemResponse organization) =>
+        organization.HierarchyPath ?? organization.Name;
 }

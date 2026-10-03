@@ -27,6 +27,7 @@ public sealed class SeasonTeamRepository : ISeasonTeamRepository
         CancellationToken cancellationToken = default) =>
         _dbContext.Set<SeasonTeam>()
             .Include(x => x.Memberships)
+            .ThenInclude(x => x.Assignments)
             .SingleOrDefaultAsync(
                 seasonTeam => EF.Property<Guid>(seasonTeam, "Id") == id.Value,
                 cancellationToken);
@@ -35,6 +36,7 @@ public sealed class SeasonTeamRepository : ISeasonTeamRepository
         CancellationToken cancellationToken = default) =>
         await _dbContext.Set<SeasonTeam>()
             .Include(x => x.Memberships)
+            .ThenInclude(x => x.Assignments)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
 }

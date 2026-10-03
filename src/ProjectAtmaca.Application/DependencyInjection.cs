@@ -6,10 +6,12 @@ using ProjectAtmaca.Application.Participations.Create;
 using ProjectAtmaca.Application.Participations.CreateForTraining;
 using ProjectAtmaca.Application.Participations.MarkPresent;
 using ProjectAtmaca.Application.Participations.MarkAbsent;
+using ProjectAtmaca.Application.Participations.CorrectClassification;
 using ProjectAtmaca.Application.Participations.RecordArrival;
 using ProjectAtmaca.Application.Participations.RecordDeparture;
 using ProjectAtmaca.Application.Participations.ListByActivity;
 using ProjectAtmaca.Application.Participations.GetSummaryByActivity;
+using ProjectAtmaca.Application.Participations;
 using ProjectAtmaca.Application.Participations.ListHistoryByAtmacaCard;
 using ProjectAtmaca.Application.Decisions.ApplyParticipationClassification;
 using ProjectAtmaca.Application.Decisions.ListApplicationHistory;
@@ -30,6 +32,16 @@ using ProjectAtmaca.Application.SeasonTeams.EndMembership;
 using ProjectAtmaca.Application.SeasonTeams.GetById;
 using ProjectAtmaca.Application.SeasonTeams.AddMembershipAssignment;
 using ProjectAtmaca.Application.SeasonTeams.EndMembershipAssignment;
+using ProjectAtmaca.Application.Fixtures;
+using ProjectAtmaca.Application.AtmacaCards.ChangeStatus;
+using ProjectAtmaca.Application.AtmacaCards.ManageSportsProfile;
+using ProjectAtmaca.Application.AtmacaCards.ManageMeasurements;
+using ProjectAtmaca.Application.Positions;
+using ProjectAtmaca.Application.AtmacaCards.ManageEducation;
+using ProjectAtmaca.Application.AtmacaCards.ManageDocuments;
+using ProjectAtmaca.Application.AtmacaCards.ManagePhoto;
+using ProjectAtmaca.Application.Persons.ManageProfessionalTitles;
+using ProjectAtmaca.Application.Organizations.Catalog;
 
 namespace ProjectAtmaca.Application;
 
@@ -52,6 +64,7 @@ public static class DependencyInjection
             CreateParticipationCommandHandler>();
         services.AddScoped<
             CreateTrainingParticipationCommandHandler>();
+        services.AddScoped<BtaEligibilityValidator>();
 
         services.AddScoped<
             GetParticipationByIdQueryHandler>();
@@ -60,6 +73,7 @@ public static class DependencyInjection
             MarkParticipationPresentCommandHandler>();
         services.AddScoped<
             MarkParticipationAbsentCommandHandler>();
+        services.AddScoped<CorrectParticipationClassificationCommandHandler>();
 
         services.AddScoped<
             RecordParticipationArrivalCommandHandler>();
@@ -108,6 +122,30 @@ public static class DependencyInjection
         services.AddScoped<EndSeasonTeamMembershipAssignmentCommandHandler>();
         services.AddScoped<GetSeasonTeamByIdQueryHandler>();
         services.AddScoped<ChangeSeasonTeamStatusCommandHandler>();
+        services.AddScoped<ChangeAtmacaCardStatusCommandHandler>();
+        services.AddScoped<UpsertAtmacaCardSportsProfileCommandHandler>();
+        services.AddScoped<GetAtmacaCardSportsProfilesQueryHandler>();
+        services.AddScoped<GetAtmacaCardMeasurementsQueryHandler>();
+        services.AddScoped<RecordAtmacaCardMeasurementCommandHandler>();
+        services.AddScoped<GetAtmacaCardEducationQueryHandler>();
+        services.AddScoped<UpdateAtmacaCardEducationCommandHandler>();
+        services.AddScoped<RecordAtmacaCardDocumentCommandHandler>();
+        services.AddScoped<GetAtmacaCardDocumentsQueryHandler>();
+        services.AddScoped<OpenAtmacaCardDocumentQueryHandler>();
+        services.AddScoped<SaveAtmacaCardPhotoCommandHandler>();
+        services.AddScoped<GetAtmacaCardPhotoQueryHandler>();
+        services.AddScoped<GetProfessionalTitlesQueryHandler>();
+        services.AddScoped<AddProfessionalTitleCommandHandler>();
+        services.AddScoped<EndProfessionalTitleCommandHandler>();
+        services.AddScoped<UpdateProfessionalTitleCommandHandler>();
+        services.AddScoped<RemoveProfessionalTitleCommandHandler>();
+        services.AddScoped<LinkProfessionalTitleDocumentCommandHandler>();
+        services.AddScoped<ProjectAtmaca.Application.Organizations.Assignments.ListOrganizationDutyAssignmentsQueryHandler>();
+        services.AddScoped<ProjectAtmaca.Application.Organizations.Assignments.AddOrganizationDutyAssignmentCommandHandler>();
+        services.AddScoped<ProjectAtmaca.Application.Organizations.Assignments.EndOrganizationDutyAssignmentCommandHandler>();
+        services.AddScoped<PositionCatalogService>();
+        services.AddScoped<OrganizationCatalogService>();
+        services.AddScoped<FixtureService>();
 
         return services;
     }

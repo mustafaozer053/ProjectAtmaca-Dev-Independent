@@ -50,6 +50,11 @@ public static class ParticipationErrors
             "Participation.Classification.CorrectionRequired",
             "An established participation classification cannot be changed through an ordinary classification operation.");
 
+    public static readonly Error ClassificationCorrectionConflictsWithTimes =
+        Error.Create(
+            "Participation.Classification.CorrectionConflictsWithTimes",
+            "Participation classification cannot be corrected while arrival or departure times are recorded.");
+
     public static readonly Error ArrivalCannotBeRecordedWhenAbsent =
         Error.Create(
             "Participation.Arrival.CannotBeRecordedWhenAbsent",

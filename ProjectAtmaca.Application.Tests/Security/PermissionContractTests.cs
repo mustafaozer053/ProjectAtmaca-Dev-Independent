@@ -113,6 +113,24 @@ public sealed class PermissionContractTests
 
             Permissions.Persons.RegisterWithAtmacaCard,
 
+            Permissions.Persons.ChangeAtmacaCardStatus,
+            Permissions.Persons.ManageAthleteSportsProfile,
+            Permissions.Persons.ReadAthleteSportsProfiles,
+            Permissions.Persons.ReadAtmacaCardMeasurements,
+            Permissions.Persons.RecordAtmacaCardMeasurement,
+            Permissions.Persons.ReadAtmacaCardEducation,
+            Permissions.Persons.ManageAtmacaCardEducation,
+            Permissions.Persons.ReadAtmacaCardDocuments,
+            Permissions.Persons.ManageAtmacaCardDocuments,
+            Permissions.Persons.ReadProfessionalTitles,
+            Permissions.Persons.ManageProfessionalTitles,
+            Permissions.OrganizationAssignments.Read,
+            Permissions.OrganizationAssignments.Manage,
+            Permissions.Organizations.Manage,
+            Permissions.Positions.List,
+            Permissions.Positions.Create,
+            Permissions.Positions.ChangeStatus,
+
             Permissions.Participations
                 .RecordDeparture,
 
@@ -142,7 +160,11 @@ public sealed class PermissionContractTests
             Permissions.SeasonTeams.EndMembership,
             Permissions.SeasonTeams.ChangeStatus,
             Permissions.SeasonTeams.AddMembershipAssignment,
-            Permissions.SeasonTeams.EndMembershipAssignment
+            Permissions.SeasonTeams.EndMembershipAssignment,
+            Permissions.Fixtures.Create,
+            Permissions.Fixtures.List,
+            Permissions.Fixtures.Update,
+            Permissions.Fixtures.Cancel
         };
 
         string[] expectedCodes =
@@ -158,6 +180,23 @@ public sealed class PermissionContractTests
             "Participations.MarkAbsent",
             "Participations.RecordArrival",
             "Persons.RegisterWithAtmacaCard",
+            "Persons.ChangeAtmacaCardStatus",
+            "Persons.ManageAthleteSportsProfile",
+            "Persons.ReadAthleteSportsProfiles",
+            "Persons.ReadAtmacaCardMeasurements",
+            "Persons.RecordAtmacaCardMeasurement",
+            "Persons.ReadAtmacaCardEducation",
+            "Persons.ManageAtmacaCardEducation",
+            "Persons.ReadAtmacaCardDocuments",
+            "Persons.ManageAtmacaCardDocuments",
+            "Persons.ReadProfessionalTitles",
+            "Persons.ManageProfessionalTitles",
+            "OrganizationAssignments.Read",
+            "OrganizationAssignments.Manage",
+            "Organizations.Manage",
+            "Positions.List",
+            "Positions.Create",
+            "Positions.ChangeStatus",
             "Participations.RecordDeparture",
             "Trainings.Create",
             "Trainings.Confirm",
@@ -174,7 +213,11 @@ public sealed class PermissionContractTests
             "SeasonTeams.EndMembership",
             "SeasonTeams.ChangeStatus",
             "SeasonTeams.AddMembershipAssignment",
-            "SeasonTeams.EndMembershipAssignment"
+            "SeasonTeams.EndMembershipAssignment",
+            "Fixtures.Create",
+            "Fixtures.List",
+            "Fixtures.Update",
+            "Fixtures.Cancel"
         };
 
         permissions

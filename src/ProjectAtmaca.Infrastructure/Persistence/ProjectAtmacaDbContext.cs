@@ -6,6 +6,8 @@ using ProjectAtmaca.Domain.SeasonTeams;
 using ProjectAtmaca.Domain.Seasons;
 using ProjectAtmaca.Domain.Organizations;
 using ProjectAtmaca.Domain.AgeGroups;
+using ProjectAtmaca.Domain.Fixtures;
+using ProjectAtmaca.Domain.Positions;
 
 namespace ProjectAtmaca.Infrastructure.Persistence;
 
@@ -35,6 +37,8 @@ public sealed class ProjectAtmacaDbContext
     public DbSet<Organization> Organizations => Set<Organization>();
 
     public DbSet<AgeGroup> AgeGroups => Set<AgeGroup>();
+    public DbSet<Fixture> Fixtures => Set<Fixture>();
+    public DbSet<Position> Positions => Set<Position>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

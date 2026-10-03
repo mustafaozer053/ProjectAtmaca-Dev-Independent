@@ -1,7 +1,122 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Çaykur Rizespor A.Ş. Kulüp Yönetim Platformu</PageTitle>
 
-<h1>Hello, world!</h1>
+<main class="home-hero">
+    <div class="hero-glow hero-glow-green"></div>
+    <div class="hero-glow hero-glow-red"></div>
 
-Welcome to your new app.
+    <section class="welcome-card" aria-labelledby="welcome-title">
+        <div class="club-emblem">
+            <img src="caykur-rizespor-logo.png" alt="Çaykur Rizespor Kulübü logosu" />
+        </div>
+
+        <div class="hero-eyebrow"><span></span> KULÜP YÖNETİM PLATFORMU <span></span></div>
+        <h1 id="welcome-title">Çaykur Rizespor <span>A.Ş.</span></h1>
+        <p class="hero-subtitle">Kulüp Yönetim Platformu</p>
+        <div class="hero-divider"><span></span></div>
+        <p class="welcome-message">Veri Yönetim Sistemine Hoş Geldiniz</p>
+        <p class="hero-note">Kulübümüzün insan kaynağı ve sportif süreçleri için tek merkez.</p>
+    </section>
+
+    <div class="hero-footer"><span class="footer-mark"></span> BİRLİKTE DAHA GÜÇLÜ <span class="footer-mark"></span></div>
+</main>
+
+<style>
+    .home-hero {
+        position: relative;
+        display: grid;
+        min-height: min(760px, calc(100vh - 150px));
+        place-items: center;
+        overflow: hidden;
+        isolation: isolate;
+        margin: -1.1rem -1.5rem 0;
+        padding: 3.5rem 1.5rem 2rem;
+        background:
+            radial-gradient(ellipse at 50% 42%, #ffffff 0, #fbfcfa 38%, #f1f4f1 100%);
+        color: #18382c;
+        text-align: center;
+    }
+
+    .hero-glow {
+        position: absolute;
+        z-index: -1;
+        width: 360px;
+        height: 360px;
+        border-radius: 50%;
+        filter: blur(90px);
+        opacity: .12;
+        pointer-events: none;
+    }
+
+    .hero-glow-green { top: 8%; left: 5%; background: #08764a; }
+    .hero-glow-red { right: 5%; bottom: 6%; background: #c9343c; }
+
+    .welcome-card {
+        width: min(100%, 760px);
+        padding: clamp(2rem, 6vw, 4.5rem);
+        border: 1px solid #e8ede9;
+        border-radius: 28px;
+        background: rgb(255 255 255 / 82%);
+        box-shadow: 0 28px 80px rgb(28 62 45 / 9%), 0 3px 12px rgb(28 62 45 / 4%);
+        backdrop-filter: blur(12px);
+        animation: welcome-rise .75s ease-out both;
+    }
+
+    .club-emblem {
+        position: relative;
+        width: 142px;
+        margin: 0 auto 1.8rem;
+        filter: drop-shadow(0 12px 14px rgb(17 67 44 / 19%));
+    }
+
+    .club-emblem img { display: block; width: 100%; height: auto; border-radius: 50%; }
+
+    .hero-eyebrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .75rem;
+        color: #73847a;
+        font-size: .66rem;
+        font-weight: 750;
+        letter-spacing: .2em;
+    }
+    .hero-eyebrow span { width: 22px; height: 1px; background: #c3a65e; }
+
+    .welcome-card h1 {
+        margin: 1rem 0 0;
+        color: #163e2d;
+        font-size: clamp(2rem, 6vw, 3.6rem);
+        font-weight: 780;
+        letter-spacing: -.055em;
+        line-height: 1.08;
+    }
+    .welcome-card h1 span { color: #a9b4ac; font-size: .56em; letter-spacing: .01em; white-space: nowrap; }
+    .hero-subtitle { margin: .7rem 0 0; color: #c9343c; font-size: clamp(1rem, 2.5vw, 1.35rem); font-weight: 650; letter-spacing: .03em; }
+    .hero-divider { display: flex; align-items: center; justify-content: center; gap: .6rem; margin: 1.8rem 0; }
+    .hero-divider::before, .hero-divider::after { width: 54px; height: 1px; background: #e1e7e2; content: ""; }
+    .hero-divider span { width: 7px; height: 7px; transform: rotate(45deg); background: #c3a65e; }
+    .welcome-message { margin: 0; color: #294838; font-size: clamp(1.1rem, 3vw, 1.55rem); font-weight: 650; }
+    .hero-note { margin: .65rem 0 0; color: #89978e; font-size: .9rem; }
+    .hero-footer { position: absolute; bottom: 1.5rem; display: flex; align-items: center; gap: .7rem; color: #9aa69e; font-size: .62rem; font-weight: 700; letter-spacing: .2em; }
+    .footer-mark { width: 18px; height: 2px; background: linear-gradient(90deg, #08764a 50%, #c9343c 50%); }
+
+    @@keyframes welcome-rise {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @@media (max-width: 640px) {
+        .home-hero { min-height: calc(100vh - 120px); margin-right: -1rem; margin-left: -1rem; padding: 2rem 1rem; }
+        .welcome-card { padding: 2.25rem 1.35rem; border-radius: 22px; }
+        .club-emblem { width: 118px; margin-bottom: 1.4rem; }
+        .hero-eyebrow { font-size: .55rem; letter-spacing: .12em; }
+        .hero-eyebrow span { width: 14px; }
+        .hero-footer { bottom: .8rem; font-size: .54rem; }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .welcome-card { animation: none; }
+    }
+</style>

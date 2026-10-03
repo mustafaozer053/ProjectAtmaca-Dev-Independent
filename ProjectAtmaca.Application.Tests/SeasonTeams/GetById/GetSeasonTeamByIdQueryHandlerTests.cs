@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 
+using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.AtmacaCards;
 using ProjectAtmaca.Application.SeasonTeams;
@@ -56,7 +57,9 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
                     activeCard.Value,
                     Guid.NewGuid(),
                     "Mert Yılmaz",
-                    "000124")));
+                    "000124",
+                    true)),
+            new FakeSeasonPeriodReader(new DateTime(2020, 1, 1), new DateTime(2099, 6, 30)));
 
         Result<SeasonTeamDetails> result = await handler.Handle(
             new GetSeasonTeamByIdQuery(seasonTeam.SeasonTeamId),
@@ -92,7 +95,8 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
         var handler = new GetSeasonTeamByIdQueryHandler(
             new GrantedAuthorizationService(),
             new FakeSeasonTeamRepository(null),
-            new FakeAtmacaCardReader());
+            new FakeAtmacaCardReader(),
+            new FakeSeasonPeriodReader(new DateTime(2020, 1, 1), new DateTime(2099, 6, 30)));
 
         Result<SeasonTeamDetails> result = await handler.Handle(
             new GetSeasonTeamByIdQuery(SeasonTeamId.New()),
@@ -108,7 +112,8 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
         var handler = new GetSeasonTeamByIdQueryHandler(
             new DenyingAuthorizationService(),
             repository,
-            new FakeAtmacaCardReader());
+            new FakeAtmacaCardReader(),
+            new FakeSeasonPeriodReader(new DateTime(2020, 1, 1), new DateTime(2099, 6, 30)));
 
         Result<SeasonTeamDetails> result = await handler.Handle(
             new GetSeasonTeamByIdQuery(SeasonTeamId.New()),
@@ -116,6 +121,39 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
 
         result.Error.Should().Be(ActorAuthorizationErrors.Forbidden);
         repository.GetByIdCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldEndMembershipAndAssignmentsAtSeasonEnd()
+    {
+        SeasonTeam team = CreateSeasonTeam();
+        DateTime today = DateTime.UtcNow.Date;
+        AtmacaCardId cardId = AtmacaCardId.New();
+        team.AddMembership(cardId, AssignmentPeriod.Create(today.AddYears(-1)).Value!);
+        SeasonTeamMembership membership = team.Memberships.Single();
+        membership.AddAssignment(
+            SeasonTeamAssignmentKind.Duty,
+            Guid.NewGuid(),
+            "Takım Teknik Sorumlusu",
+            AssignmentPeriod.Create(today.AddMonths(-6)).Value!);
+        var seasonEnd = today.AddDays(-1);
+        var handler = new GetSeasonTeamByIdQueryHandler(
+            new GrantedAuthorizationService(),
+            new FakeSeasonTeamRepository(team),
+            new FakeAtmacaCardReader(),
+            new FakeSeasonPeriodReader(today.AddYears(-1), seasonEnd));
+
+        Result<SeasonTeamDetails> result = await handler.Handle(
+            new GetSeasonTeamByIdQuery(team.SeasonTeamId),
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        SeasonTeamMembershipDetails member = result.Value!.Memberships.Single();
+        member.IsActive.Should().BeFalse();
+        member.EndDate.Should().BeNull();
+        member.Assignments.Should().ContainSingle();
+        member.Assignments[0].IsActive.Should().BeFalse();
+        member.Assignments[0].EndDate.Should().Be(seasonEnd);
     }
 
     private static SeasonTeam CreateSeasonTeam() =>
@@ -178,6 +216,12 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
             _summaries = summaries;
         }
 
+        public Task<AtmacaCardSummary?> GetByPersonIdAsync(
+            Guid personId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<AtmacaCardSummary?>(_summaries.SingleOrDefault(
+                summary => summary.PersonId == personId));
+
         public Task<IReadOnlyList<AtmacaCardSummary>> ListAsync(
             int limit = 100,
             CancellationToken cancellationToken = default) =>
@@ -198,5 +242,14 @@ public sealed class GetSeasonTeamByIdQueryHandlerTests
             int limit = 20,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<AtmacaCardSummary>>([]);
+    }
+
+    private sealed class FakeSeasonPeriodReader(DateTime startDate, DateTime endDate)
+        : ISeasonPeriodReader
+    {
+        public Task<DateRange?> GetPeriodAsync(
+            Guid seasonId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<DateRange?>(DateRange.Create(startDate, endDate));
     }
 }

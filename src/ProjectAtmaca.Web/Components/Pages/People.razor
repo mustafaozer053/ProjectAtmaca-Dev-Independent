@@ -1,8 +1,12 @@
 @page "/people"
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Globalization
 @using ProjectAtmaca.Web.Services
 @inject PeopleApiClient Api
+@inject SeasonTeamsApiClient AssignmentApi
+@inject IJSRuntime JS
 
 <PageTitle>Kişiler | ProjectAtmaca</PageTitle>
 
@@ -27,6 +31,7 @@
         {
             <div class="people-empty">Kişiler yükleniyor...</div>
         }
+
         else if (errorMessage is not null)
         {
             <div class="error-banner">@errorMessage</div>
@@ -39,13 +44,14 @@
         {
             <div class="people-table-wrap">
                 <table class="people-table">
-                    <thead><tr><th>KİŞİ</th><th>ATMACACARD</th><th>KİŞİ ID</th></tr></thead>
+                    <thead><tr><th>KİŞİ</th><th>ATMACACARD</th><th>KART DURUMU</th><th>KİŞİ ID</th></tr></thead>
                     <tbody>
                         @foreach (var person in people)
                         {
-                            <tr class="people-row" @onclick="() => selectedPerson = person">
+                            <tr class="people-row" @onclick="() => OpenPersonAsync(person)">
                                 <td><strong>@person.FullName</strong></td>
                                 <td><span class="card-number">@person.CardNumber</span></td>
+                                <td><span class="card-status @(person.IsActive ? "active" : "inactive")">@(person.IsActive ? "Aktif" : "Pasif")</span></td>
                                 <td><small>@person.PersonId</small></td>
                             </tr>
                         }
@@ -61,17 +67,434 @@
             <aside class="people-detail" @onclick:stopPropagation>
                 <button class="close-button" @onclick="CloseDetails">×</button>
                 <div class="eyebrow">ATMACACARD DETAYI</div>
+                <div class="card-photo-panel">
+                    @if (photoDataUri is not null)
+                    {
+                        <img class="card-photo" src="@photoDataUri" alt="@selectedPerson.FullName fotoğrafı" />
+                    }
+                    else
+                    {
+                        <div class="card-photo-placeholder" aria-label="Fotoğraf eklenmemiş">
+                            @Initials(selectedPerson.FullName)
+                        </div>
+                    }
+                    <label class="btn btn-light photo-upload-button">
+                        @(isUploadingPhoto ? "Yükleniyor..." : photoDataUri is null ? "Fotoğraf ekle" : "Fotoğrafı değiştir")
+                        <InputFile @key="photoInputKey" OnChange="OnPhotoFileSelected" accept=".jpg,.jpeg,.png" disabled="@isUploadingPhoto" />
+                    </label>
+                    <small class="muted">JPEG veya PNG, en fazla 5 MB</small>
+                    @if (photoError is not null)
+                    {
+                        <div class="error-banner">@photoError</div>
+                    }
+                </div>
                 <h2>@selectedPerson.FullName</h2>
                 <span class="card-number">@selectedPerson.CardNumber</span>
+                <p class="muted">Kart durumu: <strong>@(selectedPerson.IsActive ? "Aktif" : "Pasif")</strong></p>
+                <p class="muted">Kartı pasifleştirmek kişi kaydını, sezon üyeliğini veya geçmiş katılım kayıtlarını silmez.</p>
+                <section class="sports-profile-section">
+                    <h3>Mesleki ünvanlar</h3>
+                    <p class="muted">Kişiye bağlıdır; kurum ve sezon görevlerinden bağımsızdır. Ünvan değişiklikleri tarihçede korunur.</p>
+                    @if (professionalTitleError is not null)
+                    {
+                        <div class="error-banner professional-title-error">@professionalTitleError</div>
+                    }
+                    @if (isLoadingProfessionalTitles)
+                    {
+                        <p class="muted">Ünvan geçmişi yükleniyor...</p>
+                    }
+                    else if (professionalTitles.Count > 0)
+                    {
+                        <div class="document-list">
+                            @foreach (var title in professionalTitles)
+                            {
+                                <div class="document-row professional-title-row">
+                                    <div>
+                                        <strong>@title.Title</strong>
+                                        <span>@FormatDate(title.StartedOn) – @(title.EndedOn.HasValue ? FormatDate(title.EndedOn.Value) : "Devam ediyor")</span>
+                                        @foreach (var evidenceDocumentId in title.EvidenceDocumentIds)
+                                        {
+                                            var linkedDocument = documents.SingleOrDefault(document => document.Id == evidenceDocumentId);
+                                            if (linkedDocument is not null)
+                                            {
+                                                <small>Belge: @linkedDocument.Title (@linkedDocument.OriginalFileName)</small>
+                                            }
+                                        }
+                                        @if (editingProfessionalTitleId == title.Id)
+                                        {
+                                            <div class="professional-title-edit-form">
+                                                <label class="field">Ünvan
+                                                    <input class="form-input" @bind="professionalTitleEditName" maxlength="150" />
+                                                </label>
+                                                <label class="field">Başlangıç tarihi
+                                                    <input type="date" class="form-input" @bind="professionalTitleEditStartedOn" />
+                                                </label>
+                                                <div class="professional-title-edit-actions">
+                                                    <button class="text-button professional-title-link-button" @onclick="() => SaveProfessionalTitleEditAsync(title)" disabled="@isSavingProfessionalTitle">Değişiklikleri kaydet</button>
+                                                    <button class="text-button" @onclick="CancelProfessionalTitleEdit" disabled="@isSavingProfessionalTitle">Vazgeç</button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="professional-title-actions">
+                                        @if (documents.Any(document => !title.EvidenceDocumentIds.Contains(document.Id)))
+                                        {
+                                            <select class="form-input"
+                                                    value="@GetSelectedEvidenceDocumentId(title.Id)"
+                                                    @onchange="args => SetSelectedEvidenceDocumentId(title.Id, args)">
+                                                <option value="">Belge seçin</option>
+                                                @foreach (var document in documents.Where(document => !title.EvidenceDocumentIds.Contains(document.Id)))
+                                                {
+                                                    <option value="@document.Id">@document.Title — @document.OriginalFileName</option>
+                                                }
+                                            </select>
+                                            <button class="text-button professional-title-link-button" @onclick="() => LinkDocumentToProfessionalTitleAsync(title)" disabled="@(isSavingProfessionalTitle || string.IsNullOrWhiteSpace(GetSelectedEvidenceDocumentId(title.Id)))">Belge bağla</button>
+                                        }
+                                        <button class="text-button professional-title-edit-button" @onclick="() => BeginProfessionalTitleEdit(title)" disabled="@(isSavingProfessionalTitle || title.EndedOn.HasValue)" title="@(title.EndedOn.HasValue ? "Geçmiş ünvanlar düzenlenemez." : "Ünvanı düzenle")">Düzenle</button>
+                                        <button class="text-button professional-title-delete-button" @onclick="() => RemoveProfessionalTitleAsync(title)" disabled="@(isSavingProfessionalTitle || title.EndedOn.HasValue || title.EvidenceDocumentIds.Count > 0)" title="@(title.EndedOn.HasValue ? "Geçmiş ünvanlar silinemez." : title.EvidenceDocumentIds.Count > 0 ? "Belge bağlı olduğu için silinemez." : "Ünvanı sil")">Sil</button>
+                                        @if (!title.EndedOn.HasValue)
+                                        {
+                                            <button class="text-button professional-title-end-button" @onclick="() => EndProfessionalTitleAsync(title)" disabled="@isSavingProfessionalTitle">Ünvanı sonlandır</button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="muted">Henüz mesleki ünvan kaydı yok.</p>
+                    }
+                    <div class="sports-profile-form">
+                        <label class="field">Mesleki ünvan
+                            <input class="form-input" @bind="professionalTitleInput" maxlength="150" placeholder="Kişinin profesyonel ünvanı" />
+                        </label>
+                        <label class="field">Başlangıç tarihi
+                            <input type="date" class="form-input" @bind="professionalTitleStartedOn" />
+                        </label>
+                        <button class="btn btn-light full-width" @onclick="AddProfessionalTitleAsync" disabled="@isSavingProfessionalTitle">
+                            @(isSavingProfessionalTitle ? "Kaydediliyor..." : "Ünvan ekle")
+                        </button>
+                    </div>
+                </section>
+                <section class="sports-profile-section">
+                    <h3>Kurum görevleri</h3>
+                    <p class="muted">Kurum görevi sezonlardan bağımsızdır. Takım görevleri ise Kadro ekranında ilgili sezon takımına atanır.</p>
+                    @if (organizationDutyError is not null)
+                    {
+                        <div class="error-banner professional-title-error">@organizationDutyError</div>
+                    }
+                    @if (isLoadingOrganizations)
+                    {
+                        <p class="muted">Kurumlar yükleniyor...</p>
+                    }
+                    else if (organizations.Count == 0)
+                    {
+                        <p class="muted">Aktif kurum bulunamadı.</p>
+                    }
+                    else
+                    {
+                        <label class="field">Kurum
+                            <select class="form-input" value="@selectedOrganizationId" @onchange="OnOrganizationDutyOrganizationChanged">
+                                <option value="">Kurum seçin</option>
+                                @foreach (var organization in organizations)
+                                {
+                                    <option value="@organization.Id">@OrganizationDisplayName(organization)</option>
+                                }
+                            </select>
+                        </label>
+                        @if (Guid.TryParse(selectedOrganizationId, out _))
+                        {
+                            @if (isLoadingOrganizationDuties)
+                            {
+                                <p class="muted">Kurum görevleri yükleniyor...</p>
+                            }
+                            else if (organizationDutyAssignments.Count == 0)
+                            {
+                                <p class="muted">Bu kişiye bu kurumda henüz görev atanmamış.</p>
+                            }
+                            <div class="document-list">
+                                @foreach (var duty in organizationDutyAssignments)
+                                {
+                                    <div class="document-row">
+                                        <div>
+                                            <strong>@duty.Title</strong>
+                                            <span>@FormatDate(DateOnly.FromDateTime(duty.StartDate)) – @(duty.EndDate.HasValue ? FormatDate(DateOnly.FromDateTime(duty.EndDate.Value)) : "Devam ediyor")</span>
+                                        </div>
+                                        @if (!duty.EndDate.HasValue && duty.StartDate.Date <= DateTime.Today)
+                                        {
+                                            <button class="btn btn-light" @onclick="() => EndOrganizationDutyAsync(duty)" disabled="@isSavingOrganizationDuty">Sonlandır</button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            <div class="sports-profile-form">
+                                <label class="field">Görev adı
+                                    <input class="form-input" @bind="organizationDutyTitle" list="organization-duty-title-suggestions" maxlength="150" placeholder="Görev adını yazın veya seçin" />
+                                </label>
+                                <label class="field">Başlangıç tarihi
+                                    <input type="date" class="form-input" @bind="organizationDutyStartDate" />
+                                </label>
+                                <button class="btn btn-light full-width" @onclick="AddOrganizationDutyAsync" disabled="@isSavingOrganizationDuty">
+                                    @(isSavingOrganizationDuty ? "Kaydediliyor..." : "Kurum görevini ekle")
+                                </button>
+                            </div>
+                        }
+                    }
+                </section>
+                @if (statusError is not null)
+                {
+                    <div class="error-banner">@statusError</div>
+                }
+                <section class="sports-profile-section">
+                    <h3>Eğitim bilgileri</h3>
+                    <div class="sports-profile-form">
+                        <label class="field">Şu anda okula devam ediyor mu?
+                            <select class="form-input" value="@schoolAttendanceSelection" @onchange="OnSchoolAttendanceChanged">
+                                <option value="no">Hayır</option>
+                                <option value="yes">Evet</option>
+                            </select>
+                        </label>
+                        @if (schoolAttendanceSelection == "yes")
+                        {
+                            <label class="field">Okul
+                                <input class="form-input" @bind="schoolName" maxlength="150" />
+                            </label>
+                            <label class="field">Sınıf
+                                <input class="form-input" @bind="schoolGrade" placeholder="Ör. 8. sınıf" maxlength="50" />
+                            </label>
+                            <label class="field">Okul numarası
+                                <input class="form-input" @bind="schoolNumber" maxlength="30" />
+                            </label>
+                        }
+                        @if (educationError is not null)
+                        {
+                            <div class="error-banner">@educationError</div>
+                        }
+                        <button class="btn btn-light full-width" @onclick="SaveEducationAsync" disabled="@isSavingEducation">
+                            @(isSavingEducation ? "Kaydediliyor..." : "Eğitim bilgilerini kaydet")
+                        </button>
+                    </div>
+                </section>
+                <section class="sports-profile-section">
+                    <h3>Sertifika ve diploma belgeleri</h3>
+                    <p class="muted">Dosyalar yapılandırılmış harici disk/NAS depolama alanında tutulur; veritabanında yalnızca belge bilgileri ve depolama anahtarı saklanır. PDF, JPEG veya PNG; en fazla 10 MB.</p>
+                    @if (isLoadingDocuments)
+                    {
+                        <p class="muted">Belgeler yükleniyor...</p>
+                    }
+                    else if (documents.Count > 0)
+                    {
+                        <div class="document-list">
+                            @foreach (var document in documents)
+                            {
+                                <div class="document-row">
+                                    <div>
+                                        <strong>@(document.DocumentType == 1 ? "Sertifika" : "Diploma"): @document.Title</strong>
+                                        <span>@(document.Issuer ?? "Veren kurum belirtilmedi") · @FormatDate(document.IssuedOn)</span>
+                                        <small>@document.OriginalFileName · @FormatFileSize(document.FileSizeBytes)</small>
+                                    </div>
+                                    <button class="text-button" @onclick="() => DownloadDocumentAsync(document)" disabled="@isDownloadingDocument">İndir</button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="muted">Henüz sertifika veya diploma eklenmemiş.</p>
+                    }
+                    <div class="sports-profile-form">
+                        <label class="field">Belge türü
+                            <select class="form-input" @bind="documentType">
+                                <option value="1">Sertifika</option>
+                                <option value="2">Diploma</option>
+                            </select>
+                        </label>
+                        <label class="field">Belge adı
+                            <input class="form-input" @bind="documentTitle" maxlength="150" placeholder="Ör. UEFA C Antrenörlük Sertifikası" />
+                        </label>
+                        <label class="field">Veren kurum
+                            <input class="form-input" @bind="documentIssuer" maxlength="150" />
+                        </label>
+                        <label class="field">Veriliş tarihi
+                            <input type="date" class="form-input" @bind="documentIssuedOn" />
+                        </label>
+                        <label class="field">Dosya
+                            <InputFile @key="documentInputKey" class="form-input" OnChange="OnDocumentFileSelected" accept=".pdf,.jpg,.jpeg,.png" />
+                            @if (selectedDocumentFile is not null)
+                            {
+                                <span class="muted">@selectedDocumentFile.Name (@FormatFileSize(selectedDocumentFile.Size))</span>
+                            }
+                        </label>
+                        @if (documentError is not null)
+                        {
+                            <div class="error-banner">@documentError</div>
+                        }
+                        <button class="btn btn-light full-width" @onclick="UploadDocumentAsync" disabled="@isUploadingDocument">
+                            @(isUploadingDocument ? "Yükleniyor..." : "Belgeyi kaydet")
+                        </button>
+                    </div>
+                </section>
+                <section class="sports-profile-section">
+                    <h3>Sporcu branş profilleri</h3>
+                    <p class="muted">Branşa ait lisans ve sporcu bilgileri burada tutulur; sezon takımındaki görev ve rollerden ayrıdır.</p>
+                    @if (isLoadingProfiles)
+                    {
+                        <p class="muted">Branş profilleri yükleniyor...</p>
+                    }
+                    else if (sportsProfiles.Count > 0)
+                    {
+                        @foreach (var profile in sportsProfiles)
+                        {
+                            <div class="sports-profile-summary">
+                                <strong>@profile.SportName</strong>
+                                <span>Mevkiler: @(profile.Positions.Count == 0 ? "Belirtilmedi" : string.Join(", ", profile.Positions.Select(position => position.Name)))</span>
+                                <span>Lisans: @(profile.LicenseNumber ?? "Belirtilmedi")</span>
+                                <span>Branşa başlama: @FormatDate(profile.StartedSportOn)</span>
+                                <span>Kulübe tescil: @FormatDate(profile.ClubRegisteredOn)</span>
+                                <span>Düzey: @CompetitionLevelName(profile.CompetitionLevel)</span>
+                                <span>Milli sporcu: @NationalAthleteName(profile.IsNationalAthlete)</span>
+                                <button class="text-button" @onclick="() => EditSportsProfileAsync(profile)">Bu bilgileri düzenle</button>
+                            </div>
+                        }
+                    }
+                    <div class="sports-profile-form">
+                        <label class="field">Spor branşı
+                            <input class="form-input" @bind="sportsProfileSportName" @bind:after="LoadPositionsAsync" placeholder="Ör. Futbol" maxlength="80" />
+                        </label>
+                        @if (sportsProfileSportName.Trim().Length >= 2)
+                        {
+                            <div class="position-picker">
+                                <strong>Bu branşın mevkileri</strong>
+                                @if (isLoadingPositions)
+                                {
+                                    <span class="muted">Mevkiler yükleniyor...</span>
+                                }
+                                else if (positions.Count == 0)
+                                {
+                                    <span class="muted">Bu branş için henüz mevki tanımlanmamış.</span>
+                                }
+                                @foreach (var position in positions)
+                                {
+                                    <div class="position-option">
+                                        <label>
+                                            <input type="checkbox" checked="@selectedPositionIds.Contains(position.Id)" disabled="@(!position.IsActive)" @onchange="args => TogglePosition(position.Id, args)" />
+                                            <span>@position.Name (@position.Code)@(position.IsActive ? string.Empty : " — Pasif")</span>
+                                        </label>
+                                        <button type="button" class="text-button" @onclick="() => ChangePositionStatusAsync(position, !position.IsActive)">@(position.IsActive ? "Pasifleştir" : "Aktifleştir")</button>
+                                    </div>
+                                }
+                                <div class="position-create-form">
+                                    <input class="form-input" @bind="newPositionCode" placeholder="Mevki kodu" maxlength="30" aria-label="Yeni mevki kodu" />
+                                    <input class="form-input" @bind="newPositionName" placeholder="Mevki adı" maxlength="100" aria-label="Yeni mevki adı" />
+                                    <button type="button" class="btn btn-light" @onclick="CreatePositionAsync" disabled="@isSavingPosition">@(isSavingPosition ? "Ekleniyor..." : "Mevki ekle")</button>
+                                </div>
+                                @if (positionError is not null)
+                                {
+                                    <div class="error-banner">@positionError</div>
+                                }
+                            </div>
+                        }
+                        <label class="field">Lisans numarası
+                            <input class="form-input" @bind="sportsProfileLicenseNumber" maxlength="100" />
+                        </label>
+                        <label class="field">Branşa başlama tarihi
+                            <input type="date" class="form-input" @bind="sportsProfileStartedOn" />
+                        </label>
+                        <label class="field">Kulübe tescil tarihi
+                            <input type="date" class="form-input" @bind="sportsProfileClubRegisteredOn" />
+                        </label>
+                        <label class="field">Amatör / profesyonel
+                            <select class="form-input" @bind="sportsProfileCompetitionLevel">
+                                <option value="">Belirtilmedi</option>
+                                <option value="1">Amatör</option>
+                                <option value="2">Profesyonel</option>
+                            </select>
+                        </label>
+                        <label class="field">Milli sporcu durumu
+                            <select class="form-input" @bind="sportsProfileNationalStatus">
+                                <option value="">Bilinmiyor</option>
+                                <option value="true">Evet</option>
+                                <option value="false">Hayır</option>
+                            </select>
+                        </label>
+                        @if (sportsProfileError is not null)
+                        {
+                            <div class="error-banner">@sportsProfileError</div>
+                        }
+                        <button class="btn btn-light full-width" @onclick="SaveSportsProfileAsync" disabled="@isSavingSportsProfile">
+                            @(isSavingSportsProfile ? "Kaydediliyor..." : "Branş profilini kaydet")
+                        </button>
+                    </div>
+                </section>
+                <section class="sports-profile-section">
+                    <h3>Boy-kilo ölçüm geçmişi</h3>
+                    <p class="muted">Her ölçüm tarihçeye eklenir; önceki değerlerin üzerine yazılmaz.</p>
+                    @if (isLoadingMeasurements)
+                    {
+                        <p class="muted">Ölçüm geçmişi yükleniyor...</p>
+                    }
+                    else if (measurements.Count > 0)
+                    {
+                        <div class="measurement-list">
+                            @foreach (var measurement in measurements)
+                            {
+                                <div class="measurement-row">
+                                    <strong>@FormatDate(measurement.MeasuredOn)</strong>
+                                    <span>Boy: @FormatMeasurement(measurement.HeightCentimeters, "cm")</span>
+                                    <span>Kilo: @FormatMeasurement(measurement.WeightKilograms, "kg")</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="muted">Henüz ölçüm kaydı yok.</p>
+                    }
+                    <div class="sports-profile-form">
+                        <label class="field">Ölçüm tarihi
+                            <span class="measurement-date-entry">
+                                <input type="text" class="form-input" @bind="measurementDateInput" @bind:event="oninput" placeholder="gg.aa.yyyy" inputmode="numeric" />
+                                <span class="measurement-calendar-picker">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg>
+                                    <input type="date" value="@measurementCalendarDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" @onchange="OnMeasurementCalendarDateChanged" max="@DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd")" aria-label="Takvimden tarih seç" />
+                                </span>
+                            </span>
+                        </label>
+                        <label class="field">Boy (cm)
+                            <input type="number" class="form-input" @bind="measurementHeight" step="0.01" min="30" max="250" />
+                        </label>
+                        <label class="field">Kilo (kg)
+                            <input type="number" class="form-input" @bind="measurementWeight" step="0.01" min="1" max="300" />
+                        </label>
+                        @if (measurementError is not null)
+                        {
+                            <div class="error-banner">@measurementError</div>
+                        }
+                        <button class="btn btn-light full-width" @onclick="RecordMeasurementAsync" disabled="@isRecordingMeasurement">
+                            @(isRecordingMeasurement ? "Kaydediliyor..." : "Ölçümü geçmişe ekle")
+                        </button>
+                    </div>
+                </section>
                 <div class="detail-list">
                     <div><small>AtmacaCard ID</small><strong>@selectedPerson.AtmacaCardId</strong></div>
                     <div><small>Kişi ID</small><strong>@selectedPerson.PersonId</strong></div>
                 </div>
-                <button class="btn btn-primary full-width" @onclick="CloseDetails">Kapat</button>
+                <button class="btn btn-primary full-width" @onclick="ChangeStatusAsync" disabled="@isChangingStatus">
+                    @(isChangingStatus ? "Güncelleniyor..." : selectedPerson.IsActive ? "Kartı pasifleştir" : "Kartı aktifleştir")
+                </button>
+                <button class="btn btn-light full-width" @onclick="CloseDetails">Kapat</button>
             </aside>
         </div>
     }
 </div>
+
+<datalist id="organization-duty-title-suggestions">
+    @foreach (var title in OrganizationDutyTitleSuggestions.Values)
+    {
+        <option value="@title"></option>
+    }
+</datalist>
 
 <style>
     .people-page { max-width: 1200px; margin: 0 auto; color: #19243a; }
@@ -80,7 +503,16 @@
     .btn { border:0; border-radius:8px; padding:.7rem 1rem; font-weight:650; cursor:pointer; text-decoration:none; font-size:.88rem; }.btn-primary { background:#4058d6; color:white; }.btn-light { background:#f3f5fa; color:#46536b; }
     .people-card { background:#fff; border:1px solid #e8ebf2; border-radius:12px; box-shadow:0 5px 18px #273b6810; overflow:hidden; }.people-toolbar { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1.25rem 1.4rem; border-bottom:1px solid #edf0f5; color:#77849a; font-size:.8rem; }.people-toolbar strong { color:#19243a; font-size:1.1rem; }
     .people-search { display:flex; gap:.5rem; }.people-search input { width:260px; border:1px solid #e1e5ee; border-radius:8px; padding:.7rem; outline:0; }.people-table-wrap { overflow-x:auto; }.people-table { width:100%; border-collapse:collapse; }.people-table th { text-align:left; color:#98a2b4; font-size:.67rem; letter-spacing:.08em; padding:.9rem 1.4rem; background:#fafbfc; }.people-table td { padding:1rem 1.4rem; border-top:1px solid #f0f2f6; }.people-table small { color:#8a95aa; font-family:monospace; }.card-number { color:#4058d6; font-weight:700; font-size:.82rem; }.people-empty { padding:3rem; text-align:center; color:#8a95aa; }.error-banner { margin:1rem; padding:.8rem; border-radius:8px; background:#fff1f1; color:#b45757; }
-    .people-row { cursor:pointer; }.people-row:hover { background:#f8f9ff; }.people-overlay { position:fixed; inset:0; z-index:10; display:flex; justify-content:flex-end; background:#17223a55; }.people-detail { position:relative; width:min(410px,100%); height:100%; overflow:auto; padding:2rem; background:#fff; box-shadow:-8px 0 25px #17223a22; }.people-detail h2 { margin:.3rem 0 .5rem; font-size:1.5rem; }.close-button { position:absolute; right:1.3rem; top:1rem; border:0; background:transparent; font-size:1.7rem; color:#8994a8; cursor:pointer; }.detail-list { display:grid; gap:1rem; margin:2rem 0; border-top:1px solid #edf0f5; padding-top:1.2rem; }.detail-list div { display:grid; gap:.3rem; }.detail-list small { color:#8994a8; text-transform:uppercase; letter-spacing:.06em; font-size:.65rem; }.detail-list strong { font-family:monospace; font-size:.72rem; font-weight:500; overflow-wrap:anywhere; }.full-width { width:100%; }
+    .people-row { cursor:pointer; }.people-row:hover { background:#f8f9ff; }    .people-overlay { position:fixed; inset:0; z-index:10; display:flex; justify-content:flex-end; background:#17223a55; }.people-detail { position:relative; box-sizing:border-box; width:min(410px,100%); height:100%; overflow:auto; padding:2rem; background:#fff; box-shadow:-8px 0 25px #17223a22; }.people-detail h2 { margin:.3rem 0 .5rem; font-size:1.5rem; }.close-button { position:absolute; right:1.3rem; top:1rem; border:0; background:transparent; font-size:1.7rem; color:#8994a8; cursor:pointer; }.detail-list { display:grid; gap:1rem; margin:2rem 0; border-top:1px solid #edf0f5; padding-top:1.2rem; }.detail-list div { display:grid; gap:.3rem; }.detail-list small { color:#8994a8; text-transform:uppercase; letter-spacing:.06em; font-size:.65rem; }.detail-list strong { font-family:monospace; font-size:.72rem; font-weight:500; overflow-wrap:anywhere; }.full-width { width:100%; }
+    .card-status { display:inline-block; border-radius:999px; padding:.25rem .55rem; font-size:.72rem; font-weight:700; }.card-status.active { background:#e8f7ef; color:#27804b; }.card-status.inactive { background:#f1f2f5; color:#667085; }.people-detail .full-width { margin-top:.6rem; }
+    .sports-profile-section { margin:1.5rem 0; padding:1rem 0; border-top:1px solid #edf0f5; }.sports-profile-section h3 { margin:0; font-size:1rem; }.sports-profile-section .muted { font-size:.78rem; line-height:1.5; }.sports-profile-summary { display:grid; gap:.3rem; margin-top:.8rem; padding:.8rem; background:#f8f9fc; border-radius:8px; color:#69758b; font-size:.75rem; }.sports-profile-summary strong { color:#26334a; font-size:.85rem; }.sports-profile-form { display:grid; gap:.8rem; margin-top:1rem; }.sports-profile-form .field { display:grid; gap:.35rem; color:#56647b; font-size:.78rem; font-weight:650; }.sports-profile-form .form-input { width:100%; box-sizing:border-box; border:1px solid #e1e5ee; border-radius:8px; padding:.65rem; }
+    .sports-profile-summary .text-button { justify-self:start; margin-top:.3rem; }
+    .measurement-list { display:grid; gap:.5rem; margin-top:.8rem; }.measurement-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.4rem; align-items:center; padding:.7rem; background:#f8f9fc; border-radius:8px; color:#69758b; font-size:.72rem; }.measurement-row strong { color:#26334a; }
+    .measurement-date-entry { display:flex; gap:.45rem; }.measurement-date-entry > .form-input { flex:1; min-width:0; }.measurement-calendar-picker { position:relative; display:grid; place-items:center; flex:0 0 42px; border:1px solid #e1e5ee; border-radius:8px; background:#f3f5fa; color:#46536b; }.measurement-calendar-picker svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }.measurement-calendar-picker input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+    .position-picker { display:grid; gap:.55rem; padding:.8rem; border:1px solid #edf0f5; border-radius:8px; }.position-picker > strong { color:#56647b; font-size:.78rem; }.position-option { display:flex; align-items:center; gap:.5rem; color:#56647b; font-size:.78rem; }.position-option label { display:flex; align-items:center; gap:.5rem; }.position-option input { margin:0; }.position-option .text-button { margin-left:auto; }.position-create-form { display:grid; grid-template-columns:1fr 1.5fr auto; gap:.4rem; margin-top:.2rem; }.position-create-form .form-input { min-width:0; border:1px solid #e1e5ee; border-radius:8px; padding:.6rem; }
+    .document-list { display:grid; gap:.5rem; margin-top:.8rem; }.document-row { display:flex; justify-content:space-between; align-items:center; gap:.75rem; padding:.75rem; background:#f8f9fc; border-radius:8px; }.document-row > div { display:grid; gap:.25rem; min-width:0; }.document-row strong { color:#26334a; font-size:.75rem; }.document-row span,.document-row small { color:#69758b; font-size:.7rem; overflow-wrap:anywhere; }.professional-title-error { margin: .75rem 0; }
+    .professional-title-row { display:grid; gap:.75rem; min-width:0; }.professional-title-row > div:first-child { min-width:0; }.professional-title-actions { display:grid; gap:.5rem; min-width:0; }.professional-title-actions .form-input { box-sizing:border-box; width:100%; min-width:0; margin:0; border:1px solid #cbd3e1; border-radius:7px; padding:.65rem .7rem; background:#fff; color:#26334a; font-size:.82rem; }.professional-title-actions .text-button { display:block; box-sizing:border-box; width:100%; margin:0; border:1px solid transparent; border-radius:7px; padding:.65rem .8rem; font-size:.8rem; font-weight:700; text-align:center; }.professional-title-link-button { background:#4058d6 !important; color:#fff !important; }.professional-title-end-button,.professional-title-delete-button { border-color:#f0caca !important; background:#fff7f7 !important; color:#a84848 !important; }.professional-title-edit-button { border-color:#cbd8f8 !important; background:#eef2ff !important; color:#344bb7 !important; }.professional-title-actions .text-button:disabled { cursor:not-allowed; opacity:.6; }.professional-title-edit-form { display:grid; gap:.55rem; margin-top:.5rem; padding:.7rem; border:1px solid #dfe5f1; border-radius:8px; background:#fff; }.professional-title-edit-form .field { display:grid; gap:.3rem; color:#56647b; font-size:.75rem; font-weight:650; }.professional-title-edit-form .form-input { box-sizing:border-box; width:100%; min-width:0; border:1px solid #cbd3e1; border-radius:7px; padding:.6rem; color:#26334a; }.professional-title-edit-actions { display:grid; gap:.4rem; }.professional-title-edit-actions .text-button { margin:0; border:1px solid #dfe5f1; border-radius:7px; padding:.55rem; background:#f7f8fb; color:#46536b; font-size:.75rem; font-weight:650; }
+    .card-photo-panel { display:grid; justify-items:center; gap:.45rem; margin:1rem 0; }.card-photo { width:116px; height:116px; border-radius:50%; object-fit:cover; border:3px solid #edf0f5; }.card-photo-placeholder { display:grid; place-items:center; width:116px; height:116px; border-radius:50%; background:#edf1ff; color:#4058d6; font-size:1.8rem; font-weight:700; }.photo-upload-button { position:relative; overflow:hidden; }.photo-upload-button input { position:absolute; inset:0; opacity:0; cursor:pointer; }.card-photo-panel .error-banner { margin:0; width:100%; box-sizing:border-box; }
     @@media(max-width:700px) { .people-header,.people-toolbar { flex-direction:column; align-items:stretch; }.people-search input { width:100%; } }
 </style>
 
@@ -89,7 +521,56 @@
     private AtmacaCardSummary? selectedPerson;
     private string searchTerm = string.Empty;
     private bool isLoading = true;
+    private bool isChangingStatus;
     private string? errorMessage;
+    private string? statusError;
+    private IReadOnlyList<AtmacaCardSportsProfileResponse> sportsProfiles = [];
+    private bool isLoadingProfiles;
+    private bool isSavingSportsProfile;
+    private string sportsProfileSportName = string.Empty;
+    private string? sportsProfileLicenseNumber;
+    private DateOnly? sportsProfileStartedOn;
+    private DateOnly? sportsProfileClubRegisteredOn;
+    private int? sportsProfileCompetitionLevel;
+    private string sportsProfileNationalStatus = string.Empty;
+    private string? sportsProfileError;
+    private IReadOnlyList<PositionCatalogItem> positions = [];
+    private readonly HashSet<Guid> selectedPositionIds = [];
+    private bool isLoadingPositions;
+    private bool isSavingPosition;
+    private string newPositionCode = string.Empty;
+    private string newPositionName = string.Empty;
+    private string? positionError;
+    private IReadOnlyList<AtmacaCardMeasurementResponse> measurements = [];
+    private bool isLoadingMeasurements;
+    private bool isRecordingMeasurement;
+    private string measurementDateInput = DateOnly.FromDateTime(DateTime.Today).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+    private DateOnly measurementCalendarDate = DateOnly.FromDateTime(DateTime.Today);
+    private decimal? measurementHeight;
+    private decimal? measurementWeight;
+    private string? measurementError;
+    private string schoolAttendanceSelection = "no";
+    private string? schoolName;
+    private string? schoolGrade;
+    private string? schoolNumber;
+    private bool isSavingEducation;
+    private string? educationError;
+    private IReadOnlyList<AtmacaCardDocumentResponse> documents = [];
+    private bool isLoadingDocuments;
+    private bool isUploadingDocument;
+    private bool isDownloadingDocument;
+    private int documentType = 1;
+    private string documentTitle = string.Empty;
+    private string? documentIssuer;
+    private DateOnly? documentIssuedOn;
+    private IBrowserFile? selectedDocumentFile;
+    private Guid documentInputKey = Guid.NewGuid();
+    private string? documentError;
+    private string? photoDataUri;
+    private bool isUploadingPhoto;
+    private IBrowserFile? selectedPhotoFile;
+    private Guid photoInputKey = Guid.NewGuid();
+    private string? photoError;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -117,5 +598,892 @@
         }
     }
 
-    private void CloseDetails() => selectedPerson = null;
+    private async Task ChangeStatusAsync()
+    {
+        if (selectedPerson is null)
+            return;
+
+        isChangingStatus = true;
+        statusError = null;
+        try
+        {
+            await Api.ChangeCardStatusAsync(
+                selectedPerson.AtmacaCardId,
+                !selectedPerson.IsActive);
+            var cardId = selectedPerson.AtmacaCardId;
+            await LoadAsync();
+            selectedPerson = people.FirstOrDefault(x => x.AtmacaCardId == cardId);
+        }
+        catch (Exception ex)
+        {
+            statusError = $"Kart durumu güncellenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isChangingStatus = false;
+        }
+    }
+
+    private async Task OpenPersonAsync(AtmacaCardSummary person)
+    {
+        selectedPerson = person;
+        statusError = null;
+        professionalTitles = [];
+        professionalTitleInput = string.Empty;
+        professionalTitleStartedOn = DateOnly.FromDateTime(DateTime.Today);
+        professionalTitleError = null;
+        selectedEvidenceDocumentIds.Clear();
+        editingProfessionalTitleId = null;
+        sportsProfileError = null;
+        sportsProfiles = [];
+        measurements = [];
+        schoolAttendanceSelection = "no";
+        schoolName = null;
+        schoolGrade = null;
+        schoolNumber = null;
+        educationError = null;
+        documents = [];
+        selectedDocumentFile = null;
+        documentInputKey = Guid.NewGuid();
+        documentError = null;
+        photoDataUri = null;
+        selectedPhotoFile = null;
+        photoInputKey = Guid.NewGuid();
+        photoError = null;
+        isLoadingProfessionalTitles = true;
+        isLoadingOrganizations = true;
+        selectedOrganizationId = string.Empty;
+        organizations = [];
+        organizationDutyAssignments = [];
+        organizationDutyTitle = string.Empty;
+        organizationDutyStartDate = DateTime.Today;
+        organizationDutyError = null;
+        sportsProfileSportName = string.Empty;
+        sportsProfileLicenseNumber = null;
+        sportsProfileStartedOn = null;
+        sportsProfileClubRegisteredOn = null;
+        sportsProfileCompetitionLevel = null;
+        sportsProfileNationalStatus = string.Empty;
+        isLoadingProfiles = true;
+        isLoadingMeasurements = true;
+        try
+        {
+            sportsProfiles = await Api.GetSportsProfilesAsync(person.AtmacaCardId);
+        }
+        catch (Exception ex)
+        {
+            sportsProfileError = $"Branş profilleri yüklenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingProfiles = false;
+        }
+        try
+        {
+            measurements = await Api.GetMeasurementsAsync(person.AtmacaCardId);
+        }
+        catch (Exception ex)
+        {
+            measurementError = $"Ölçüm geçmişi yüklenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingMeasurements = false;
+        }
+        try
+        {
+            var education = await Api.GetEducationAsync(person.AtmacaCardId);
+            schoolAttendanceSelection = education.IsCurrentlyStudying ? "yes" : "no";
+            schoolName = education.SchoolName;
+            schoolGrade = education.SchoolGrade;
+            schoolNumber = education.SchoolNumber;
+        }
+        catch (Exception ex)
+        {
+            educationError = $"Eğitim bilgileri yüklenirken bir sorun oluştu: {ex.Message}";
+        }
+        isLoadingDocuments = true;
+        try
+        {
+            documents = await Api.GetDocumentsAsync(person.AtmacaCardId);
+        }
+        catch (Exception ex)
+        {
+            documentError = $"Belgeler yüklenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingDocuments = false;
+        }
+        try
+        {
+            photoDataUri = await Api.GetPhotoDataUriAsync(person.AtmacaCardId);
+        }
+        catch (Exception ex)
+        {
+            photoError = $"Kart fotoğrafı yüklenemedi: {ex.Message}";
+        }
+        try
+        {
+            professionalTitles = await Api.GetProfessionalTitlesAsync(person.PersonId);
+        }
+        catch (Exception ex)
+        {
+            professionalTitleError = $"Mesleki ünvanlar yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingProfessionalTitles = false;
+        }
+        try
+        {
+            organizations = await AssignmentApi.GetCatalogAsync("organizations");
+        }
+        catch (Exception ex)
+        {
+            organizationDutyError = $"Kurumlar yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingOrganizations = false;
+        }
+    }
+
+    private async Task OnOrganizationDutyOrganizationChanged(ChangeEventArgs args)
+    {
+        selectedOrganizationId = args.Value?.ToString() ?? string.Empty;
+        organizationDutyError = null;
+        organizationDutyAssignments = [];
+        if (Guid.TryParse(selectedOrganizationId, out _))
+            await LoadOrganizationDutyAssignmentsAsync();
+    }
+
+    private async Task LoadOrganizationDutyAssignmentsAsync()
+    {
+        if (selectedPerson is null ||
+            !Guid.TryParse(selectedOrganizationId, out var organizationId))
+            return;
+
+        isLoadingOrganizationDuties = true;
+        try
+        {
+            organizationDutyAssignments = await AssignmentApi.GetOrganizationDutyAssignmentsAsync(
+                organizationId,
+                selectedPerson.AtmacaCardId);
+        }
+        catch (Exception ex)
+        {
+            organizationDutyError = $"Kurum görevleri yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingOrganizationDuties = false;
+        }
+    }
+
+    private async Task AddOrganizationDutyAsync()
+    {
+        if (selectedPerson is null)
+            return;
+        if (!Guid.TryParse(selectedOrganizationId, out var organizationId))
+        {
+            organizationDutyError = "Önce kurum seçin.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(organizationDutyTitle))
+        {
+            organizationDutyError = "Görev adı gereklidir.";
+            return;
+        }
+
+        isSavingOrganizationDuty = true;
+        organizationDutyError = null;
+        try
+        {
+            var result = await AssignmentApi.AddOrganizationDutyAssignmentAsync(
+                organizationId,
+                selectedPerson.AtmacaCardId,
+                organizationDutyTitle.Trim(),
+                organizationDutyStartDate.Date);
+            if (!result.Succeeded)
+            {
+                organizationDutyError = $"Kurum görevi eklenemedi: {result.ErrorMessage}";
+                return;
+            }
+
+            organizationDutyTitle = string.Empty;
+            await LoadOrganizationDutyAssignmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            organizationDutyError = $"Kurum görevi eklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isSavingOrganizationDuty = false;
+        }
+    }
+
+    private async Task EndOrganizationDutyAsync(OrganizationDutyAssignmentResponse duty)
+    {
+        if (selectedPerson is null ||
+            !Guid.TryParse(selectedOrganizationId, out var organizationId))
+            return;
+
+        isSavingOrganizationDuty = true;
+        organizationDutyError = null;
+        try
+        {
+            var result = await AssignmentApi.EndOrganizationDutyAssignmentAsync(
+                organizationId,
+                selectedPerson.AtmacaCardId,
+                duty.Id,
+                DateTime.Today);
+            if (!result.Succeeded)
+            {
+                organizationDutyError = $"Kurum görevi sonlandırılamadı: {result.ErrorMessage}";
+                return;
+            }
+
+            await LoadOrganizationDutyAssignmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            organizationDutyError = $"Kurum görevi sonlandırılamadı: {ex.Message}";
+        }
+        finally
+        {
+            isSavingOrganizationDuty = false;
+        }
+    }
+
+    private async Task AddProfessionalTitleAsync()
+    {
+        if (selectedPerson is null)
+            return;
+        if (string.IsNullOrWhiteSpace(professionalTitleInput))
+        {
+            professionalTitleError = "Mesleki ünvan alanı gereklidir.";
+            return;
+        }
+
+        isSavingProfessionalTitle = true;
+        professionalTitleError = null;
+        try
+        {
+            await Api.AddProfessionalTitleAsync(
+                selectedPerson.PersonId,
+                professionalTitleInput.Trim(),
+                professionalTitleStartedOn);
+            professionalTitleInput = string.Empty;
+            professionalTitles = await Api.GetProfessionalTitlesAsync(selectedPerson.PersonId);
+        }
+        catch (Exception ex)
+        {
+            professionalTitleError = $"Mesleki ünvan kaydedilemedi: {ex.Message}";
+        }
+        finally
+        {
+            isSavingProfessionalTitle = false;
+        }
+    }
+
+    private async Task EndProfessionalTitleAsync(ProfessionalTitleResponse title)
+    {
+        if (selectedPerson is null)
+            return;
+
+        isSavingProfessionalTitle = true;
+        professionalTitleError = null;
+        try
+        {
+            await Api.EndProfessionalTitleAsync(
+                selectedPerson.PersonId,
+                title.Id,
+                DateOnly.FromDateTime(DateTime.Today));
+            professionalTitles = await Api.GetProfessionalTitlesAsync(selectedPerson.PersonId);
+        }
+        catch (Exception ex)
+        {
+            professionalTitleError = $"Mesleki ünvan sonlandırılamadı: {ex.Message}";
+        }
+        finally
+        {
+            isSavingProfessionalTitle = false;
+        }
+    }
+
+    private void BeginProfessionalTitleEdit(ProfessionalTitleResponse title)
+    {
+        editingProfessionalTitleId = title.Id;
+        professionalTitleEditName = title.Title;
+        professionalTitleEditStartedOn = title.StartedOn;
+        professionalTitleError = null;
+    }
+
+    private void CancelProfessionalTitleEdit()
+    {
+        editingProfessionalTitleId = null;
+        professionalTitleError = null;
+    }
+
+    private async Task SaveProfessionalTitleEditAsync(ProfessionalTitleResponse title)
+    {
+        if (selectedPerson is null)
+            return;
+        if (string.IsNullOrWhiteSpace(professionalTitleEditName))
+        {
+            professionalTitleError = "Mesleki ünvan alanı gereklidir.";
+            return;
+        }
+
+        isSavingProfessionalTitle = true;
+        professionalTitleError = null;
+        try
+        {
+            await Api.UpdateProfessionalTitleAsync(
+                selectedPerson.PersonId,
+                title.Id,
+                professionalTitleEditName.Trim(),
+                professionalTitleEditStartedOn);
+            professionalTitles = await Api.GetProfessionalTitlesAsync(selectedPerson.PersonId);
+            editingProfessionalTitleId = null;
+        }
+        catch (Exception ex)
+        {
+            professionalTitleError = $"Mesleki ünvan güncellenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isSavingProfessionalTitle = false;
+        }
+    }
+
+    private async Task RemoveProfessionalTitleAsync(ProfessionalTitleResponse title)
+    {
+        if (selectedPerson is null)
+            return;
+        bool confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"'{title.Title}' ünvanını silmek istiyor musunuz? Bu işlem yalnızca belge bağlanmamış aktif ünvanlar için kullanılabilir.");
+        if (!confirmed)
+            return;
+
+        isSavingProfessionalTitle = true;
+        professionalTitleError = null;
+        try
+        {
+            await Api.RemoveProfessionalTitleAsync(selectedPerson.PersonId, title.Id);
+            professionalTitles = await Api.GetProfessionalTitlesAsync(selectedPerson.PersonId);
+            if (editingProfessionalTitleId == title.Id)
+                editingProfessionalTitleId = null;
+        }
+        catch (Exception ex)
+        {
+            professionalTitleError = $"Mesleki ünvan silinemedi: {ex.Message}";
+        }
+        finally
+        {
+            isSavingProfessionalTitle = false;
+        }
+    }
+
+    private async Task LinkDocumentToProfessionalTitleAsync(ProfessionalTitleResponse title)
+    {
+        if (selectedPerson is null)
+            return;
+        if (!Guid.TryParse(GetSelectedEvidenceDocumentId(title.Id), out var documentId))
+        {
+            professionalTitleError = "Ünvana bağlamak için bir belge seçin.";
+            return;
+        }
+
+        isSavingProfessionalTitle = true;
+        professionalTitleError = null;
+        try
+        {
+            await Api.LinkProfessionalTitleDocumentAsync(
+                selectedPerson.PersonId,
+                title.Id,
+                documentId);
+            selectedEvidenceDocumentIds.Remove(title.Id);
+            professionalTitles = await Api.GetProfessionalTitlesAsync(selectedPerson.PersonId);
+        }
+        catch (Exception ex)
+        {
+            professionalTitleError = $"Belge ünvana bağlanamadı: {ex.Message}";
+        }
+        finally
+        {
+            isSavingProfessionalTitle = false;
+        }
+    }
+
+    private string GetSelectedEvidenceDocumentId(Guid titleId) =>
+        selectedEvidenceDocumentIds.TryGetValue(titleId, out var documentId)
+            ? documentId
+            : string.Empty;
+
+    private void SetSelectedEvidenceDocumentId(Guid titleId, ChangeEventArgs args)
+    {
+        selectedEvidenceDocumentIds[titleId] = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private async Task OnPhotoFileSelected(InputFileChangeEventArgs args)
+    {
+        if (selectedPerson is null)
+            return;
+
+        selectedPhotoFile = args.File;
+        isUploadingPhoto = true;
+        photoError = null;
+        try
+        {
+            await Api.SavePhotoAsync(selectedPerson.AtmacaCardId, selectedPhotoFile);
+            try
+            {
+                photoDataUri = await Api.GetPhotoDataUriAsync(selectedPerson.AtmacaCardId);
+                selectedPhotoFile = null;
+                photoInputKey = Guid.NewGuid();
+            }
+            catch (Exception ex)
+            {
+                photoError = $"Fotoğraf kaydedildi ancak görüntülenemedi: {ex.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            photoError = $"Fotoğraf kaydedilemedi: {ex.Message}";
+        }
+        finally
+        {
+            isUploadingPhoto = false;
+        }
+    }
+
+    private void OnDocumentFileSelected(InputFileChangeEventArgs args)
+    {
+        selectedDocumentFile = args.File;
+        documentError = null;
+    }
+
+    private async Task UploadDocumentAsync()
+    {
+        if (selectedPerson is null)
+            return;
+        if (string.IsNullOrWhiteSpace(documentTitle))
+        {
+            documentError = "Belge adı gereklidir.";
+            return;
+        }
+        if (selectedDocumentFile is null)
+        {
+            documentError = "Yüklenecek dosyayı seçin.";
+            return;
+        }
+
+        isUploadingDocument = true;
+        documentError = null;
+        try
+        {
+            await Api.UploadDocumentAsync(
+                selectedPerson.AtmacaCardId,
+                new PeopleApiClient.DocumentInput(
+                    documentType,
+                    documentTitle.Trim(),
+                    documentIssuer,
+                    documentIssuedOn),
+                selectedDocumentFile);
+            documentType = 1;
+            documentTitle = string.Empty;
+            documentIssuer = null;
+            documentIssuedOn = null;
+            selectedDocumentFile = null;
+            documentInputKey = Guid.NewGuid();
+            try
+            {
+                documents = await Api.GetDocumentsAsync(selectedPerson.AtmacaCardId);
+            }
+            catch (Exception ex)
+            {
+                documentError = $"Belge kaydedildi ancak liste yenilenemedi: {ex.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            documentError = $"Belge kaydedilirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isUploadingDocument = false;
+        }
+    }
+
+    private async Task DownloadDocumentAsync(AtmacaCardDocumentResponse document)
+    {
+        if (selectedPerson is null)
+            return;
+
+        isDownloadingDocument = true;
+        documentError = null;
+        try
+        {
+            var download = await Api.DownloadDocumentAsync(selectedPerson.AtmacaCardId, document.Id);
+            await JS.InvokeVoidAsync(
+                "projectAtmaca.downloadFile",
+                download.FileName,
+                download.ContentType,
+                download.Content);
+        }
+        catch (Exception ex)
+        {
+            documentError = $"Belge indirilemedi: {ex.Message}";
+        }
+        finally
+        {
+            isDownloadingDocument = false;
+        }
+    }
+
+    private void OnSchoolAttendanceChanged(ChangeEventArgs args)
+    {
+        schoolAttendanceSelection = args.Value?.ToString() == "yes" ? "yes" : "no";
+    }
+
+    private async Task SaveEducationAsync()
+    {
+        if (selectedPerson is null)
+            return;
+
+        bool isCurrentlyStudying = schoolAttendanceSelection == "yes";
+        isSavingEducation = true;
+        educationError = null;
+        try
+        {
+            await Api.UpdateEducationAsync(
+                selectedPerson.AtmacaCardId,
+                new PeopleApiClient.EducationInput(
+                    isCurrentlyStudying,
+                    isCurrentlyStudying ? schoolName : null,
+                    isCurrentlyStudying ? schoolGrade : null,
+                    isCurrentlyStudying ? schoolNumber : null));
+            if (!isCurrentlyStudying)
+            {
+                schoolName = null;
+                schoolGrade = null;
+                schoolNumber = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            educationError = $"Eğitim bilgileri kaydedilirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isSavingEducation = false;
+        }
+    }
+
+    private async Task SaveSportsProfileAsync()
+    {
+        if (selectedPerson is null)
+            return;
+
+        string? sportName = sportsProfileSportName.Trim();
+        if (sportName.Length is < 2 or > 80)
+        {
+            sportsProfileError = "Spor branşı 2 ile 80 karakter arasında olmalıdır.";
+            return;
+        }
+
+        bool? isNationalAthlete = sportsProfileNationalStatus switch
+        {
+            "true" => true,
+            "false" => false,
+            _ => null
+        };
+        isSavingSportsProfile = true;
+        sportsProfileError = null;
+        try
+        {
+            await Api.UpsertSportsProfileAsync(
+                selectedPerson.AtmacaCardId,
+                new PeopleApiClient.SportsProfileInput(
+                    sportName,
+                    sportsProfileLicenseNumber,
+                    sportsProfileStartedOn,
+                    sportsProfileClubRegisteredOn,
+                    sportsProfileCompetitionLevel,
+                    isNationalAthlete,
+                    selectedPositionIds.ToList()));
+            sportsProfiles = await Api.GetSportsProfilesAsync(selectedPerson.AtmacaCardId);
+            sportsProfileSportName = string.Empty;
+            sportsProfileLicenseNumber = null;
+            sportsProfileStartedOn = null;
+            sportsProfileClubRegisteredOn = null;
+            sportsProfileCompetitionLevel = null;
+            sportsProfileNationalStatus = string.Empty;
+            selectedPositionIds.Clear();
+            positions = [];
+        }
+        catch (Exception ex)
+        {
+            sportsProfileError = $"Branş profili kaydedilirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isSavingSportsProfile = false;
+        }
+    }
+
+    private async Task EditSportsProfileAsync(AtmacaCardSportsProfileResponse profile)
+    {
+        sportsProfileSportName = profile.SportName;
+        sportsProfileLicenseNumber = profile.LicenseNumber;
+        sportsProfileStartedOn = profile.StartedSportOn;
+        sportsProfileClubRegisteredOn = profile.ClubRegisteredOn;
+        sportsProfileCompetitionLevel = profile.CompetitionLevel;
+        sportsProfileNationalStatus = profile.IsNationalAthlete switch
+        {
+            true => "true",
+            false => "false",
+            _ => string.Empty
+        };
+        selectedPositionIds.Clear();
+        foreach (var position in profile.Positions)
+            selectedPositionIds.Add(position.Id);
+        await LoadPositionsAsync();
+        sportsProfileError = null;
+    }
+
+    private async Task LoadPositionsAsync()
+    {
+        string sportName = sportsProfileSportName.Trim();
+        positionError = null;
+        if (sportName.Length is < 2 or > 80)
+        {
+            positions = [];
+            return;
+        }
+
+        isLoadingPositions = true;
+        try
+        {
+            positions = await Api.GetPositionsAsync(sportName);
+            selectedPositionIds.IntersectWith(positions.Select(position => position.Id));
+        }
+        catch (Exception ex)
+        {
+            positions = [];
+            positionError = $"Branş mevkileri yüklenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingPositions = false;
+        }
+    }
+
+    private void TogglePosition(Guid positionId, ChangeEventArgs args)
+    {
+        if (bool.TryParse(args.Value?.ToString(), out bool isSelected))
+        {
+            if (isSelected)
+                selectedPositionIds.Add(positionId);
+            else
+                selectedPositionIds.Remove(positionId);
+        }
+    }
+
+    private async Task CreatePositionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newPositionCode) || string.IsNullOrWhiteSpace(newPositionName))
+        {
+            positionError = "Mevki kodu ve adı gereklidir.";
+            return;
+        }
+
+        isSavingPosition = true;
+        positionError = null;
+        try
+        {
+            await Api.CreatePositionAsync(new PeopleApiClient.CreatePositionInput(
+                sportsProfileSportName.Trim(),
+                newPositionCode,
+                newPositionName));
+            string createdCode = newPositionCode.Trim();
+            newPositionCode = string.Empty;
+            newPositionName = string.Empty;
+            await LoadPositionsAsync();
+            PositionCatalogItem? createdPosition = positions.SingleOrDefault(
+                position => string.Equals(position.Code, createdCode, StringComparison.OrdinalIgnoreCase));
+            if (createdPosition is not null)
+                selectedPositionIds.Add(createdPosition.Id);
+        }
+        catch (Exception ex)
+        {
+            positionError = $"Mevki eklenirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isSavingPosition = false;
+        }
+    }
+
+    private async Task ChangePositionStatusAsync(PositionCatalogItem position, bool isActive)
+    {
+        positionError = null;
+        try
+        {
+            await Api.ChangePositionStatusAsync(position.Id, isActive);
+            if (!isActive && !sportsProfiles.Any(profile =>
+                    string.Equals(profile.SportName, sportsProfileSportName.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                    profile.Positions.Any(assigned => assigned.Id == position.Id)))
+            {
+                selectedPositionIds.Remove(position.Id);
+            }
+            await LoadPositionsAsync();
+        }
+        catch (Exception ex)
+        {
+            positionError = $"Mevki durumu değiştirilemedi: {ex.Message}";
+        }
+    }
+
+    private async Task RecordMeasurementAsync()
+    {
+        if (selectedPerson is null)
+            return;
+
+        if (!DateOnly.TryParseExact(
+                measurementDateInput,
+                "dd.MM.yyyy",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var measurementDate))
+        {
+            measurementError = "Ölçüm tarihini gg.aa.yyyy biçiminde girin.";
+            return;
+        }
+
+        if (measurementDate > DateOnly.FromDateTime(DateTime.Today))
+        {
+            measurementError = "Ölçüm tarihi gelecek bir gün olamaz.";
+            return;
+        }
+
+        if (measurementHeight is null && measurementWeight is null)
+        {
+            measurementError = "En azından boy veya kilo değerinden birini girin.";
+            return;
+        }
+
+        isRecordingMeasurement = true;
+        measurementError = null;
+        try
+        {
+            await Api.RecordMeasurementAsync(
+                selectedPerson.AtmacaCardId,
+                new PeopleApiClient.MeasurementInput(
+                    measurementDate,
+                    measurementHeight,
+                    measurementWeight));
+            measurements = await Api.GetMeasurementsAsync(selectedPerson.AtmacaCardId);
+            measurementDate = DateOnly.FromDateTime(DateTime.Today);
+            measurementDateInput = measurementDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+            measurementCalendarDate = measurementDate;
+            measurementHeight = null;
+            measurementWeight = null;
+        }
+        catch (Exception ex)
+        {
+            measurementError = $"Ölçüm kaydedilirken bir sorun oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isRecordingMeasurement = false;
+        }
+    }
+
+    private void OnMeasurementCalendarDateChanged(ChangeEventArgs args)
+    {
+        if (DateOnly.TryParseExact(
+                args.Value?.ToString(),
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var selectedDate))
+        {
+            measurementCalendarDate = selectedDate;
+            measurementDateInput = selectedDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+        }
+    }
+
+    private static string CompetitionLevelName(int? value) => value switch
+    {
+        1 => "Amatör",
+        2 => "Profesyonel",
+        _ => "Belirtilmedi"
+    };
+
+    private static string NationalAthleteName(bool? value) => value switch
+    {
+        true => "Evet",
+        false => "Hayır",
+        _ => "Bilinmiyor"
+    };
+
+    private static string FormatDate(DateOnly? value) =>
+        value?.ToString("dd.MM.yyyy") ?? "Belirtilmedi";
+
+    private static string FormatDate(DateOnly value) => value.ToString("dd.MM.yyyy");
+
+    private static string FormatMeasurement(decimal? value, string unit) =>
+        value.HasValue ? $"{value.Value:0.##} {unit}" : "Belirtilmedi";
+
+    private static string FormatFileSize(long bytes) =>
+        bytes < 1024 * 1024
+            ? $"{bytes / 1024d:0.#} KB"
+            : $"{bytes / (1024d * 1024d):0.#} MB";
+
+    private static string OrganizationDisplayName(CatalogItemResponse organization) =>
+        organization.HierarchyPath ?? organization.Name;
+
+    private IReadOnlyList<ProfessionalTitleResponse> professionalTitles = [];
+    private bool isLoadingProfessionalTitles;
+    private bool isSavingProfessionalTitle;
+    private string professionalTitleInput = string.Empty;
+    private DateOnly professionalTitleStartedOn = DateOnly.FromDateTime(DateTime.Today);
+    private string? professionalTitleError;
+    private readonly Dictionary<Guid, string> selectedEvidenceDocumentIds = [];
+    private Guid? editingProfessionalTitleId;
+    private string professionalTitleEditName = string.Empty;
+    private DateOnly professionalTitleEditStartedOn = DateOnly.FromDateTime(DateTime.Today);
+    private IReadOnlyList<CatalogItemResponse> organizations = [];
+    private string selectedOrganizationId = string.Empty;
+    private IReadOnlyList<OrganizationDutyAssignmentResponse> organizationDutyAssignments = [];
+    private bool isLoadingOrganizations;
+    private bool isLoadingOrganizationDuties;
+    private bool isSavingOrganizationDuty;
+    private string organizationDutyTitle = string.Empty;
+    private DateTime organizationDutyStartDate = DateTime.Today;
+    private string? organizationDutyError;
+
+    private static string Initials(string fullName)
+    {
+        string[] parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..1].ToUpperInvariant(),
+            _ => $"{parts[0][..1]}{parts[^1][..1]}".ToUpperInvariant()
+        };
+    }
+
+    private void CloseDetails()
+    {
+        selectedPerson = null;
+        statusError = null;
+        sportsProfileError = null;
+        measurementError = null;
+    }
 }

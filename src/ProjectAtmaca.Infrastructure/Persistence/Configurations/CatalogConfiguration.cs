@@ -61,6 +61,10 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
         builder.Property(x => x.Code).HasMaxLength(50).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(500);
         builder.Property(x => x.IsActive).IsRequired();
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(x => x.ParentOrganizationId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Ignore(x => x.OrganizationId);
         builder.Ignore(x => x.DomainEvents);
         builder.Property(x => x.CreatedAtUtc).IsRequired();

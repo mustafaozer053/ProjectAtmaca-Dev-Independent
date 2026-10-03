@@ -1,0 +1,294 @@
+@page "/organizations"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject OrganizationApiClient Api
+
+<PageTitle>Kurum yapısı | ProjectAtmaca</PageTitle>
+
+<div class="organization-page">
+    <header>
+        <div class="eyebrow">KULÜP VE BAĞLI BİRİMLER</div>
+        <h1>Kurum yapısı</h1>
+        <p>Kulüp kurumlarını ve onlara bağlı akademi, tesis veya diğer birimleri yönetin.</p>
+    </header>
+
+    <div class="organization-layout">
+        <section class="organization-card">
+            <h2>Kayıtlı kurumlar</h2>
+            @if (isLoading)
+            {
+                <p class="muted">Kurumlar yükleniyor...</p>
+            }
+            else if (loadError is not null)
+            {
+                <div class="error-banner">@loadError</div>
+                <button class="btn btn-light" @onclick="LoadAsync">Yeniden dene</button>
+            }
+            else if (organizations.Count == 0)
+            {
+                <p class="muted">Henüz kurum kaydı bulunmuyor.</p>
+            }
+            else
+            {
+                <ul class="organization-list">
+                    @foreach (var organization in organizations)
+                    {
+                        <li>
+                            <div>
+                                <strong class="@(organization.IsActive ? null : "inactive-organization")">@organization.HierarchyPath</strong>
+                                <small>@organization.Code · @(organization.IsActive ? "Aktif" : "Pasif")</small>
+                            </div>
+                            <div class="organization-actions">
+                                <button class="table-action edit-action" @onclick="() => BeginEdit(organization)" disabled="@isSaving">Düzenle</button>
+                                <button class="table-action @(organization.IsActive ? "deactivate-action" : "activate-action")"
+                                        @onclick="() => ChangeStatusAsync(organization)"
+                                        disabled="@isSaving"
+                                        title="@(organization.IsActive ? "Kurumu pasifleştir" : "Kurumu yeniden etkinleştir")">
+                                    @(organization.IsActive ? "Pasifleştir" : "Etkinleştir")
+                                </button>
+                            </div>
+                            @if (organization.ParentOrganizationId is null && organization.IsActive)
+                            {
+                                <span class="organization-kind">Üst kurum</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="organization-card">
+            <h2>@(editingOrganizationId.HasValue ? "Kurum kaydını düzenle" : "Kurum veya alt birim ekle")</h2>
+            <p class="muted">@(editingOrganizationId.HasValue ? "Kurum adı, kodu, açıklaması ve üst birim bağlantısını güncelleyin." : "Üst kurum seçmezseniz yeni kayıt bağımsız bir üst kurum olarak oluşturulur.")</p>
+            @if (saveError is not null)
+            {
+                <div class="error-banner">@saveError</div>
+            }
+            @if (successMessage is not null)
+            {
+                <div class="success-banner">@successMessage</div>
+            }
+            <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                <label>
+                    Kurum / birim adı
+                    <input class="form-input" @bind="name" maxlength="200" required />
+                </label>
+                <label>
+                    Kod
+                    <input class="form-input" @bind="code" maxlength="50" required />
+                </label>
+                <label>
+                    Bağlı olduğu üst kurum
+                    <select class="form-input" @bind="parentOrganizationId">
+                        <option value="">Bağımsız üst kurum</option>
+                        @foreach (var organization in GetAvailableParents())
+                        {
+                            <option value="@organization.Id">@organization.HierarchyPath</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    Açıklama
+                    <textarea class="form-input" @bind="description" maxlength="500" rows="3"></textarea>
+                </label>
+                <button class="btn btn-primary" type="submit" disabled="@(isSaving || isLoading)">
+                    @(isSaving ? "Kaydediliyor..." : editingOrganizationId.HasValue ? "Değişiklikleri kaydet" : "Kurumu kaydet")
+                </button>
+                @if (editingOrganizationId.HasValue)
+                {
+                    <button class="btn btn-light" type="button" @onclick="CancelEdit" disabled="@isSaving">Düzenlemeden vazgeç</button>
+                }
+            </form>
+        </section>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<OrganizationManagementItem> organizations = [];
+    private string name = string.Empty;
+    private string code = string.Empty;
+    private string? description;
+    private string parentOrganizationId = string.Empty;
+    private string? loadError;
+    private string? saveError;
+    private string? successMessage;
+    private bool isLoading;
+    private bool isSaving;
+    private Guid? editingOrganizationId;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadError = null;
+        try
+        {
+            organizations = await Api.GetOrganizationsAsync() ?? [];
+        }
+        catch (HttpRequestException exception)
+        {
+            loadError = $"Kurum listesi alınamadı: {exception.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving)
+            return;
+
+        isSaving = true;
+        saveError = null;
+        successMessage = null;
+        try
+        {
+            Guid? parentId = Guid.TryParse(parentOrganizationId, out Guid parsedParentId)
+                ? parsedParentId
+                : null;
+            var input = new CreateOrganizationInput(name, code, description, parentId);
+            var result = editingOrganizationId is Guid organizationId
+                ? await Api.UpdateAsync(organizationId, input)
+                : await Api.CreateAsync(input);
+            if (!result.Succeeded)
+            {
+                saveError = result.ErrorMessage;
+                return;
+            }
+
+            successMessage = editingOrganizationId.HasValue
+                ? "Kurum bilgileri güncellendi."
+                : "Kurum kaydedildi.";
+            ClearForm();
+            await LoadAsync();
+        }
+        catch (HttpRequestException exception)
+        {
+            saveError = $"Kurum kaydedilemedi: {exception.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void BeginEdit(OrganizationManagementItem organization)
+    {
+        editingOrganizationId = organization.Id;
+        name = organization.Name;
+        code = organization.Code;
+        description = organization.Description;
+        parentOrganizationId = organization.ParentOrganizationId?.ToString() ?? string.Empty;
+        saveError = null;
+        successMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        ClearForm();
+        saveError = null;
+    }
+
+    private void ClearForm()
+    {
+        editingOrganizationId = null;
+        name = string.Empty;
+        code = string.Empty;
+        description = null;
+        parentOrganizationId = string.Empty;
+    }
+
+    private IEnumerable<OrganizationManagementItem> GetAvailableParents()
+    {
+        var excludedIds = new HashSet<Guid>();
+        if (editingOrganizationId is Guid editingId)
+        {
+            excludedIds.Add(editingId);
+            var descendantsToVisit = new Stack<Guid>();
+            descendantsToVisit.Push(editingId);
+            while (descendantsToVisit.TryPop(out Guid parentId))
+            {
+                foreach (var child in organizations.Where(item => item.ParentOrganizationId == parentId))
+                {
+                    if (excludedIds.Add(child.Id))
+                        descendantsToVisit.Push(child.Id);
+                }
+            }
+        }
+
+        Guid? currentParentId = Guid.TryParse(parentOrganizationId, out Guid parsedParentId)
+            ? parsedParentId
+            : null;
+        return organizations.Where(item =>
+            !excludedIds.Contains(item.Id) &&
+            (item.IsActive || item.Id == currentParentId));
+    }
+
+    private async Task ChangeStatusAsync(OrganizationManagementItem organization)
+    {
+        if (isSaving)
+            return;
+
+        isSaving = true;
+        saveError = null;
+        successMessage = null;
+        try
+        {
+            var result = await Api.ChangeStatusAsync(organization.Id, !organization.IsActive);
+            if (!result.Succeeded)
+            {
+                saveError = result.ErrorMessage;
+                return;
+            }
+
+            successMessage = organization.IsActive
+                ? "Kurum pasifleştirildi. Görev ve geçmiş kayıtları korunuyor."
+                : "Kurum yeniden etkinleştirildi.";
+            await LoadAsync();
+        }
+        catch (HttpRequestException exception)
+        {
+            saveError = $"Kurum durumu değiştirilemedi: {exception.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
+
+<style>
+    .organization-page { max-width: 1200px; margin: 0 auto; color: #19243a; }
+    .organization-page header { margin-bottom: 1.5rem; }
+    .organization-page h1 { margin: 0; font-size: 2rem; }
+    .organization-page header p, .muted { color: #8290a8; margin: .4rem 0 0; }
+    .eyebrow { color: #71809b; font-size: .72rem; font-weight: 700; letter-spacing: .14em; margin-bottom: .55rem; }
+    .organization-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1rem; align-items: start; }
+    .organization-card { background: #fff; border: 1px solid #e8ebf2; border-radius: 12px; padding: 1.4rem; }
+    .organization-card h2 { margin: 0; font-size: 1.1rem; }
+    .organization-card form { display: grid; gap: .9rem; margin-top: 1rem; }
+    .organization-card label { display: grid; gap: .35rem; color: #56647b; font-size: .8rem; font-weight: 650; }
+    .organization-card .form-input { width: 100%; box-sizing: border-box; border: 1px solid #e1e5ee; border-radius: 8px; padding: .7rem; color: #26334a; font: inherit; font-weight: 400; }
+    .organization-card .btn { justify-self: start; border: 0; border-radius: 8px; padding: .7rem 1rem; font-weight: 650; cursor: pointer; }
+    .organization-card .btn-primary { background: #4058d6; color: #fff; }
+    .organization-card .btn-light { background: #f3f5fa; color: #46536b; }
+    .organization-card .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .organization-list { list-style: none; padding: 0; margin: 1rem 0 0; }
+    .organization-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 0; border-top: 1px solid #edf0f5; }
+    .organization-list li > div:first-child { display: grid; gap: .2rem; min-width: 0; }
+    .organization-list li small, .organization-kind { color: #8a95aa; font-size: .75rem; }
+    .inactive-organization { color: #9299a3; }
+    .organization-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; }
+    .table-action { border: 1px solid #dfe5f1; border-radius: 6px; padding: .35rem .55rem; background: #f7f8fb; color: #46536b; font-size: .72rem; font-weight: 650; cursor: pointer; }
+    .edit-action { background: #eef2ff; color: #344bb7; }
+    .deactivate-action { border-color: #f0caca; background: #fff7f7; color: #a84848; }
+    .activate-action { border-color: #c7e8d3; background: #effaf3; color: #25804a; }
+    .table-action:disabled { opacity: .55; cursor: not-allowed; }
+    .error-banner, .success-banner { margin: 1rem 0 0; padding: .8rem; border-radius: 8px; }
+    .error-banner { background: #fff1f1; color: #b45757; }
+    .success-banner { background: #e7f7ee; color: #25804a; }
+    @@media (max-width: 800px) { .organization-layout { grid-template-columns: 1fr; } }
+</style>

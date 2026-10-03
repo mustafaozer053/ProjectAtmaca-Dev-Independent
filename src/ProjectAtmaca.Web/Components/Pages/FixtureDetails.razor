@@ -1,0 +1,518 @@
+@page "/fixtures/{FixtureId:guid}"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject FixturesApiClient FixturesApi
+@inject SeasonTeamsApiClient TeamsApi
+@inject NavigationManager Navigation
+
+<PageTitle>Müsabaka detayı | ProjectAtmaca</PageTitle>
+
+<main class="fixture-detail">
+    <a class="back" href="/fixtures">← Müsabakalara dön</a>
+    @if (loading)
+    {
+        <p class="state">Müsabaka bilgileri yükleniyor...</p>
+    }
+    else if (error is not null)
+    {
+        <div class="error">@error</div>
+        <button class="secondary" @onclick="LoadAsync">Tekrar dene</button>
+    }
+    else if (details is not null)
+    {
+        <header class="heading">
+            <div>
+                <div class="eyebrow">MÜSABAKA DETAYI</div>
+                <h1>@details.Fixture.Opponent</h1>
+                <p>@TeamName · @details.Fixture.Date.ToString("dd.MM.yyyy") · @details.Fixture.StartTime.ToString("HH:mm") · @details.Fixture.Venue</p>
+                <span class="status @(details.Fixture.Status == 2 ? "cancelled" : details.Fixture.Status == 3 ? "completed" : details.Fixture.Status == 4 ? "correction" : "scheduled")">
+                    @(details.Fixture.Status == 2 ? "İptal edildi · salt okunur"
+                        : details.Fixture.Status == 3 ? "Tamamlandı · salt okunur"
+                        : details.Fixture.Status == 4 ? "Düzeltme için açıldı · düzenlenebilir"
+                        : "Planlandı · düzenlenebilir")
+                </span>
+                @if (!string.IsNullOrWhiteSpace(details.Fixture.Notes))
+                {
+                    <p class="hint">Planlama notu: @details.Fixture.Notes</p>
+                }
+            </div>
+            <div class="score">@OurScore : @OpponentScore</div>
+        </header>
+
+        @if (savedMessage is not null) { <div class="success">@savedMessage</div> }
+        @if (error is not null) { <div class="error">@error</div> }
+        @if (teamDetails is null)
+        {
+            <div class="error">Takım kadrosu yüklenemedi; müsabaka kadrosu değiştirilemiyor.</div>
+        }
+
+        @if (details.Corrections.Count > 0)
+        {
+            <section class="card">
+                <h2>Düzeltme geçmişi</h2>
+                <ul class="event-lines">
+                    @foreach (var correction in details.Corrections)
+                    {
+                        <li>@correction.ReopenedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm") · @correction.Reason</li>
+                    }
+                </ul>
+            </section>
+        }
+
+        <section class="card">
+            <h2>Müsabaka bilgileri</h2>
+            <div class="form-grid">
+                <label>Müsabaka süresi (dakika)
+                    <input type="number" min="1" max="180" @bind="durationMinutes" disabled="@IsReadOnly" />
+                </label>
+                <label>Hakem bilgisi
+                    <input maxlength="200" @bind="referee" disabled="@IsReadOnly" />
+                </label>
+            </div>
+            <label>Açıklama notu
+                <textarea maxlength="2000" rows="3" @bind="matchNotes" disabled="@IsReadOnly"></textarea>
+            </label>
+        </section>
+
+        <section class="card">
+            <h2>Müsabaka kadrosu</h2>
+            <p class="hint">Müsabaka tarihinde aktif olan ve Sporcu sınıflandırması bulunan takım üyelerini seçin.</p>
+            @if (EligibleAthletes.Count == 0)
+            {
+                <p class="state">Bu tarih için uygun sporcu bulunamadı.</p>
+            }
+            else
+            {
+                <div class="roster">
+                    @foreach (var athlete in SquadCandidates)
+                    {
+                        <label class="roster-row">
+                            <span>@athlete.AtmacaCardDisplayName <small>@athlete.AtmacaCardNumber</small></span>
+                            <select value="@SquadRole(athlete.AtmacaCardId)" disabled="@IsReadOnly"
+                                    @onchange="e => SetSquadRole(athlete.AtmacaCardId, e.Value?.ToString())">
+                                <option value="0">Kadrodışı</option>
+                                <option value="1">İlk onbir</option>
+                                <option value="2">Yedek</option>
+                            </select>
+                        </label>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="card">
+            <h2>Gol dakikaları</h2>
+            <p class="score-summary">Skor, kaydedilen gol dakikalarından otomatik hesaplanır: @OurScore : @OpponentScore</p>
+            <div class="event-entry">
+                <label>Bizim gol dakikası<input type="number" min="1" max="180" @bind="ourGoalMinute" disabled="@IsReadOnly" /></label>
+                <label>Golü atan sporcu<select @bind="ourGoalScorerId" disabled="@IsReadOnly"><option value="">Sporcu seçin</option>@foreach (var player in SelectedAthletes) { <option value="@player.AtmacaCardId">@player.AtmacaCardDisplayName</option> }</select></label>
+                <button class="secondary" @onclick="() => AddGoal(1)" disabled="@IsReadOnly">Gol ekle</button>
+                <label>Rakip gol dakikası<input type="number" min="1" max="180" @bind="opponentGoalMinute" disabled="@IsReadOnly" /></label>
+                <button class="secondary" @onclick="() => AddGoal(2)" disabled="@IsReadOnly">Gol ekle</button>
+            </div>
+            <div class="event-list">
+                @foreach (var item in ScoreEventsOf(1))
+                {
+                    <span>Bizim takım · @item.Minute'</span>
+                    <select value="@(item.AtmacaCardId?.ToString() ?? "")"
+                            @onchange="e => SetScoreScorer(item, e.Value?.ToString())"
+                            disabled="@IsReadOnly">
+                        <option value="">Golcü belirtilmedi</option>
+                        @foreach (var player in SelectedAthletes)
+                        {
+                            <option value="@player.AtmacaCardId">@player.AtmacaCardDisplayName</option>
+                        }
+                    </select>
+                    <button @onclick="() => RemoveScoreEvent(item)" disabled="@IsReadOnly">×</button>
+                }
+                @foreach (var item in ScoreEventsOf(2))
+                {
+                    <span>Rakip · @item.Minute'</span><button @onclick="() => RemoveScoreEvent(item)" disabled="@IsReadOnly">×</button>
+                }
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Oyuncu değişiklikleri</h2>
+            <div class="event-entry substitution-entry">
+                <label>Dakika<input type="number" min="1" max="180" @bind="substitutionMinute" disabled="@IsReadOnly" /></label>
+                <label>Çıkan oyuncu<select @bind="outgoingPlayerId" disabled="@IsReadOnly"><option value="">İlk onbirden oyuncu seçin</option>@foreach (var player in SelectedAthletes.Where(x => SquadRole(x.AtmacaCardId) == "1")) { <option value="@player.AtmacaCardId">@player.AtmacaCardDisplayName</option> }</select></label>
+                <label>Giren oyuncu<select @bind="incomingPlayerId" disabled="@IsReadOnly"><option value="">Yedeklerden oyuncu seçin</option>@foreach (var player in SelectedAthletes.Where(x => SquadRole(x.AtmacaCardId) == "2")) { <option value="@player.AtmacaCardId">@player.AtmacaCardDisplayName</option> }</select></label>
+                <button class="secondary" @onclick="AddSubstitution" disabled="@IsReadOnly">Değişiklik ekle</button>
+            </div>
+            <ul class="event-lines">
+                @foreach (var item in EventsOf(3))
+                {
+                    <li>@item.Minute' · @PlayerName(item.AtmacaCardId) çıktı, @PlayerName(item.RelatedAtmacaCardId) girdi <button @onclick="() => RemoveEvent(item)" disabled="@IsReadOnly">Kaldır</button></li>
+                }
+            </ul>
+        </section>
+
+        <section class="card">
+            <h2>Kartlar</h2>
+            <div class="event-entry card-entry">
+                <label>Dakika<input type="number" min="1" max="180" @bind="cardMinute" disabled="@IsReadOnly" /></label>
+                <label>Sporcu<select @bind="cardPlayerId" disabled="@IsReadOnly"><option value="">Oyuncu seçin</option>@foreach (var player in SelectedAthletes) { <option value="@player.AtmacaCardId">@player.AtmacaCardDisplayName</option> }</select></label>
+                <label>Kart<select @bind="cardType" disabled="@IsReadOnly"><option value="4">Sarı</option><option value="5">Kırmızı</option></select></label>
+                <button class="secondary" @onclick="AddCard" disabled="@IsReadOnly">Kart ekle</button>
+            </div>
+            <ul class="event-lines">
+                @foreach (var item in EventsOf(4).Concat(EventsOf(5)).OrderBy(x => x.Minute))
+                {
+                    <li>@item.Minute' · @PlayerName(item.AtmacaCardId) · @(item.Type == 4 ? "Sarı kart" : "Kırmızı kart") <button @onclick="() => RemoveEvent(item)" disabled="@IsReadOnly">Kaldır</button></li>
+                }
+            </ul>
+        </section>
+
+        @if (IsReadOnly)
+        {
+            <p class="hint">
+                @(details.Fixture.Status == 3
+                    ? "Tamamlanmış müsabakanın bilgileri görüntülenebilir ancak düzenlenemez."
+                    : "İptal edilmiş müsabakanın bilgileri görüntülenebilir ancak düzenlenemez.")
+            </p>
+            @if (details.Fixture.Status == 3)
+            {
+                <section class="card correction-card">
+                    <h2>Hatalı müsabaka verisini düzelt</h2>
+                    <p class="hint">Aynı müsabaka kaydı yeniden açılır. Düzeltme tamamlanana kadar sezon raporunda yer almaz; yeniden tamamlandığında rapora güncel verilerle eklenir.</p>
+                    <label>Düzeltme nedeni
+                        <textarea maxlength="250" rows="2" @bind="correctionReason"></textarea>
+                    </label>
+                    <button class="complete" @onclick="ReopenForCorrectionAsync" disabled="@saving">
+                        Düzeltme için yeniden aç
+                    </button>
+                </section>
+            }
+        }
+        else
+        {
+            <button class="primary" @onclick="SaveAsync" disabled="@(saving || teamDetails is null)">
+                @(saving ? "Kaydediliyor..." : "Müsabaka detaylarını kaydet")
+            </button>
+            @if (details.Fixture.Status is 1 or 4)
+            {
+                <button class="complete" @onclick="CompleteAsync" disabled="@(saving || durationMinutes is null)">
+                    @(details.Fixture.Status == 4 ? "Düzeltilmiş verilerle tamamla" : "Müsabakayı tamamlandı olarak işaretle")
+                </button>
+                <p class="hint">@(details.Fixture.Status == 4
+                    ? "Düzeltme tamamlandığında müsabaka sezon raporuna güncel verilerle eklenir."
+                    : "Tamamlanan müsabakalar sezon raporuna eklenir ve daha sonra düzenlenemez.")</p>
+            }
+        }
+    }
+</main>
+
+<style>
+    .fixture-detail{max-width:1050px;margin:0 auto;color:#19243a}.back{display:inline-block;margin-bottom:1rem;color:#4058d6;text-decoration:none;font-weight:650}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem}.heading h1{margin:.3rem 0}.heading p,.hint,.state{color:#8290a8}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.status{display:inline-block;padding:.35rem .65rem;border-radius:999px;font-size:.75rem;font-weight:650}.status.scheduled{background:#e7f7ee;color:#25804a}.status.cancelled{background:#fff0ef;color:#b94b45}.status.completed{background:#e7f7ee;color:#25804a}.status.correction{background:#fff5dc;color:#8a6500}.score{font-size:2rem;font-weight:750;background:#edf0ff;color:#4058d6;padding:.8rem 1.2rem;border-radius:12px}.card{background:white;border:1px solid #e8ebf2;border-radius:12px;padding:1.2rem;margin:1rem 0}.card h2{font-size:1.15rem;margin:0 0 1rem}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.card label{display:block;color:#56647b;font-size:.78rem;font-weight:650}.card input,.card textarea,.card select{display:block;width:100%;box-sizing:border-box;margin-top:.35rem;padding:.65rem;border:1px solid #e1e5ee;border-radius:7px;background:#fff}.card textarea{resize:vertical}.roster{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem 1rem}.roster-row{display:flex!important;align-items:center;justify-content:space-between;gap:.5rem;border-bottom:1px solid #edf0f5;padding:.5rem 0}.roster-row small{display:block;color:#8a95aa;font-weight:400}.roster-row select{width:135px;margin:0}.event-entry{display:grid;grid-template-columns:minmax(100px,1fr) auto minmax(100px,1fr) auto;gap:.7rem;align-items:end}.substitution-entry,.card-entry{grid-template-columns:1fr 2fr 2fr auto}.secondary,.primary,.complete{border:0;border-radius:7px;padding:.7rem .9rem;font-weight:650;cursor:pointer}.secondary{background:#edf0ff;color:#4058d6}.primary{background:#4058d6;color:#fff;margin:0 0 2rem}.complete{background:#25804a;color:#fff;margin:0 .5rem 0 0}.secondary:disabled,.primary:disabled,.complete:disabled{opacity:.6;cursor:not-allowed}.score-summary{color:#4058d6;font-weight:650}.event-list{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.9rem}.event-list span{padding:.35rem .6rem;background:#f4f6fb;border-radius:6px}.event-list button,.event-lines button{border:0;background:none;color:#b94b45;cursor:pointer}.event-lines{padding-left:1.2rem}.event-lines li{padding:.25rem 0}.success,.error{padding:.8rem;border-radius:8px;margin:.8rem 0}.success{background:#e7f7ee;color:#25804a}.error{background:#fff1f1;color:#b45757}.state{padding:1rem;background:#fafbfc;text-align:center;border-radius:8px}
+    @@media(max-width:720px){.heading{align-items:flex-start;gap:1rem;flex-direction:column}.form-grid,.roster{grid-template-columns:1fr}.event-entry,.substitution-entry,.card-entry{grid-template-columns:1fr}}
+</style>
+
+@code {
+    [Parameter] public Guid FixtureId { get; set; }
+
+    private FixtureDetailsResponse? details;
+    private SeasonTeamDetailsResponse? teamDetails;
+    private bool loading = true;
+    private bool saving;
+    private string? error;
+    private string? savedMessage;
+    private string correctionReason = "";
+    private int? durationMinutes;
+    private string? referee;
+    private string? matchNotes;
+    private int ourGoalMinute = 1;
+    private string ourGoalScorerId = "";
+    private int opponentGoalMinute = 1;
+    private int substitutionMinute = 1;
+    private string outgoingPlayerId = "";
+    private string incomingPlayerId = "";
+    private int cardMinute = 1;
+    private string cardPlayerId = "";
+    private int cardType = 4;
+    private List<FixtureSquadMemberInput> squad = [];
+    private List<FixtureMatchEventInput> matchEvents = [];
+    private List<FixtureScoreEventInput> scoreEvents = [];
+
+    private bool IsReadOnly => details?.Fixture.Status is 2 or 3;
+    private string TeamName => details is null
+        ? "—"
+        : teamDetails?.Name ?? "Takım";
+    private int OurScore => scoreEvents
+        .Where(x => x.Side == 1)
+        .Sum(x => x.ScoreValue);
+    private int OpponentScore => scoreEvents
+        .Where(x => x.Side == 2)
+        .Sum(x => x.ScoreValue);
+
+    private List<SeasonTeamMembershipResponse> EligibleAthletes
+    {
+        get
+        {
+            if (details is null || teamDetails is null)
+                return [];
+            var date = details.Fixture.Date.ToDateTime(TimeOnly.MinValue).Date;
+            return teamDetails.Memberships
+                .Where(x => x.StartDate.Date <= date &&
+                    (x.EndDate is null || x.EndDate.Value.Date >= date))
+                .Where(x => x.Assignments.Any(a =>
+                    string.Equals(a.Kind, "Classification", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(a.DisplayNameSnapshot, "Sporcu", StringComparison.OrdinalIgnoreCase) &&
+                    a.StartDate.Date <= date &&
+                    (a.EndDate is null || a.EndDate.Value.Date >= date)))
+                .OrderBy(x => x.AtmacaCardDisplayName)
+                .ToList();
+        }
+    }
+
+    private List<SeasonTeamMembershipResponse> SquadCandidates =>
+        EligibleAthletes
+            .Concat((teamDetails?.Memberships ?? [])
+                .Where(x => squad.Any(member =>
+                    member.AtmacaCardId == x.AtmacaCardId)))
+            .DistinctBy(x => x.AtmacaCardId)
+            .OrderBy(x => x.AtmacaCardDisplayName)
+            .ToList();
+
+    private List<SeasonTeamMembershipResponse> SelectedAthletes =>
+        SquadCandidates.Where(x => SquadRole(x.AtmacaCardId) != "0").ToList();
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        error = null;
+        try
+        {
+            details = await FixturesApi.GetDetailsAsync(FixtureId);
+            if (details is null)
+                throw new InvalidOperationException("Müsabaka kaydı bulunamadı.");
+            teamDetails = await TeamsApi.GetSeasonTeamDetailsAsync(
+                details.Fixture.SeasonTeamId);
+            durationMinutes = details.DurationMinutes;
+            referee = details.Referee;
+            matchNotes = details.MatchNotes;
+            squad = details.SquadMembers.ToList();
+            matchEvents = details.MatchEvents.ToList();
+            scoreEvents = details.ScoreEvents.ToList();
+        }
+        catch (Exception ex)
+        {
+            error = $"Müsabaka detayları yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private string SquadRole(Guid cardId) =>
+        squad.FirstOrDefault(x => x.AtmacaCardId == cardId)?.Role.ToString() ?? "0";
+
+    private void SetSquadRole(Guid cardId, string? roleText)
+    {
+        if (!int.TryParse(roleText, out var role))
+            return;
+        if (matchEvents.Any(x => x.Type == 3 &&
+                ((x.AtmacaCardId == cardId && role != 1) ||
+                 (x.RelatedAtmacaCardId == cardId && role != 2))))
+        {
+            error = "Oyuncu değişikliği kaydı bu sporcunun ilk onbir/yedek durumuna bağlı; önce değişiklik kaydını kaldırın.";
+            return;
+        }
+        if (role == 0 &&
+            (matchEvents.Any(x =>
+                 x.AtmacaCardId == cardId ||
+                 x.RelatedAtmacaCardId == cardId) ||
+             scoreEvents.Any(x => x.AtmacaCardId == cardId)))
+        {
+            error = "Bu sporcu skor, değişiklik veya kart kaydıyla ilişkili; önce ilgili olayı kaldırın.";
+            return;
+        }
+        error = null;
+        squad.RemoveAll(x => x.AtmacaCardId == cardId);
+        if (role is 1 or 2)
+            squad.Add(new FixtureSquadMemberInput(cardId, role));
+    }
+
+    private IEnumerable<FixtureMatchEventInput> EventsOf(int type) =>
+        matchEvents.Where(x => x.Type == type).OrderBy(x => x.Minute);
+
+    private IEnumerable<FixtureScoreEventInput> ScoreEventsOf(int side) =>
+        scoreEvents.Where(x => x.Side == side).OrderBy(x => x.Minute);
+
+    private void AddGoal(int type)
+    {
+        var minute = type == 1 ? ourGoalMinute : opponentGoalMinute;
+        if (minute is < 1 or > 180 ||
+            (type == 1 && !Guid.TryParse(ourGoalScorerId, out _)))
+        {
+            error = type == 1
+                ? "Gol dakikasını ve golü atan sporcuyu seçin."
+                : "Gol dakikası 1 ile 180 arasında olmalıdır.";
+            return;
+        }
+        error = null;
+        Guid? scorerId = type == 1 && Guid.TryParse(ourGoalScorerId, out var parsedId)
+            ? parsedId
+            : null;
+        scoreEvents.Add(new FixtureScoreEventInput(
+            type,
+            "FOOTBALL_GOAL",
+            1,
+            minute,
+            scorerId));
+    }
+
+    private void AddSubstitution()
+    {
+        if (substitutionMinute is < 1 or > 180 ||
+            !Guid.TryParse(outgoingPlayerId, out var outgoingId) ||
+            !Guid.TryParse(incomingPlayerId, out var incomingId) ||
+            outgoingId == incomingId ||
+            SquadRole(outgoingId) != "1" ||
+            SquadRole(incomingId) != "2")
+        {
+            error = "Dakikayı, ilk onbirden çıkan oyuncuyu ve yedeklerden giren oyuncuyu seçin.";
+            return;
+        }
+        error = null;
+        matchEvents.Add(new FixtureMatchEventInput(
+            3, substitutionMinute, outgoingId, incomingId));
+    }
+
+    private void AddCard()
+    {
+        if (!Guid.TryParse(cardPlayerId, out var playerId) ||
+            cardMinute is < 1 or > 180)
+        {
+            error = "Kart dakikasını ve sporcuyu kontrol edin.";
+            return;
+        }
+        error = null;
+        matchEvents.Add(new FixtureMatchEventInput(cardType, cardMinute, playerId, null));
+    }
+
+    private void RemoveEvent(FixtureMatchEventInput item) => matchEvents.Remove(item);
+    private void RemoveScoreEvent(FixtureScoreEventInput item) => scoreEvents.Remove(item);
+
+    private void SetScoreScorer(
+        FixtureScoreEventInput item,
+        string? cardIdText)
+    {
+        var index = scoreEvents.FindIndex(x => ReferenceEquals(x, item));
+        if (index < 0)
+            return;
+
+        Guid? cardId = null;
+        if (!string.IsNullOrWhiteSpace(cardIdText))
+        {
+            if (!Guid.TryParse(cardIdText, out var parsed) ||
+                !SelectedAthletes.Any(x => x.AtmacaCardId == parsed))
+            {
+                error = "Golcü olarak kadrodaki bir sporcuyu seçin.";
+                return;
+            }
+            cardId = parsed;
+        }
+
+        error = null;
+        scoreEvents[index] = item with { AtmacaCardId = cardId };
+    }
+
+    private string PlayerName(Guid? cardId) =>
+        teamDetails?.Memberships.FirstOrDefault(x => x.AtmacaCardId == cardId)
+            ?.AtmacaCardDisplayName ?? "Bilinmeyen sporcu";
+
+    private async Task SaveAsync()
+    {
+        if (durationMinutes is null or < 1 or > 180)
+        {
+            error = "Müsabaka süresi 1 ile 180 dakika arasında olmalıdır.";
+            return;
+        }
+        if (teamDetails is null)
+        {
+            error = "Takım kadrosu yüklenemedi.";
+            return;
+        }
+        saving = true;
+        error = null;
+        savedMessage = null;
+        try
+        {
+            await FixturesApi.UpdateMatchDetailsAsync(
+                FixtureId, durationMinutes.Value, referee, matchNotes,
+                squad, matchEvents, scoreEvents);
+            details = await FixturesApi.GetDetailsAsync(FixtureId);
+            if (details is not null)
+                scoreEvents = details.ScoreEvents.ToList();
+            savedMessage = "Müsabaka detayları kaydedildi.";
+        }
+        catch (Exception ex)
+        {
+            error = $"Müsabaka detayları kaydedilemedi: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task CompleteAsync()
+    {
+        if (durationMinutes is null)
+        {
+            error = "Önce müsabaka detaylarını kaydedin.";
+            return;
+        }
+
+        saving = true;
+        error = null;
+        savedMessage = null;
+        try
+        {
+            await FixturesApi.CompleteAsync(FixtureId);
+            await LoadAsync();
+            savedMessage = "Müsabaka tamamlandı olarak kaydedildi ve sezon raporuna eklendi.";
+        }
+        catch (Exception ex)
+        {
+            error = $"Müsabaka tamamlandı olarak işaretlenemedi: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task ReopenForCorrectionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(correctionReason))
+        {
+            error = "Düzeltme nedenini yazın.";
+            return;
+        }
+
+        saving = true;
+        error = null;
+        savedMessage = null;
+        try
+        {
+            await FixturesApi.ReopenForCorrectionAsync(
+                FixtureId, correctionReason.Trim());
+            correctionReason = "";
+            await LoadAsync();
+            savedMessage = "Müsabaka düzeltme için yeniden açıldı. Kaydı düzelttikten sonra tekrar tamamlandı olarak işaretleyin.";
+        }
+        catch (Exception ex)
+        {
+            error = $"Müsabaka düzeltme için yeniden açılamadı: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

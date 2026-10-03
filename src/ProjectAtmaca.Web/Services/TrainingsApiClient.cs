@@ -115,19 +115,36 @@ public sealed class TrainingsApiClient(HttpClient httpClient)
 
     public async Task SetParticipationStatusAsync(
         Guid participationId,
-        bool present,
+        string status,
+        bool isBta,
+        string currentStatus,
         CancellationToken cancellationToken = default)
     {
-        using var response = present
-            ? await httpClient.PostAsJsonAsync(
-                $"api/participations/{participationId:D}/mark-present",
-                new { ConditionCode = (string?)null },
-                cancellationToken)
-            : await httpClient.PostAsync(
-                $"api/participations/{participationId:D}/mark-absent",
-                content: null,
+        var statusCode = status == "PRESENT" ? 2 : 3;
+        HttpResponseMessage response;
+        if (currentStatus is "PRESENT" or "ABSENT")
+        {
+            response = await httpClient.PostAsJsonAsync(
+                $"api/participations/{participationId:D}/correct-classification",
+                new { Status = statusCode, IsBta = isBta },
                 cancellationToken);
-        response.EnsureSuccessStatusCode();
+        }
+        else
+        {
+            response = status == "PRESENT"
+                ? await httpClient.PostAsJsonAsync(
+                    $"api/participations/{participationId:D}/mark-present",
+                    new { ConditionCode = (string?)null },
+                    cancellationToken)
+                : await httpClient.PostAsync(
+                    $"api/participations/{participationId:D}/{(isBta ? "mark-bta" : "mark-absent")}",
+                    content: null,
+                    cancellationToken);
+        }
+        using (response)
+        {
+            response.EnsureSuccessStatusCode();
+        }
     }
 
     private sealed record CreateTrainingResponse(Guid Id);

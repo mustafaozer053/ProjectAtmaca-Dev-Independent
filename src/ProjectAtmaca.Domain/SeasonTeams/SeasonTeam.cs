@@ -135,6 +135,22 @@ public sealed class SeasonTeam : AuditableAggregateRoot
                  x.IsActiveOn(onDate));
     }
 
+    public bool HasActiveAthleteMembership(
+        AtmacaCardId atmacaCardId,
+        DateTime onDate)
+    {
+        return _memberships.Any(membership =>
+            membership.AtmacaCardId == atmacaCardId &&
+            membership.IsActiveOn(onDate) &&
+            membership.Assignments.Any(assignment =>
+                assignment.Kind == SeasonTeamAssignmentKind.Classification &&
+                string.Equals(
+                    assignment.DisplayNameSnapshot,
+                    "Sporcu",
+                    StringComparison.OrdinalIgnoreCase) &&
+                assignment.IsActiveOn(onDate)));
+    }
+
     public Result EndMembership(
         SeasonTeamMembershipId membershipId,
         DateTime endDate)

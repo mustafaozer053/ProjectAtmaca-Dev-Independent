@@ -50,9 +50,10 @@
 
             <div class="summary-grid">
                 <div><strong>@EligibleAthletes.Count</strong><span>Uygun sporcu</span></div>
-                <div><strong>@(summary?.Present ?? 0)</strong><span>Katıldı</span></div>
-                <div><strong>@(summary?.Absent ?? 0)</strong><span>Katılmadı</span></div>
-                <div><strong>@(summary?.NotRecorded ?? 0)</strong><span>Durum bekliyor</span></div>
+                <div><strong>@PresentCount</strong><span>Katıldı</span></div>
+                <div><strong>@AbsentCount</strong><span>Katılmadı</span></div>
+                <div><strong>@NotRecordedCount</strong><span>Durum bekliyor</span></div>
+                <div><strong>@BtaCount</strong><span>BTA · katılım dışı</span></div>
             </div>
 
             @if (actionMessage is not null)
@@ -88,10 +89,11 @@
                                 <tr>
                                     <td>@(row.Membership?.AtmacaCardDisplayName ?? "Kadro kaydı bulunamadı")</td>
                                     <td>@(row.Membership?.AtmacaCardNumber ?? row.Participation.AtmacaCardId.ToString("D"))</td>
-                                    <td><span class="attendance-status @StatusClass(row.Participation.Status)">@StatusLabel(row.Participation.Status)</span></td>
+                                    <td><span class="attendance-status @StatusClass(row.Participation)">@StatusLabel(row.Participation)</span></td>
                                     <td class="actions">
-                                        <button class="small-action present" @onclick="() => SetStatusAsync(row.Participation.Id, true)" disabled="@isUpdating">Katıldı</button>
-                                        <button class="small-action absent" @onclick="() => SetStatusAsync(row.Participation.Id, false)" disabled="@isUpdating">Katılmadı</button>
+                                        <button class="small-action present" @onclick="() => SetStatusAsync(row.Participation, true)" disabled="@(isUpdating || row.Participation.Status == "PRESENT")">Katıldı</button>
+                                        <button class="small-action absent" @onclick="() => SetStatusAsync(row.Participation, false)" disabled="@(isUpdating || (row.Participation.Status == "ABSENT" && row.Participation.ConditionCode != "BTA"))">Katılmadı</button>
+                                        <button class="small-action bta" title="Aynı sezonda başka aktif takım kadrosunda bulunan sporcular için kullanılabilir." @onclick="() => SetStatusAsync(row.Participation, false, true)" disabled="@(isUpdating || (!IsBtaEligible(row.Participation.AtmacaCardId) && row.Participation.ConditionCode != "BTA") || (row.Participation.Status == "ABSENT" && row.Participation.ConditionCode == "BTA"))">BTA</button>
                                     </td>
                                 </tr>
                             }
@@ -104,7 +106,7 @@
 </div>
 
 <style>
-    .training-detail-page{max-width:1100px;margin:0 auto;color:#19243a}.back-link{border:0;background:none;color:#4058d6;font-weight:650;cursor:pointer;padding:0;margin-bottom:1.5rem}.detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1.5rem}.detail-header h1{margin:0;font-size:2rem}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em;margin-bottom:.55rem}.muted{color:#8290a8;margin:.35rem 0 0}.status,.attendance-status{padding:.35rem .65rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:650}.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}.info-card,.attendance-card{background:#fff;border:1px solid #e8ebf2;border-radius:12px;padding:1.25rem}.info-card span,.summary-grid span{display:block;color:#8a95aa;font-size:.7rem;font-weight:700;letter-spacing:.08em}.info-card strong{display:block;margin-top:.55rem}.attendance-heading{display:flex;justify-content:space-between;gap:1rem;align-items:center}.attendance-heading h2{margin:0}.btn{border:0;border-radius:8px;padding:.7rem 1rem;font-weight:650;cursor:pointer}.btn-primary{background:#4058d6;color:#fff}.btn-light{background:#f3f5fa;color:#46536b}.btn:disabled,.small-action:disabled{opacity:.55;cursor:wait}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:1.5rem 0}.summary-grid>div{padding:1rem;background:#f8f9fc;border-radius:9px}.summary-grid strong{display:block;font-size:1.35rem;margin-bottom:.3rem}.table-wrap{overflow:auto}.attendance-table{width:100%;border-collapse:collapse}.attendance-table th{text-align:left;color:#98a2b4;background:#fafbfc;font-size:.68rem}.attendance-table th,.attendance-table td{padding:.9rem 1rem;border-bottom:1px solid #edf0f5}.attendance-status.present{background:#e7f7ee;color:#25804a}.attendance-status.absent{background:#fff0ef;color:#b94b45}.attendance-status.pending{background:#fff6df;color:#9b761b}.actions{white-space:nowrap}.small-action{border:0;border-radius:6px;padding:.45rem .65rem;margin-right:.35rem;cursor:pointer;font-weight:600}.small-action.present{background:#e7f7ee;color:#25804a}.small-action.absent{background:#fff0ef;color:#b94b45}.state-card{padding:1.5rem;text-align:center;color:#8290a8;background:#fafbfc;border-radius:9px;margin-top:1rem}.error-banner,.success-banner{margin:1rem 0;padding:.8rem;border-radius:8px}.error-banner{background:#fff1f1;color:#b45757}.success-banner{background:#e7f7ee;color:#25804a}@@media(max-width:720px){.detail-header,.attendance-heading{align-items:flex-start;flex-direction:column}.info-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(2,1fr)}}
+    .training-detail-page{max-width:1100px;margin:0 auto;color:#19243a}.back-link{border:0;background:none;color:#4058d6;font-weight:650;cursor:pointer;padding:0;margin-bottom:1.5rem}.detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1.5rem}.detail-header h1{margin:0;font-size:2rem}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em;margin-bottom:.55rem}.muted{color:#8290a8;margin:.35rem 0 0}.status,.attendance-status{padding:.35rem .65rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:650}.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}.info-card,.attendance-card{background:#fff;border:1px solid #e8ebf2;border-radius:12px;padding:1.25rem}.info-card span,.summary-grid span{display:block;color:#8a95aa;font-size:.7rem;font-weight:700;letter-spacing:.08em}.info-card strong{display:block;margin-top:.55rem}.attendance-heading{display:flex;justify-content:space-between;gap:1rem;align-items:center}.attendance-heading h2{margin:0}.btn{border:0;border-radius:8px;padding:.7rem 1rem;font-weight:650;cursor:pointer}.btn-primary{background:#4058d6;color:#fff}.btn-light{background:#f3f5fa;color:#46536b}.btn:disabled,.small-action:disabled{opacity:.55;cursor:not-allowed}.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.8rem;margin:1.5rem 0}.summary-grid>div{padding:1rem;background:#f8f9fc;border-radius:9px}.summary-grid strong{display:block;font-size:1.35rem;margin-bottom:.3rem}.table-wrap{overflow:auto}.attendance-table{width:100%;border-collapse:collapse}.attendance-table th{text-align:left;color:#98a2b4;background:#fafbfc;font-size:.68rem}.attendance-table th,.attendance-table td{padding:.9rem 1rem;border-bottom:1px solid #edf0f5}.attendance-status.present{background:#e7f7ee;color:#25804a}.attendance-status.absent{background:#fff0ef;color:#b94b45}.attendance-status.pending{background:#fff6df;color:#9b761b}.attendance-status.bta{background:#edf0ff;color:#56647b}.actions{white-space:nowrap}.small-action{border:0;border-radius:6px;padding:.45rem .65rem;margin-right:.35rem;cursor:pointer;font-weight:600}.small-action.present{background:#e7f7ee;color:#25804a}.small-action.absent{background:#fff0ef;color:#b94b45}.small-action.bta{background:#edf0ff;color:#4058d6}.state-card{padding:1.5rem;text-align:center;color:#8290a8;background:#fafbfc;border-radius:9px;margin-top:1rem}.error-banner,.success-banner{margin:1rem 0;padding:.8rem;border-radius:8px}.error-banner{background:#fff1f1;color:#b45757}.success-banner{background:#e7f7ee;color:#25804a}@@media(max-width:720px){.detail-header,.attendance-heading{align-items:flex-start;flex-direction:column}.info-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 
 @code {
@@ -113,8 +115,8 @@
 
     private TrainingDetailsResponse? training;
     private SeasonTeamDetailsResponse? seasonTeam;
+    private HashSet<Guid> btaEligibleCardIds = [];
     private IReadOnlyList<ParticipationListItemResponse> participations = [];
-    private ParticipationSummaryResponse? summary;
     private bool isLoading = true;
     private bool isPreparing;
     private bool isUpdating;
@@ -123,6 +125,17 @@
     private string? actionMessage;
 
     private string TeamName => seasonTeam?.Name ?? "Takım bilgisi yok";
+    private int PresentCount => CountParticipations("PRESENT");
+    private int AbsentCount => participations.Count(participation =>
+        string.Equals(participation.Status, "ABSENT", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(participation.ConditionCode, "BTA", StringComparison.OrdinalIgnoreCase));
+    private int NotRecordedCount => CountParticipations("NOT_RECORDED");
+    private int BtaCount => participations.Count(participation =>
+        string.Equals(participation.ConditionCode, "BTA", StringComparison.OrdinalIgnoreCase));
+
+    private int CountParticipations(string status) =>
+        participations.Count(participation =>
+            string.Equals(participation.Status, status, StringComparison.OrdinalIgnoreCase));
 
     private List<SeasonTeamMembershipResponse> EligibleAthletes
     {
@@ -150,7 +163,11 @@
     {
         get
         {
-            var membershipsByCard = EligibleAthletes.ToDictionary(x => x.AtmacaCardId);
+            var membershipsByCard = (seasonTeam?.Memberships ?? [])
+                .GroupBy(x => x.AtmacaCardId)
+                .ToDictionary(group => group.Key, group => group
+                    .OrderByDescending(x => x.StartDate)
+                    .First());
             return participations
                 .Select(participation => new AttendanceRow(
                     membershipsByCard.GetValueOrDefault(participation.AtmacaCardId),
@@ -178,13 +195,13 @@
             }
 
             if (training.SeasonTeamId is Guid teamId)
+            {
                 seasonTeam = await SeasonTeamsApi.GetSeasonTeamDetailsAsync(teamId);
+                await LoadBtaEligibleAthletesAsync(teamId);
+            }
 
             var participationTask = TrainingsApi.ListParticipationsAsync(TrainingId);
-            var summaryTask = TrainingsApi.GetParticipationSummaryAsync(TrainingId);
-            await Task.WhenAll(participationTask, summaryTask);
             participations = await participationTask;
-            summary = await summaryTask;
         }
         catch (Exception ex)
         {
@@ -195,6 +212,37 @@
             isLoading = false;
         }
     }
+
+    private async Task LoadBtaEligibleAthletesAsync(Guid currentTeamId)
+    {
+        btaEligibleCardIds = [];
+        if (training is null || seasonTeam is null)
+            return;
+
+        var otherActiveTeams = (await SeasonTeamsApi.GetSeasonTeamsAsync())
+            .Where(team => team.Id != currentTeamId &&
+                team.SeasonId == seasonTeam.SeasonId &&
+                team.IsActive)
+            .ToList();
+        var teamDetails = await Task.WhenAll(otherActiveTeams.Select(team =>
+            SeasonTeamsApi.GetSeasonTeamDetailsAsync(team.Id)));
+        var date = training.Date.ToDateTime(TimeOnly.MinValue).Date;
+        btaEligibleCardIds = teamDetails
+            .Where(details => details is not null)
+            .SelectMany(details => details!.Memberships)
+            .Where(membership => membership.StartDate.Date <= date &&
+                (membership.EndDate is null || membership.EndDate.Value.Date >= date))
+            .Where(membership => membership.Assignments.Any(assignment =>
+                string.Equals(assignment.Kind, "Classification", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(assignment.DisplayNameSnapshot, "Sporcu", StringComparison.OrdinalIgnoreCase) &&
+                assignment.StartDate.Date <= date &&
+                (assignment.EndDate is null || assignment.EndDate.Value.Date >= date)))
+            .Select(membership => membership.AtmacaCardId)
+            .ToHashSet();
+    }
+
+    private bool IsBtaEligible(Guid atmacaCardId) =>
+        btaEligibleCardIds.Contains(atmacaCardId);
 
     private async Task PrepareAttendanceAsync()
     {
@@ -228,16 +276,33 @@
         }
     }
 
-    private async Task SetStatusAsync(Guid participationId, bool present)
+    private async Task SetStatusAsync(
+        ParticipationListItemResponse participation,
+        bool present,
+        bool isBta = false)
     {
+        var status = present ? "PRESENT" : "ABSENT";
         isUpdating = true;
         actionError = null;
         actionMessage = null;
         try
         {
-            await TrainingsApi.SetParticipationStatusAsync(participationId, present);
-            await LoadAsync();
-            actionMessage = present ? "Katılım durumu “Katıldı” olarak kaydedildi." : "Katılım durumu “Katılmadı” olarak kaydedildi.";
+            await TrainingsApi.SetParticipationStatusAsync(
+                participation.Id, status, isBta, participation.Status);
+            participations = participations
+                .Select(item => item.Id == participation.Id
+                    ? item with
+                    {
+                        Status = status,
+                        ConditionCode = isBta ? "BTA" : null
+                    }
+                    : item)
+                .ToList();
+            actionMessage = isBta
+                ? "Katılım durumu “BTA · Başka takımla antrenman” olarak kaydedildi."
+                : present
+                    ? "Katılım durumu “Katıldı” olarak kaydedildi."
+                    : "Katılım durumu “Katılmadı” olarak kaydedildi.";
         }
         catch (Exception ex)
         {
@@ -249,14 +314,20 @@
         }
     }
 
-    private static string StatusLabel(string status) => status switch
+    private static string StatusLabel(ParticipationListItemResponse participation) =>
+        participation.ConditionCode == "BTA"
+            ? "BTA · Başka takımla antrenman"
+            : participation.Status switch
     {
         "PRESENT" => "Katıldı",
         "ABSENT" => "Katılmadı",
         _ => "Bekliyor"
     };
 
-    private static string StatusClass(string status) => status switch
+    private static string StatusClass(ParticipationListItemResponse participation) =>
+        participation.ConditionCode == "BTA"
+            ? "bta"
+            : participation.Status switch
     {
         "PRESENT" => "present",
         "ABSENT" => "absent",

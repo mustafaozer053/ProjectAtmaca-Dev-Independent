@@ -1,0 +1,519 @@
+﻿@page "/reports"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject TrainingsApiClient TrainingsApi
+@inject FixturesApiClient FixturesApi
+@inject SeasonTeamsApiClient SeasonTeamsApi
+@inject IJSRuntime JS
+
+<PageTitle>Raporlar | ProjectAtmaca</PageTitle>
+
+<main class="reports-page">
+    <header class="page-header">
+        <div>
+            <div class="eyebrow">KULÜP YÖNETİMİ</div>
+            <h1>Sezon raporları</h1>
+            <p>Geçmiş ve onaylanmış antrenmanların sporcu katılım özeti.</p>
+        </div>
+        <div class="header-actions">
+            <button class="secondary" @onclick="ExportExcelAsync"
+                    disabled="@(isLoading || (trainingReports.Count == 0 && fixtureReports.Count == 0))">Excel'e aktar</button>
+            <button class="secondary" @onclick="ExportPdfAsync"
+                    disabled="@(isLoading || (trainingReports.Count == 0 && fixtureReports.Count == 0))">PDF'e aktar</button>
+            <button class="secondary" @onclick="LoadAsync" disabled="@isLoading">Yenile</button>
+        </div>
+    </header>
+
+    @if (errorMessage is not null)
+    {
+        <div class="error">@errorMessage</div>
+    }
+    else if (isLoading && seasons.Count == 0)
+    {
+        <section class="card state">Rapor verileri yükleniyor...</section>
+    }
+    else
+    {
+        <section class="card filters">
+            <label>Sezon
+                <select value="@selectedSeasonId" @onchange="OnSeasonChanged">
+                    <option value="">Sezon seçin</option>
+                    @foreach (var season in seasons)
+                    {
+                        <option value="@season.Id">@season.Name</option>
+                    }
+                </select>
+            </label>
+            <label>Takım
+                <select value="@selectedTeamId" @onchange="OnTeamChanged" disabled="@string.IsNullOrEmpty(selectedSeasonId)">
+                    <option value="">Takım seçin</option>
+                    @foreach (var team in SelectedSeasonTeams)
+                    {
+                        <option value="@team.Id">@team.Name@(team.IsActive ? "" : " (Pasif)")</option>
+                    }
+                </select>
+            </label>
+        </section>
+
+        @if (isLoading)
+        {
+            <section class="card state">Seçilen takımın katılım bilgileri hesaplanıyor...</section>
+        }
+        else if (string.IsNullOrEmpty(selectedTeamId))
+        {
+            <section class="card state">Raporu görüntülemek için sezon ve takım seçin.</section>
+        }
+        else if (trainingReports.Count == 0 && fixtureReports.Count == 0)
+        {
+            <section class="card state">Bu takım için raporlanabilir geçmiş antrenman veya tamamlanmış müsabaka bulunmuyor.</section>
+        }
+        else
+        {
+            @if (trainingReports.Count > 0)
+            {
+            <h2>Antrenman devamlılığı</h2>
+            <section class="summary-grid">
+                <article class="metric"><span>RAPORLANAN ANTRENMAN</span><strong>@trainingReports.Count</strong></article>
+                <article class="metric highlight"><span>KATILIM ORANI</span><strong>@AttendanceRate.ToString("0.#")%</strong><small>@PresentTotal / @DecisionTotal kayıtlı durum</small></article>
+                <article class="metric"><span>KATILDI</span><strong>@PresentTotal</strong></article>
+                <article class="metric"><span>KATILMADI</span><strong>@AbsentTotal</strong></article>
+                <article class="metric pending"><span>DURUM BEKLİYOR</span><strong>@NotRecordedTotal</strong></article>
+                <article class="metric"><span>BTA · KATILIM DIŞI</span><strong>@ExcludedTotal</strong></article>
+            </section>
+
+            <section class="card report-card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>TARİH</th>
+                                <th>ANTRENMAN</th>
+                                <th>UYGUN SPORCU</th>
+                                <th>KATILDI</th>
+                                <th>KATILMADI</th>
+                                <th>DURUM BEKLİYOR</th>
+                                <th>BTA</th>
+                                <th>KATILIM ORANI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var report in trainingReports)
+                            {
+                                <tr>
+                                    <td>@report.Training.Date.ToString("dd.MM.yyyy")</td>
+                                    <td>@report.Training.Title</td>
+                                    <td>@report.EligibleCount</td>
+                                    <td>@report.Present</td>
+                                    <td>@report.Absent</td>
+                                    <td>@report.NotRecorded</td>
+                                    <td>@report.Excluded</td>
+                                    <td>@FormatRate(report.Present, report.Present + report.Absent)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="footnote">Katılım oranı yalnızca “Katıldı” ve normal “Katılmadı” kayıtlarından hesaplanır. BTA ayrı gösterilir ve orana dahil edilmez. Yalnızca onaylanmış ve bitiş saati geçmiş antrenmanlar rapora girer; gelecek, planlanmış veya iptal edilmiş antrenmanlar rapor dışıdır.</p>
+            </section>
+            <h2>Sporcu bazlı antrenman katılımı</h2>
+            <section class="card report-card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SPORCU</th>
+                                <th>KART NO</th>
+                                <th>KAPSAMDAKİ ANTRENMAN</th>
+                                <th>KATILDI</th>
+                                <th>KATILMADI</th>
+                                <th>DURUM BEKLİYOR</th>
+                                <th>BTA</th>
+                                <th>KATILIM ORANI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var athlete in athleteReports)
+                            {
+                                <tr>
+                                    <td>@athlete.Name</td>
+                                    <td>@athlete.CardNumber</td>
+                                    <td>@athlete.Total</td>
+                                    <td>@athlete.Present</td>
+                                    <td>@athlete.Absent</td>
+                                    <td>@athlete.NotRecorded</td>
+                                    <td>@athlete.Bta</td>
+                                    <td>@FormatRate(athlete.Present, athlete.Present + athlete.Absent)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="footnote">Sporcunun kadroda ve “Sporcu” sınıflandırmasında olduğu tarihlerdeki antrenmanlar dikkate alınır. Katılım oranı = Katıldı / (Katıldı + Katılmadı). BTA kayıtları ve durumu girilmemiş antrenmanlar orana dahil edilmez; BTA sporcunun diğer takımdaki antrenman katılımı hakkında bilgi vermez.</p>
+            </section>
+            }
+
+            @if (fixtureReports.Count > 0)
+            {
+                <h2>Müsabaka sonuçları</h2>
+                <section class="summary-grid">
+                    <article class="metric"><span>TAMAMLANAN MÜSABAKA</span><strong>@fixtureReports.Count</strong></article>
+                    <article class="metric"><span>GALİBİYET</span><strong>@FixtureWins</strong></article>
+                    <article class="metric"><span>BERABERLİK</span><strong>@FixtureDraws</strong></article>
+                    <article class="metric"><span>MAĞLUBİYET</span><strong>@FixtureLosses</strong></article>
+                    <article class="metric"><span>ATILAN SAYI / GOL</span><strong>@GoalsFor</strong></article>
+                    <article class="metric"><span>YENİLEN SAYI / GOL</span><strong>@GoalsAgainst</strong></article>
+                </section>
+                <section class="card report-card">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>TARİH</th><th>TÜR</th><th>RAKİP</th><th>SKOR</th><th>SONUÇ</th></tr></thead>
+                            <tbody>
+                                @foreach (var report in fixtureReports)
+                                {
+                                    <tr>
+                                        <td>@report.Fixture.Date.ToString("dd.MM.yyyy")</td>
+                                        <td>@(report.Fixture.Type == 1 ? "Resmi" : "Hazırlık")</td>
+                                        <td>@report.Fixture.Opponent</td>
+                                        <td>@report.Details.OurScore – @report.Details.OpponentScore</td>
+                                        <td>@report.Outcome</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="footnote">Yalnızca “Tamamlandı” durumundaki müsabakalar sayılır; skor müsabaka detaylarına kaydedilmiş olaylardan hesaplanır.</p>
+                </section>
+            }
+        }
+    }
+</main>
+
+<style>
+    .reports-page{max-width:1250px;margin:0 auto;color:#19243a}.reports-page h2{margin:1.5rem 0 .5rem}    .header-actions{display:flex;gap:.6rem}.page-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1.4rem}.page-header h1{margin:.25rem 0}.page-header p{color:#8290a8;margin:.4rem 0 0}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.card{background:#fff;border:1px solid #e8ebf2;border-radius:12px}.filters{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:1rem;padding:1.1rem 1.25rem;margin-bottom:1rem}.filters label{color:#56647b;font-size:.78rem;font-weight:650}.filters select{display:block;width:100%;box-sizing:border-box;margin-top:.4rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px;background:#fff}.summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin:1rem 0}.metric{background:#fff;border:1px solid #e8ebf2;border-radius:10px;padding:1rem 1.1rem}.metric span{display:block;color:#8a95aa;font-size:.68rem;font-weight:700;letter-spacing:.07em}.metric strong{display:block;font-size:1.55rem;margin-top:.45rem}.metric small{display:block;color:#8290a8;margin-top:.25rem}.metric.highlight{background:#edf0ff;border-color:#dfe4ff}.metric.highlight strong{color:#4058d6}.metric.pending{background:#fff9e9}.report-card{overflow:hidden;margin-bottom:1rem}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:850px}th,td{text-align:left;padding:.85rem .9rem;border-bottom:1px solid #edf0f5}th{color:#98a2b4;background:#fafbfc;font-size:.65rem;white-space:nowrap}td{font-size:.86rem}.footnote{color:#8290a8;font-size:.8rem;line-height:1.5;padding:0 1rem}.state{padding:2rem;text-align:center;color:#8290a8}.secondary{border:0;border-radius:8px;padding:.65rem .9rem;background:#edf0ff;color:#4058d6;font-weight:650;cursor:pointer}.secondary:disabled{opacity:.55}.error{padding:.8rem;border-radius:8px;background:#fff1f1;color:#b45757;margin:1rem 0}
+    @@media(max-width:720px){.page-header{align-items:flex-start}.filters,.summary-grid{grid-template-columns:1fr 1fr}.page-header{flex-direction:column}.page-header .secondary{align-self:flex-end}}
+</style>
+
+@code {
+    private IReadOnlyList<CatalogItemResponse> seasons = [];
+    private IReadOnlyList<SeasonTeamResponse> teams = [];
+    private IReadOnlyList<TrainingListItemResponse> trainings = [];
+    private List<TrainingAttendanceReport> trainingReports = [];
+    private List<AthleteAttendanceReport> athleteReports = [];
+    private IReadOnlyList<FixtureResponse> fixtures = [];
+    private List<FixtureResultReport> fixtureReports = [];
+    private string selectedSeasonId = "";
+    private string selectedTeamId = "";
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private IReadOnlyList<SeasonTeamResponse> SelectedSeasonTeams =>
+        Guid.TryParse(selectedSeasonId, out var seasonId)
+            ? teams.Where(team => team.SeasonId == seasonId)
+                .OrderBy(team => team.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : [];
+
+    private int PresentTotal => trainingReports.Sum(report => report.Present);
+    private int AbsentTotal => trainingReports.Sum(report => report.Absent);
+    private int NotRecordedTotal => trainingReports.Sum(report => report.NotRecorded);
+    private int ExcludedTotal => trainingReports.Sum(report => report.Excluded);
+    private int DecisionTotal => PresentTotal + AbsentTotal;
+    private double AttendanceRate => DecisionTotal == 0 ? 0 : 100d * PresentTotal / DecisionTotal;
+    private int FixtureWins => fixtureReports.Count(report => report.Details.OurScore > report.Details.OpponentScore);
+    private int FixtureDraws => fixtureReports.Count(report => report.Details.OurScore == report.Details.OpponentScore);
+    private int FixtureLosses => fixtureReports.Count(report => report.Details.OurScore < report.Details.OpponentScore);
+    private int GoalsFor => fixtureReports.Sum(report => report.Details.OurScore);
+    private int GoalsAgainst => fixtureReports.Sum(report => report.Details.OpponentScore);
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            var seasonsTask = SeasonTeamsApi.GetCatalogAsync("seasons");
+            var teamsTask = SeasonTeamsApi.GetSeasonTeamsAsync();
+            var trainingsTask = TrainingsApi.ListAsync();
+            var fixturesTask = FixturesApi.ListAsync();
+            await Task.WhenAll(seasonsTask, teamsTask, trainingsTask, fixturesTask);
+            seasons = await seasonsTask;
+            teams = await teamsTask;
+            trainings = await trainingsTask;
+            fixtures = await fixturesTask;
+
+            if (!Guid.TryParse(selectedSeasonId, out var seasonId) ||
+                !seasons.Any(season => season.Id == seasonId))
+            {
+                selectedSeasonId = seasons.FirstOrDefault()?.Id.ToString() ?? "";
+            }
+
+            if (!SelectedSeasonTeams.Any(team => team.Id.ToString() == selectedTeamId))
+                selectedTeamId = SelectedSeasonTeams.FirstOrDefault()?.Id.ToString() ?? "";
+
+            await LoadReportAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Rapor verileri yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private Task ExportExcelAsync() => ExportAsync(
+        "Excel", TeamReportExcelExporter.Build,
+        TeamReportExcelExporter.BuildFileName, TeamReportExcelExporter.ContentType);
+
+    private Task ExportPdfAsync() => ExportAsync(
+        "PDF", TeamReportPdfExporter.Build,
+        TeamReportPdfExporter.BuildFileName, TeamReportPdfExporter.ContentType);
+
+    private async Task ExportAsync(
+        string formatName,
+        Func<string, string, IReadOnlyList<TrainingReportRow>, IReadOnlyList<AthleteReportRow>, IReadOnlyList<FixtureReportRow>, byte[]> build,
+        Func<string, string, string> buildFileName,
+        string contentType)
+    {
+        try
+        {
+            var seasonName = seasons.FirstOrDefault(item => item.Id.ToString() == selectedSeasonId)?.Name ?? "";
+            var teamName = teams.FirstOrDefault(item => item.Id.ToString() == selectedTeamId)?.Name ?? "";
+
+            var content = build(
+                seasonName,
+                teamName,
+                trainingReports.Select(report => new TrainingReportRow(
+                    report.Training.Date, report.Training.Title, report.EligibleCount,
+                    report.Present, report.Absent, report.NotRecorded, report.Excluded)).ToList(),
+                athleteReports.Select(report => new AthleteReportRow(
+                    report.Name, report.CardNumber, report.Total, report.Present,
+                    report.Absent, report.NotRecorded, report.Bta)).ToList(),
+                fixtureReports.Select(report => new FixtureReportRow(
+                    report.Fixture.Date, report.Fixture.Type == 1 ? "Resmi" : "Hazırlık",
+                    report.Fixture.Opponent, report.Details.OurScore,
+                    report.Details.OpponentScore, report.Outcome)).ToList());
+
+            await JS.InvokeVoidAsync(
+                "projectAtmaca.downloadFile",
+                buildFileName(seasonName, teamName),
+                contentType,
+                content);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"{formatName} dosyası oluşturulamadı: {ex.Message}";
+        }
+    }
+    private async Task OnSeasonChanged(ChangeEventArgs args)
+    {
+        selectedSeasonId = args.Value?.ToString() ?? "";
+        selectedTeamId = SelectedSeasonTeams.FirstOrDefault()?.Id.ToString() ?? "";
+        await RefreshReportAsync();
+    }
+
+    private async Task OnTeamChanged(ChangeEventArgs args)
+    {
+        selectedTeamId = args.Value?.ToString() ?? "";
+        await RefreshReportAsync();
+    }
+
+    private async Task RefreshReportAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            await LoadReportAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Takım raporu yüklenemedi: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadReportAsync()
+    {
+        trainingReports = [];
+        athleteReports = [];
+        fixtureReports = [];
+        if (!Guid.TryParse(selectedTeamId, out var teamId))
+            return;
+
+        var team = teams.FirstOrDefault(item => item.Id == teamId);
+        var teamDetails = await SeasonTeamsApi.GetSeasonTeamDetailsAsync(teamId);
+        if (team is null || teamDetails is null)
+            throw new InvalidOperationException("Seçilen sezon takımı bulunamadı.");
+
+        var now = DateTime.Now;
+        var today = DateOnly.FromDateTime(now);
+        var currentTime = TimeOnly.FromDateTime(now);
+        var reportableTrainings = trainings
+            .Where(training => training.SeasonId == team.SeasonId &&
+                training.SeasonTeamId == teamId &&
+                training.Status == "CONFIRMED" &&
+                (training.Date < today ||
+                    (training.Date == today && training.EndTime <= currentTime)))
+            .OrderByDescending(training => training.Date)
+            .ThenByDescending(training => training.StartTime)
+            .ToList();
+
+        using var concurrencyLimit = new SemaphoreSlim(6);
+        var reports = await Task.WhenAll(reportableTrainings.Select(async training =>
+        {
+            await concurrencyLimit.WaitAsync();
+            try
+            {
+                var participations = await TrainingsApi.ListParticipationsAsync(training.Id);
+                var eligibleCardIds = EligibleCardIds(teamDetails.Memberships, training.Date);
+                var participantsByCard = participations
+                    .GroupBy(participation => participation.AtmacaCardId)
+                    .ToDictionary(group => group.Key, group => group.First());
+                var eligibleParticipations = eligibleCardIds
+                    .Where(participantsByCard.ContainsKey)
+                    .Select(cardId => participantsByCard[cardId])
+                    .ToList();
+                var present = eligibleParticipations.Count(item => item.Status == "PRESENT");
+                var excluded = eligibleParticipations.Count(item =>
+                    string.Equals(item.ConditionCode, "BTA", StringComparison.OrdinalIgnoreCase));
+                var absent = eligibleParticipations.Count(item =>
+                    item.Status == "ABSENT" &&
+                    !string.Equals(item.ConditionCode, "BTA", StringComparison.OrdinalIgnoreCase));
+                var notRecorded = eligibleCardIds.Count - present - absent - excluded;
+
+                var outcomes = eligibleCardIds.ToDictionary(
+                    cardId => cardId,
+                    cardId =>
+                    {
+                        if (!participantsByCard.TryGetValue(cardId, out var item))
+                            return AthleteOutcome.NotRecorded;
+                        if (string.Equals(item.ConditionCode, "BTA", StringComparison.OrdinalIgnoreCase))
+                            return AthleteOutcome.Bta;
+                        return item.Status switch
+                        {
+                            "PRESENT" => AthleteOutcome.Present,
+                            "ABSENT" => AthleteOutcome.Absent,
+                            _ => AthleteOutcome.NotRecorded
+                        };
+                    });
+
+                return new TrainingAttendanceReport(
+                    training, eligibleCardIds.Count, present, absent,
+                    Math.Max(0, notRecorded), excluded, outcomes);
+            }
+            finally
+            {
+                concurrencyLimit.Release();
+            }
+        }));
+
+        trainingReports = reports.ToList();
+
+        athleteReports = teamDetails.Memberships
+            .Where(membership => trainingReports.Any(report =>
+                report.Outcomes.ContainsKey(membership.AtmacaCardId)))
+            .GroupBy(membership => membership.AtmacaCardId)
+            .Select(group =>
+            {
+                var cardId = group.Key;
+                var first = group.First();
+                var outcomes = trainingReports
+                    .Where(report => report.Outcomes.ContainsKey(cardId))
+                    .Select(report => report.Outcomes[cardId])
+                    .ToList();
+                return new AthleteAttendanceReport(
+                    cardId,
+                    first.AtmacaCardDisplayName ?? first.AtmacaCardNumber ?? cardId.ToString("D"),
+                    first.AtmacaCardNumber,
+                    outcomes.Count,
+                    outcomes.Count(o => o == AthleteOutcome.Present),
+                    outcomes.Count(o => o == AthleteOutcome.Absent),
+                    outcomes.Count(o => o == AthleteOutcome.NotRecorded),
+                    outcomes.Count(o => o == AthleteOutcome.Bta));
+            })
+            .OrderBy(report => report.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var completedFixtures = fixtures
+            .Where(fixture => fixture.SeasonTeamId == teamId && fixture.Status == 3)
+            .OrderByDescending(fixture => fixture.Date)
+            .ThenByDescending(fixture => fixture.StartTime)
+            .ToList();
+        using var fixtureConcurrencyLimit = new SemaphoreSlim(6);
+        var completedFixtureReports = await Task.WhenAll(
+            completedFixtures.Select(async fixture =>
+            {
+                await fixtureConcurrencyLimit.WaitAsync();
+                try
+                {
+                    var details = await FixturesApi.GetDetailsAsync(fixture.Id)
+                        ?? throw new InvalidOperationException(
+                            $"Müsabaka detayı bulunamadı: {fixture.Id:D}");
+                    var outcome = details.OurScore > details.OpponentScore
+                        ? "Galibiyet"
+                        : details.OurScore < details.OpponentScore
+                            ? "Mağlubiyet"
+                            : "Beraberlik";
+                    return new FixtureResultReport(fixture, details, outcome);
+                }
+                finally
+                {
+                    fixtureConcurrencyLimit.Release();
+                }
+            }));
+        fixtureReports = completedFixtureReports.ToList();
+    }
+
+    private static HashSet<Guid> EligibleCardIds(
+        IReadOnlyList<SeasonTeamMembershipResponse> memberships,
+        DateOnly trainingDate)
+    {
+        var date = trainingDate.ToDateTime(TimeOnly.MinValue).Date;
+        return memberships
+            .Where(membership => membership.StartDate.Date <= date &&
+                (membership.EndDate is null || membership.EndDate.Value.Date >= date))
+            .Where(membership => membership.Assignments.Any(assignment =>
+                string.Equals(assignment.Kind, "Classification", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(assignment.DisplayNameSnapshot, "Sporcu", StringComparison.OrdinalIgnoreCase) &&
+                assignment.StartDate.Date <= date &&
+                (assignment.EndDate is null || assignment.EndDate.Value.Date >= date)))
+            .Select(membership => membership.AtmacaCardId)
+            .ToHashSet();
+    }
+
+    private static string FormatRate(int present, int decisions) =>
+        decisions == 0 ? "—" : $"{100d * present / decisions:0.#}%";
+
+    private sealed record TrainingAttendanceReport(
+        TrainingListItemResponse Training,
+        int EligibleCount,
+        int Present,
+        int Absent,
+        int NotRecorded,
+        int Excluded,
+        IReadOnlyDictionary<Guid, AthleteOutcome> Outcomes);
+
+    private enum AthleteOutcome { Present, Absent, NotRecorded, Bta }
+
+    private sealed record AthleteAttendanceReport(
+        Guid CardId,
+        string Name,
+        string? CardNumber,
+        int Total,
+        int Present,
+        int Absent,
+        int NotRecorded,
+        int Bta);
+
+    private sealed record FixtureResultReport(
+        FixtureResponse Fixture,
+        FixtureDetailsResponse Details,
+        string Outcome);
+}

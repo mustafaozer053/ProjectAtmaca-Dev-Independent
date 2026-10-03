@@ -200,6 +200,86 @@ public sealed class ParticipationBehaviorTests
     }
 
     [Fact]
+    public void CorrectClassification_Should_Change_Absent_To_Present()
+    {
+        Participation participation =
+            CreateNotRecordedParticipation();
+        participation.MarkAbsent(ParticipationCondition.Bta);
+
+        Result result =
+            participation.CorrectClassification(
+                ParticipationStatus.Present);
+
+        result.IsSuccess.Should().BeTrue();
+        participation.Status.Should()
+            .Be(ParticipationStatus.Present);
+        participation.Condition.Should().BeNull();
+    }
+
+    [Fact]
+    public void CorrectClassification_Should_Change_Present_To_Absent()
+    {
+        Participation participation =
+            CreateNotRecordedParticipation();
+        participation.MarkPresent();
+
+        Result result =
+            participation.CorrectClassification(
+                ParticipationStatus.Absent);
+
+        result.IsSuccess.Should().BeTrue();
+        participation.Status.Should()
+            .Be(ParticipationStatus.Absent);
+        participation.Condition.Should().BeNull();
+    }
+
+    [Fact]
+    public void CorrectClassification_Should_SetBtaOnlyWhenExplicitlyRequested()
+    {
+        Participation participation = CreatePresentParticipation();
+
+        Result result = participation.CorrectClassification(
+            ParticipationStatus.Absent,
+            ParticipationCondition.Bta);
+
+        result.IsSuccess.Should().BeTrue();
+        participation.Status.Should().Be(ParticipationStatus.Absent);
+        participation.Condition.Should().Be(ParticipationCondition.Bta);
+    }
+
+    [Fact]
+    public void CorrectClassification_ShouldAllowChangingBetweenBtaAndOrdinaryAbsence()
+    {
+        Participation participation = CreateNotRecordedParticipation();
+        participation.MarkAbsent(ParticipationCondition.Bta);
+
+        Result result = participation.CorrectClassification(
+            ParticipationStatus.Absent);
+
+        result.IsSuccess.Should().BeTrue();
+        participation.Status.Should().Be(ParticipationStatus.Absent);
+        participation.Condition.Should().BeNull();
+    }
+
+    [Fact]
+    public void CorrectClassification_Should_Reject_NotRecordedParticipation()
+    {
+        Participation participation =
+            CreateNotRecordedParticipation();
+
+        Result result =
+            participation.CorrectClassification(
+                ParticipationStatus.Present);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should()
+            .BeSameAs(
+                ParticipationErrors.ClassificationCorrectionRequired);
+        participation.Status.Should()
+            .Be(ParticipationStatus.NotRecorded);
+    }
+
+    [Fact]
     public void MarkAbsent_Should_Fail_And_PreserveState_When_ConditionIsLate()
     {
         // Arrange

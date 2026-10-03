@@ -1,4 +1,5 @@
 using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.SeasonTeams;
@@ -10,15 +11,18 @@ public sealed class GetSeasonTeamByIdQueryHandler
     private readonly IActorAuthorizationService _authorizationService;
     private readonly ISeasonTeamRepository _repository;
     private readonly IAtmacaCardReader _atmacaCardReader;
+    private readonly ISeasonPeriodReader _seasonPeriodReader;
 
     public GetSeasonTeamByIdQueryHandler(
         IActorAuthorizationService authorizationService,
         ISeasonTeamRepository repository,
-        IAtmacaCardReader atmacaCardReader)
+        IAtmacaCardReader atmacaCardReader,
+        ISeasonPeriodReader seasonPeriodReader)
     {
         _authorizationService = authorizationService;
         _repository = repository;
         _atmacaCardReader = atmacaCardReader;
+        _seasonPeriodReader = seasonPeriodReader;
     }
 
     public async Task<Result<SeasonTeamDetails>> Handle(
@@ -38,6 +42,14 @@ public sealed class GetSeasonTeamByIdQueryHandler
             return Result<SeasonTeamDetails>.Failure(
                 SeasonTeamApplicationErrors.NotFound);
 
+        var seasonPeriod = await _seasonPeriodReader.GetPeriodAsync(
+            seasonTeam.SeasonId.Value,
+            cancellationToken);
+        if (seasonPeriod is null)
+            return Result<SeasonTeamDetails>.Failure(Error.Create(
+                "SEASON_NOT_FOUND",
+                "Season for the team was not found."));
+
         var today = DateTime.UtcNow.Date;
         var cardIds = seasonTeam.Memberships
             .Select(x => x.AtmacaCardId.Value)
@@ -55,6 +67,8 @@ public sealed class GetSeasonTeamByIdQueryHandler
                 seasonTeam.AgeGroupId,
                 seasonTeam.Name,
                 seasonTeam.Status == SeasonTeamStatus.Active,
+                seasonPeriod.StartDate,
+                seasonPeriod.EndDate,
                 seasonTeam.Memberships
                     .OrderBy(x => x.Period.StartDate)
                     .ThenBy(x => x.AtmacaCardId.Value)
@@ -70,7 +84,7 @@ public sealed class GetSeasonTeamByIdQueryHandler
                             cardSummary?.CardNumber,
                             x.Period.StartDate,
                             x.Period.EndDate,
-                            x.IsActiveOn(today),
+                            seasonPeriod.Contains(today) && x.IsActiveOn(today),
                             x.Assignments
                                 .OrderBy(y => y.Period.StartDate)
                                 .ThenBy(y => y.Kind)
@@ -81,10 +95,19 @@ public sealed class GetSeasonTeamByIdQueryHandler
                                     y.DefinitionId,
                                     y.DisplayNameSnapshot,
                                     y.Period.StartDate,
-                                    y.Period.EndDate,
-                                    y.IsActiveOn(today)))
+                                    Earlier(
+                                        Earlier(y.Period.EndDate, x.Period.EndDate),
+                                        seasonPeriod.EndDate),
+                                    seasonPeriod.Contains(today) &&
+                                        x.IsActiveOn(today) &&
+                                        y.IsActiveOn(today)))
                                 .ToList());
                     })
                     .ToList()));
     }
+
+    private static DateTime? Earlier(DateTime? first, DateTime? second) =>
+        first.HasValue && second.HasValue
+            ? first.Value.Date <= second.Value.Date ? first.Value.Date : second.Value.Date
+            : first?.Date ?? second?.Date;
 }

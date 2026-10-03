@@ -9,6 +9,8 @@ public sealed record SeasonTeamDetails(
     Guid AgeGroupId,
     string Name,
     bool IsActive,
+    DateTime SeasonStartDate,
+    DateTime SeasonEndDate,
     IReadOnlyList<SeasonTeamMembershipDetails> Memberships);
 
 public sealed record SeasonTeamMembershipDetails(
