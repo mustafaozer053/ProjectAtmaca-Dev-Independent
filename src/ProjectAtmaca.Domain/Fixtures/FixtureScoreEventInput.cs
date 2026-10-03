@@ -5,4 +5,5 @@ public sealed record FixtureScoreEventInput(
     string ScoreTypeCode,
     int ScoreValue,
     int? Minute,
-    Guid? AtmacaCardId);
+    Guid? AtmacaCardId,
+    Guid? AssistAtmacaCardId = null);

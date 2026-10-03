@@ -17,6 +17,7 @@ public sealed class FixtureScoreEventConfiguration
         builder.Property(x => x.ScoreValue).IsRequired();
         builder.Property(x => x.Minute);
         builder.Property(x => x.AtmacaCardId);
+        builder.Property(x => x.AssistAtmacaCardId);
         builder.HasIndex("FixtureId", nameof(FixtureScoreEvent.Side),
             nameof(FixtureScoreEvent.ScoreTypeCode), nameof(FixtureScoreEvent.Minute));
         builder.HasIndex("AtmacaCardId");

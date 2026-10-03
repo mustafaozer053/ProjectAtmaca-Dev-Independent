@@ -313,6 +313,67 @@ public sealed class FixtureTests
         fixture.OpponentScore.Should().Be(3);
     }
 
+    [Fact]
+    public void GetPlayerStatistics_ShouldCalculateMinutesGoalsAssistsAndCards()
+    {
+        var fixture = CreateFixture();
+        var starter = Guid.NewGuid();
+        var redCarded = Guid.NewGuid();
+        var substitute = Guid.NewGuid();
+        var unused = Guid.NewGuid();
+
+        var result = fixture.UpdateMatchDetails(
+            40,
+            null,
+            null,
+            [
+                new FixtureSquadMemberInput(starter, FixtureSquadRole.Starter),
+                new FixtureSquadMemberInput(redCarded, FixtureSquadRole.Starter),
+                new FixtureSquadMemberInput(substitute, FixtureSquadRole.Substitute),
+                new FixtureSquadMemberInput(unused, FixtureSquadRole.Substitute)
+            ],
+            [
+                new FixtureMatchEventInput(
+                    FixtureMatchEventType.Substitution, 30, starter, substitute),
+                new FixtureMatchEventInput(FixtureMatchEventType.RedCard, 25, redCarded),
+                new FixtureMatchEventInput(FixtureMatchEventType.YellowCard, 10, starter)
+            ],
+            [
+                new FixtureScoreEventInput(
+                    FixtureScoreSide.SeasonTeam, "FOOTBALL_GOAL", 1, 35, substitute, starter)
+            ]);
+
+        result.IsSuccess.Should().BeTrue();
+        var stats = fixture.GetPlayerStatistics().ToDictionary(x => x.AtmacaCardId);
+        stats[starter].MinutesPlayed.Should().Be(30);
+        stats[starter].Assists.Should().Be(1);
+        stats[starter].YellowCards.Should().Be(1);
+        stats[redCarded].MinutesPlayed.Should().Be(25);
+        stats[redCarded].RedCards.Should().Be(1);
+        stats[substitute].MinutesPlayed.Should().Be(10);
+        stats[substitute].Goals.Should().Be(1);
+        stats[unused].MinutesPlayed.Should().Be(0);
+        stats[unused].Appeared.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UpdateMatchDetails_ShouldRejectAssistByScorer()
+    {
+        var fixture = CreateFixture();
+        var player = Guid.NewGuid();
+
+        var result = fixture.UpdateMatchDetails(
+            90,
+            null,
+            null,
+            [new FixtureSquadMemberInput(player, FixtureSquadRole.Starter)],
+            [],
+            [new FixtureScoreEventInput(
+                FixtureScoreSide.SeasonTeam, "FOOTBALL_GOAL", 1, 10, player, player)]);
+
+        result.Error.Should().Be(FixtureErrors.ScoreEventInvalid);
+    }
+
     private static Fixture CreateFixture() =>
         Fixture.Create(
             Guid.NewGuid(), FixtureType.Official, "Rakip",

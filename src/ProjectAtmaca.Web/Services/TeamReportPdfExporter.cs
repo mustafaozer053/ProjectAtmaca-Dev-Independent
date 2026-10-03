@@ -16,7 +16,8 @@ public static class TeamReportPdfExporter
         string teamName,
         IReadOnlyList<TrainingReportRow> trainings,
         IReadOnlyList<AthleteReportRow> athletes,
-        IReadOnlyList<FixtureReportRow> fixtures)
+        IReadOnlyList<FixtureReportRow> fixtures,
+        IReadOnlyList<MatchAthleteReportRow> matchAthletes)
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -88,7 +89,26 @@ public static class TeamReportPdfExporter
                             }),
                             "Yalnızca “Tamamlandı” durumundaki müsabakalar sayılır."));
                     }
-                });
+
+                                                if (matchAthletes.Count > 0)
+                                                {
+                                                    column.Item().PageBreak();
+                                                    column.Item().Element(container => Section(
+                                                        container,
+                                                        "Sporcu müsabaka istatistikleri",
+                                                        ["Sporcu", "Kart no", "Kadroda", "İlk 11", "Süre alan", "Dakika", "Oynama oranı", "Gol", "Asist", "Sarı", "Kırmızı"],
+                                                        [5, 3, 2, 2, 2, 2, 2.5f, 1.5f, 1.5f, 1.5f, 1.8f],
+                                                        matchAthletes.Select(row => new[]
+                                                        {
+                                                            row.Name, row.CardNumber ?? "", row.InSquad.ToString(), row.Starts.ToString(),
+                                                            row.Appearances.ToString(), row.Minutes.ToString(),
+                                                            row.PossibleMinutes == 0 ? "—" : $"{100d * row.Minutes / row.PossibleMinutes:0.#}%",
+                                                            row.Goals.ToString(), row.Assists.ToString(),
+                                                            row.YellowCards.ToString(), row.RedCards.ToString()
+                                                        }),
+                                                        "Oynama oranı = oynanan dakika / takımın tamamlanan müsabakalarının toplam süresi. Dakikalar kayıtlı müsabaka süresi, değişiklik ve kırmızı kart dakikalarından hesaplanır."));
+                                                }
+                                            });
 
                 page.Footer().AlignCenter().Text(text =>
                 {

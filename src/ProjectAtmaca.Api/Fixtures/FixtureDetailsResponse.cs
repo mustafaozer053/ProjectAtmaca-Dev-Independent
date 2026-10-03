@@ -13,6 +13,7 @@ public sealed record FixtureDetailsResponse(
     IReadOnlyList<FixtureSquadMemberDetails> SquadMembers,
     IReadOnlyList<FixtureMatchEventDetails> MatchEvents,
     IReadOnlyList<FixtureScoreEventDetails> ScoreEvents,
-    IReadOnlyList<FixtureCorrectionDetails> Corrections);
+    IReadOnlyList<FixtureCorrectionDetails> Corrections,
+    IReadOnlyList<FixturePlayerStatisticsDetails> PlayerStatistics);
 
 public sealed record ReopenFixtureForCorrectionRequest(string? Reason);

@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 
 namespace ProjectAtmaca.Web.Services;
 
@@ -147,7 +147,18 @@ public sealed record FixtureDetailsResponse(
     IReadOnlyList<FixtureSquadMemberInput> SquadMembers,
     IReadOnlyList<FixtureMatchEventInput> MatchEvents,
     IReadOnlyList<FixtureScoreEventInput> ScoreEvents,
-    IReadOnlyList<FixtureCorrectionDetailsResponse> Corrections);
+    IReadOnlyList<FixtureCorrectionDetailsResponse> Corrections,
+    IReadOnlyList<FixturePlayerStatisticsResponse> PlayerStatistics);
+
+public sealed record FixturePlayerStatisticsResponse(
+    Guid AtmacaCardId,
+    int Role,
+    bool Started,
+    int MinutesPlayed,
+    int Goals,
+    int Assists,
+    int YellowCards,
+    int RedCards);
 
 public sealed record FixtureCorrectionDetailsResponse(
     string Reason,
@@ -169,4 +180,5 @@ public sealed record FixtureScoreEventInput(
     string ScoreTypeCode,
     int ScoreValue,
     int? Minute,
-    Guid? AtmacaCardId);
+    Guid? AtmacaCardId,
+    Guid? AssistAtmacaCardId = null);

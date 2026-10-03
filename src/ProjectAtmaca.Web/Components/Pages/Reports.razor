@@ -183,7 +183,29 @@
                     </div>
                     <p class="footnote">Yalnızca “Tamamlandı” durumundaki müsabakalar sayılır; skor müsabaka detaylarına kaydedilmiş olaylardan hesaplanır.</p>
                 </section>
-            }
+
+                                    <h2>Sporcu müsabaka istatistikleri</h2>
+                                    <section class="card report-card">
+                                        <div class="table-wrap">
+                                            <table>
+                                                <thead>
+                                                    <tr><th>SPORCU</th><th>KART NO</th><th>KADRODA</th><th>İLK 11</th><th>SÜRE ALAN</th><th>DAKİKA</th><th>OYNAMA ORANI</th><th>GOL</th><th>ASİST</th><th>SARI</th><th>KIRMIZI</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var athlete in matchAthleteReports)
+                                                    {
+                                                        <tr>
+                                                            <td>@athlete.Name</td><td>@athlete.CardNumber</td><td>@athlete.InSquad</td><td>@athlete.Starts</td><td>@athlete.Appearances</td><td>@athlete.Minutes</td>
+                                                            <td>@FormatRate(athlete.Minutes, athlete.PossibleMinutes)</td>
+                                                            <td>@athlete.Goals</td><td>@athlete.Assists</td><td>@athlete.YellowCards</td><td>@athlete.RedCards</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p class="footnote">Dakikalar her müsabakanın kayıtlı süresi, oyuncu değişiklikleri ve kırmızı kart dakikalarından hesaplanır. Oynama oranı = oynanan dakika / takımın tamamlanan müsabakalarının toplam süresi. “Süre alan”, müsabakada en az 1 dakika oynadığı maç sayısıdır; kadroda olup oynamayan yedekler yalnızca “Kadroda” sayısına girer.</p>
+                                    </section>
+                                }
         }
     }
 </main>
@@ -201,6 +223,7 @@
     private List<AthleteAttendanceReport> athleteReports = [];
     private IReadOnlyList<FixtureResponse> fixtures = [];
     private List<FixtureResultReport> fixtureReports = [];
+    private List<MatchAthleteReport> matchAthleteReports = [];
     private string selectedSeasonId = "";
     private string selectedTeamId = "";
     private bool isLoading = true;
@@ -274,7 +297,7 @@
 
     private async Task ExportAsync(
         string formatName,
-        Func<string, string, IReadOnlyList<TrainingReportRow>, IReadOnlyList<AthleteReportRow>, IReadOnlyList<FixtureReportRow>, byte[]> build,
+        Func<string, string, IReadOnlyList<TrainingReportRow>, IReadOnlyList<AthleteReportRow>, IReadOnlyList<FixtureReportRow>, IReadOnlyList<MatchAthleteReportRow>, byte[]> build,
         Func<string, string, string> buildFileName,
         string contentType)
     {
@@ -295,7 +318,11 @@
                 fixtureReports.Select(report => new FixtureReportRow(
                     report.Fixture.Date, report.Fixture.Type == 1 ? "Resmi" : "Hazırlık",
                     report.Fixture.Opponent, report.Details.OurScore,
-                    report.Details.OpponentScore, report.Outcome)).ToList());
+                    report.Details.OpponentScore, report.Outcome)).ToList(),
+                matchAthleteReports.Select(report => new MatchAthleteReportRow(
+                    report.Name, report.CardNumber, report.InSquad, report.Starts,
+                    report.Appearances, report.Minutes, report.PossibleMinutes,
+                    report.Goals, report.Assists, report.YellowCards, report.RedCards)).ToList());
 
             await JS.InvokeVoidAsync(
                 "projectAtmaca.downloadFile",
@@ -344,6 +371,7 @@
         trainingReports = [];
         athleteReports = [];
         fixtureReports = [];
+        matchAthleteReports = [];
         if (!Guid.TryParse(selectedTeamId, out var teamId))
             return;
 
@@ -469,6 +497,31 @@
                 }
             }));
         fixtureReports = completedFixtureReports.ToList();
+
+        var possibleMinutes = fixtureReports.Sum(report => report.Details.DurationMinutes ?? 0);
+        matchAthleteReports = fixtureReports
+            .SelectMany(report => report.Details.PlayerStatistics)
+            .GroupBy(stat => stat.AtmacaCardId)
+            .Select(group =>
+            {
+                var membership = teamDetails.Memberships.FirstOrDefault(item => item.AtmacaCardId == group.Key);
+                return new MatchAthleteReport(
+                    group.Key,
+                    membership?.AtmacaCardDisplayName ?? membership?.AtmacaCardNumber ?? group.Key.ToString("D"),
+                    membership?.AtmacaCardNumber,
+                    group.Count(),
+                    group.Count(stat => stat.Started),
+                    group.Count(stat => stat.MinutesPlayed > 0),
+                    group.Sum(stat => stat.MinutesPlayed),
+                    possibleMinutes,
+                    group.Sum(stat => stat.Goals),
+                    group.Sum(stat => stat.Assists),
+                    group.Sum(stat => stat.YellowCards),
+                    group.Sum(stat => stat.RedCards));
+            })
+            .OrderByDescending(report => report.Minutes)
+            .ThenBy(report => report.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static HashSet<Guid> EligibleCardIds(
@@ -511,6 +564,20 @@
         int Absent,
         int NotRecorded,
         int Bta);
+
+    private sealed record MatchAthleteReport(
+        Guid CardId,
+        string Name,
+        string? CardNumber,
+        int InSquad,
+        int Starts,
+        int Appearances,
+        int Minutes,
+        int PossibleMinutes,
+        int Goals,
+        int Assists,
+        int YellowCards,
+        int RedCards);
 
     private sealed record FixtureResultReport(
         FixtureResponse Fixture,

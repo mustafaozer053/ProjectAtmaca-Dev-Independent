@@ -196,6 +196,13 @@ public sealed class Fixture : AuditableAggregateRoot
         {
             return Result.Failure(FixtureErrors.MatchEventInvalid);
         }
+        if (matchEvents.Where(x => x.Type == FixtureMatchEventType.Substitution)
+                .SelectMany(x => new[] { x.AtmacaCardId, x.RelatedAtmacaCardId })
+                .GroupBy(x => x)
+                .Any(group => group.Count() > 1))
+        {
+            return Result.Failure(FixtureErrors.MatchEventInvalid);
+        }
         if (scoreEvents is null || scoreEvents.Any(x =>
                 !IsValidScoreEvent(x, squadIds)))
         {
@@ -217,9 +224,64 @@ public sealed class Fixture : AuditableAggregateRoot
         _scoreEvents.AddRange(scoreEvents.Select(x =>
             new FixtureScoreEvent(
                 Guid.NewGuid(), x.Side, x.ScoreTypeCode.Trim().ToUpperInvariant(),
-                x.ScoreValue, x.Minute, x.AtmacaCardId)));
+                x.ScoreValue, x.Minute, x.AtmacaCardId, x.AssistAtmacaCardId)));
 
         return Result.Success();
+    }
+
+    public IReadOnlyList<FixturePlayerStatistics> GetPlayerStatistics()
+    {
+        var duration = DurationMinutes ?? 0;
+        var substitutions = _matchEvents
+            .Where(x => x.Type == FixtureMatchEventType.Substitution)
+            .ToList();
+        var ourScores = _scoreEvents
+            .Where(x => x.Side == FixtureScoreSide.SeasonTeam)
+            .ToList();
+
+        return _squadMembers.Select(member =>
+        {
+            var cardId = member.AtmacaCardId;
+            var enteredAt = member.Role == FixtureSquadRole.Starter
+                ? 0
+                : substitutions
+                    .Where(x => x.RelatedAtmacaCardId == cardId)
+                    .Select(x => (int?)x.Minute)
+                    .Min();
+            var leftAt = duration;
+            if (member.Role == FixtureSquadRole.Starter)
+            {
+                leftAt = substitutions
+                    .Where(x => x.AtmacaCardId == cardId)
+                    .Select(x => Math.Min(x.Minute, duration))
+                    .DefaultIfEmpty(duration)
+                    .Min();
+            }
+
+            var redCardAt = _matchEvents
+                .Where(x => x.Type == FixtureMatchEventType.RedCard &&
+                    x.AtmacaCardId == cardId)
+                .Select(x => (int?)x.Minute)
+                .Min();
+            if (redCardAt is not null)
+                leftAt = Math.Min(leftAt, redCardAt.Value);
+
+            var minutes = enteredAt is null
+                ? 0
+                : Math.Max(0, leftAt - enteredAt.Value);
+
+            return new FixturePlayerStatistics(
+                cardId,
+                member.Role,
+                member.Role == FixtureSquadRole.Starter,
+                minutes,
+                ourScores.Count(x => x.AtmacaCardId == cardId),
+                ourScores.Count(x => x.AssistAtmacaCardId == cardId),
+                _matchEvents.Count(x => x.Type == FixtureMatchEventType.YellowCard &&
+                    x.AtmacaCardId == cardId),
+                _matchEvents.Count(x => x.Type == FixtureMatchEventType.RedCard &&
+                    x.AtmacaCardId == cardId));
+        }).ToList();
     }
 
     private static bool IsValidScoreEvent(
@@ -234,6 +296,15 @@ public sealed class Fixture : AuditableAggregateRoot
                 !char.IsAsciiLetterOrDigit(c) && c != '_') ||
             item.ScoreValue is < 1 or > 1000 ||
             item.Minute is < 1 or > 180)
+        {
+            return false;
+        }
+
+        if (item.AssistAtmacaCardId is Guid assistId &&
+            (item.Side != FixtureScoreSide.SeasonTeam ||
+             item.AtmacaCardId is null ||
+             assistId == item.AtmacaCardId ||
+             !squadIds.Contains(assistId)))
         {
             return false;
         }

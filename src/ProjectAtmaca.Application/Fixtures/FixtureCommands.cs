@@ -43,7 +43,18 @@ public sealed record FixtureScoreEventDetails(
     string ScoreTypeCode,
     int ScoreValue,
     int? Minute,
-    Guid? AtmacaCardId);
+    Guid? AtmacaCardId,
+    Guid? AssistAtmacaCardId);
+
+public sealed record FixturePlayerStatisticsDetails(
+    Guid AtmacaCardId,
+    FixtureSquadRole Role,
+    bool Started,
+    int MinutesPlayed,
+    int Goals,
+    int Assists,
+    int YellowCards,
+    int RedCards);
 
 public sealed record FixtureCorrectionDetails(
     string Reason,
@@ -69,7 +80,8 @@ public sealed record FixtureDetails(
     IReadOnlyList<FixtureSquadMemberDetails> SquadMembers,
     IReadOnlyList<FixtureMatchEventDetails> MatchEvents,
     IReadOnlyList<FixtureScoreEventDetails> ScoreEvents,
-    IReadOnlyList<FixtureCorrectionDetails> Corrections);
+    IReadOnlyList<FixtureCorrectionDetails> Corrections,
+    IReadOnlyList<FixturePlayerStatisticsDetails> PlayerStatistics);
 
 public sealed class FixtureService(
     IActorAuthorizationService authorization,
@@ -164,13 +176,18 @@ public sealed class FixtureService(
             fixture.ScoreEvents
                 .Select(x => new FixtureScoreEventDetails(
                     x.Side, x.ScoreTypeCode, x.ScoreValue, x.Minute,
-                    x.AtmacaCardId))
+                    x.AtmacaCardId, x.AssistAtmacaCardId))
                 .OrderBy(x => x.Minute)
                 .ToList(),
             fixture.Corrections
                 .OrderByDescending(x => x.ReopenedAtUtc)
                 .Select(x => new FixtureCorrectionDetails(
                     x.Reason, x.ReopenedAtUtc, x.ReopenedByActorId.Value))
+                .ToList(),
+            fixture.GetPlayerStatistics()
+                .Select(x => new FixturePlayerStatisticsDetails(
+                    x.AtmacaCardId, x.Role, x.Started, x.MinutesPlayed,
+                    x.Goals, x.Assists, x.YellowCards, x.RedCards))
                 .ToList()));
     }
 

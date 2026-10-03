@@ -9,6 +9,7 @@ public sealed class FixtureScoreEvent : Entity
     public int ScoreValue { get; private set; }
     public int? Minute { get; private set; }
     public Guid? AtmacaCardId { get; private set; }
+    public Guid? AssistAtmacaCardId { get; private set; }
 
     private FixtureScoreEvent() { }
 
@@ -18,12 +19,14 @@ public sealed class FixtureScoreEvent : Entity
         string scoreTypeCode,
         int scoreValue,
         int? minute,
-        Guid? atmacaCardId) : base(id)
+        Guid? atmacaCardId,
+        Guid? assistAtmacaCardId = null) : base(id)
     {
         Side = side;
         ScoreTypeCode = scoreTypeCode;
         ScoreValue = scoreValue;
         Minute = minute;
         AtmacaCardId = atmacaCardId;
+        AssistAtmacaCardId = assistAtmacaCardId;
     }
 }

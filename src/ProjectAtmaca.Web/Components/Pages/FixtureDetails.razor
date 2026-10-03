@@ -1,4 +1,4 @@
-@page "/fixtures/{FixtureId:guid}"
+﻿@page "/fixtures/{FixtureId:guid}"
 @rendermode InteractiveServer
 @using ProjectAtmaca.Web.Services
 @inject FixturesApiClient FixturesApi
@@ -123,6 +123,15 @@
                             <option value="@player.AtmacaCardId">@player.AtmacaCardDisplayName</option>
                         }
                     </select>
+                    <select value="@(item.AssistAtmacaCardId?.ToString() ?? "")"
+                            @onchange="e => SetScoreAssist(item, e.Value?.ToString())"
+                            disabled="@IsReadOnly">
+                        <option value="">Asist yok</option>
+                        @foreach (var player in SelectedAthletes.Where(x => x.AtmacaCardId != item.AtmacaCardId))
+                        {
+                            <option value="@player.AtmacaCardId">@player.AtmacaCardDisplayName</option>
+                        }
+                    </select>
                     <button @onclick="() => RemoveScoreEvent(item)" disabled="@IsReadOnly">×</button>
                 }
                 @foreach (var item in ScoreEventsOf(2))
@@ -173,7 +182,23 @@
             </p>
             @if (details.Fixture.Status == 3)
             {
-                <section class="card correction-card">
+                @if (details.PlayerStatistics.Count > 0)
+        {
+            <section class="card">
+                <h2>Oyuncu istatistikleri</h2>
+                <p class="muted">Oynama süreleri kayıtlı müsabaka süresi (@(details.DurationMinutes?.ToString() ?? "belirtilmedi") dk), değişiklik ve kırmızı kart dakikalarına göre hesaplanır; son kaydedilen veriyi yansıtır.</p>
+                <table>
+                    <thead><tr><th>Sporcu</th><th>Rol</th><th>Süre (dk)</th><th>Gol</th><th>Asist</th><th>Sarı</th><th>Kırmızı</th></tr></thead>
+                    <tbody>
+                        @foreach (var stat in details.PlayerStatistics.OrderBy(x => x.Role).ThenByDescending(x => x.MinutesPlayed))
+                        {
+                            <tr><td>@PlayerName(stat.AtmacaCardId)</td><td>@(stat.Started ? "İlk 11" : "Yedek")</td><td>@stat.MinutesPlayed</td><td>@stat.Goals</td><td>@stat.Assists</td><td>@stat.YellowCards</td><td>@stat.RedCards</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+        <section class="card correction-card">
                     <h2>Hatalı müsabaka verisini düzelt</h2>
                     <p class="hint">Aynı müsabaka kaydı yeniden açılır. Düzeltme tamamlanana kadar sezon raporunda yer almaz; yeniden tamamlandığında rapora güncel verilerle eklenir.</p>
                     <label>Düzeltme nedeni
@@ -192,12 +217,12 @@
             </button>
             @if (details.Fixture.Status is 1 or 4)
             {
-                <button class="complete" @onclick="CompleteAsync" disabled="@(saving || durationMinutes is null)">
-                    @(details.Fixture.Status == 4 ? "Düzeltilmiş verilerle tamamla" : "Müsabakayı tamamlandı olarak işaretle")
+                <button class="complete" @onclick="CompleteAsync" disabled="@(saving || durationMinutes is null || teamDetails is null)">
+                    @(details.Fixture.Status == 4 ? "Kaydet ve düzeltilmiş verilerle tamamla" : "Kaydet ve müsabakayı tamamla")
                 </button>
                 <p class="hint">@(details.Fixture.Status == 4
                     ? "Düzeltme tamamlandığında müsabaka sezon raporuna güncel verilerle eklenir."
-                    : "Tamamlanan müsabakalar sezon raporuna eklenir ve daha sonra düzenlenemez.")</p>
+                    : "Tamamlama, ekrandaki tüm değişiklikleri önce kaydeder. Tamamlanan müsabakalar sezon raporuna eklenir ve daha sonra düzenlenemez.")</p>
             }
         }
     }
@@ -418,24 +443,55 @@
         }
 
         error = null;
-        scoreEvents[index] = item with { AtmacaCardId = cardId };
+        scoreEvents[index] = item with
+        {
+            AtmacaCardId = cardId,
+            AssistAtmacaCardId = cardId is not null && cardId == item.AssistAtmacaCardId
+                ? null
+                : item.AssistAtmacaCardId
+        };
+    }
+
+    private void SetScoreAssist(FixtureScoreEventInput item, string? cardIdText)
+    {
+        var index = scoreEvents.FindIndex(x => ReferenceEquals(x, item));
+        if (index < 0)
+            return;
+
+        Guid? cardId = null;
+        if (!string.IsNullOrWhiteSpace(cardIdText))
+        {
+            if (!Guid.TryParse(cardIdText, out var parsed) ||
+                !SelectedAthletes.Any(x => x.AtmacaCardId == parsed) ||
+                parsed == item.AtmacaCardId)
+            {
+                error = "Asist yapan olarak golcüden farklı, kadrodaki bir sporcuyu seçin.";
+                return;
+            }
+            cardId = parsed;
+        }
+
+        error = null;
+        scoreEvents[index] = item with { AssistAtmacaCardId = cardId };
     }
 
     private string PlayerName(Guid? cardId) =>
         teamDetails?.Memberships.FirstOrDefault(x => x.AtmacaCardId == cardId)
             ?.AtmacaCardDisplayName ?? "Bilinmeyen sporcu";
 
-    private async Task SaveAsync()
+    private async Task SaveAsync() => await PersistDetailsAsync();
+
+    private async Task<bool> PersistDetailsAsync()
     {
         if (durationMinutes is null or < 1 or > 180)
         {
             error = "Müsabaka süresi 1 ile 180 dakika arasında olmalıdır.";
-            return;
+            return false;
         }
         if (teamDetails is null)
         {
             error = "Takım kadrosu yüklenemedi.";
-            return;
+            return false;
         }
         saving = true;
         error = null;
@@ -449,10 +505,12 @@
             if (details is not null)
                 scoreEvents = details.ScoreEvents.ToList();
             savedMessage = "Müsabaka detayları kaydedildi.";
+            return true;
         }
         catch (Exception ex)
         {
             error = $"Müsabaka detayları kaydedilemedi: {ex.Message}";
+            return false;
         }
         finally
         {
@@ -462,11 +520,8 @@
 
     private async Task CompleteAsync()
     {
-        if (durationMinutes is null)
-        {
-            error = "Önce müsabaka detaylarını kaydedin.";
+        if (!await PersistDetailsAsync())
             return;
-        }
 
         saving = true;
         error = null;

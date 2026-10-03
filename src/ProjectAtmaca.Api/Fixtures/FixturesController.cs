@@ -47,7 +47,8 @@ public sealed class FixturesController(FixtureService service) : ControllerBase
             details.SquadMembers,
             details.MatchEvents,
             details.ScoreEvents,
-            details.Corrections));
+            details.Corrections,
+            details.PlayerStatistics));
     }
 
     [HttpPost]

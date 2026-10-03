@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 
 namespace ProjectAtmaca.Web.Services;
 
@@ -20,6 +20,19 @@ public sealed record AthleteReportRow(
     int NotRecorded,
     int Bta);
 
+public sealed record MatchAthleteReportRow(
+    string Name,
+    string? CardNumber,
+    int InSquad,
+    int Starts,
+    int Appearances,
+    int Minutes,
+    int PossibleMinutes,
+    int Goals,
+    int Assists,
+    int YellowCards,
+    int RedCards);
+
 public sealed record FixtureReportRow(
     DateOnly Date,
     string Type,
@@ -38,7 +51,8 @@ public static class TeamReportExcelExporter
         string teamName,
         IReadOnlyList<TrainingReportRow> trainings,
         IReadOnlyList<AthleteReportRow> athletes,
-        IReadOnlyList<FixtureReportRow> fixtures)
+        IReadOnlyList<FixtureReportRow> fixtures,
+        IReadOnlyList<MatchAthleteReportRow> matchAthletes)
     {
         using var workbook = new XLWorkbook();
 
@@ -78,6 +92,20 @@ public static class TeamReportExcelExporter
                 row.OurScore, row.OpponentScore, row.Outcome
             }));
 
+        var matchAthleteSheet = workbook.Worksheets.Add("Sporcu müsabaka istatistikleri");
+        WriteHeader(matchAthleteSheet, seasonName, teamName);
+        WriteTable(
+            matchAthleteSheet,
+            ["Sporcu", "Kart no", "Kadroda", "İlk 11", "Süre alan", "Dakika", "Oynama oranı", "Gol", "Asist", "Sarı kart", "Kırmızı kart"],
+            matchAthletes.Select(row => new object?[]
+            {
+                row.Name, row.CardNumber, row.InSquad, row.Starts, row.Appearances,
+                row.Minutes, MinuteRate(row.Minutes, row.PossibleMinutes), row.Goals,
+                row.Assists, row.YellowCards, row.RedCards
+            }));
+        matchAthleteSheet.Cell(matchAthleteSheet.LastRowUsed()!.RowNumber() + 2, 1).Value =
+            "Oynama oranı = oynanan dakika / takımın tamamlanan müsabakalarının toplam süresi. Dakikalar kayıtlı müsabaka süresi, değişiklik ve kırmızı kart dakikalarından hesaplanır.";
+
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
         return stream.ToArray();
@@ -92,6 +120,9 @@ public static class TeamReportExcelExporter
             .ToArray());
         return $"{cleaned}_{DateTime.Now:yyyyMMdd}.xlsx";
     }
+
+    private static object MinuteRate(int minutes, int possible) =>
+        possible == 0 ? "—" : Math.Round(100d * minutes / possible, 1) / 100d;
 
     private static object Rate(int present, int absent) =>
         present + absent == 0 ? "—" : Math.Round(100d * present / (present + absent), 1) / 100d;
