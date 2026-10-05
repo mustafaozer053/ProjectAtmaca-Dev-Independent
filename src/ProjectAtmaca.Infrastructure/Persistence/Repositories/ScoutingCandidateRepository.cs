@@ -30,6 +30,10 @@ public sealed class ScoutingCandidateRepository(ProjectAtmacaDbContext dbContext
             .AnyAsync(x => x.Id != excludeCandidateId && EF.Property<string>(x, "IdentityKey") == key, cancellationToken);
     }
 
+    public Task<bool> ExistsByRegisteredPersonAsync(Guid personId, Guid excludeCandidateId, CancellationToken cancellationToken = default) =>
+        dbContext.Set<ScoutingCandidate>()
+            .AnyAsync(x => x.Id != excludeCandidateId && x.RegisteredPersonId == personId, cancellationToken);
+
     public void RefreshIdentityKey(ScoutingCandidate candidate) =>
         dbContext.Entry(candidate).Property("IdentityKey").CurrentValue = candidate.IdentityNumber?.DisplayValue;
     public async Task<IReadOnlyList<ScoutingCandidate>> ListAsync(CancellationToken cancellationToken = default) =>

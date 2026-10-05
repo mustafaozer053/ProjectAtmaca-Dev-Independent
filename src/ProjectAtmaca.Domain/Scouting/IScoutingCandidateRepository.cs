@@ -8,6 +8,7 @@ public interface IScoutingCandidateRepository
     Task<ScoutingCandidate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> ExistsByIdentityNumberAsync(IdentityNumber identityNumber, CancellationToken cancellationToken = default);
     Task<bool> ExistsByIdentityNumberAsync(IdentityNumber identityNumber, Guid excludeCandidateId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByRegisteredPersonAsync(Guid personId, Guid excludeCandidateId, CancellationToken cancellationToken = default);
     void RefreshIdentityKey(ScoutingCandidate candidate);
     Task<IReadOnlyList<ScoutingCandidate>> ListAsync(CancellationToken cancellationToken = default);
 }

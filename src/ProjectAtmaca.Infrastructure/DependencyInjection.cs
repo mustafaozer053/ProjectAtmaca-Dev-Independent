@@ -87,6 +87,7 @@ public static class DependencyInjection
 
         services.AddScoped<IFixtureRepository, FixtureRepository>();
         services.AddScoped<IScoutingCandidateRepository, ScoutingCandidateRepository>();
+        services.AddScoped<ProjectAtmaca.Application.Scouting.IScoutingRegistrationLookup, ProjectAtmaca.Infrastructure.Persistence.Readers.ScoutingRegistrationLookup>();
         services.AddScoped<IPositionRepository, PositionRepository>();
         services.AddScoped<IOrganizationCatalogRepository, OrganizationCatalogRepository>();
         services.AddScoped<IAtmacaCardDocumentStorage>(

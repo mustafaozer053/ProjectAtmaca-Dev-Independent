@@ -46,6 +46,19 @@ public sealed class ScoutingApiClient(HttpClient httpClient)
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ScoutingRegistrationMatchResponse>> GetRegistrationMatchesAsync(
+        Guid candidateId, CancellationToken cancellationToken = default) =>
+        await httpClient.GetFromJsonAsync<List<ScoutingRegistrationMatchResponse>>(
+            $"api/scouting/candidates/{candidateId:D}/registration-matches", cancellationToken) ?? [];
+
+    public async Task LinkRegistrationAsync(
+        Guid candidateId, Guid personId, CancellationToken cancellationToken = default)
+    {
+        using var response = await httpClient.PutAsJsonAsync(
+            $"api/scouting/candidates/{candidateId:D}/registration", new { PersonId = personId }, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task ChangeDecisionAsync(
         Guid candidateId, int decision, CancellationToken cancellationToken = default)
     {
@@ -150,7 +163,13 @@ public sealed record ScoutingCandidateDetailsResponse(
     string? IdentityNumber = null,
     string? IdentityCountryCode = null,
     string? PhoneCountryCode = null,
-    string? PhoneNationalNumber = null);
+    string? PhoneNationalNumber = null,
+    Guid? RegisteredPersonId = null,
+    Guid? RegisteredAtmacaCardId = null,
+    string? RegisteredCardNumber = null);
+
+public sealed record ScoutingRegistrationMatchResponse(
+    Guid PersonId, Guid AtmacaCardId, string CardNumber, string FullName, bool IsExactIdentity);
 
 public static class ScoutingLabels
 {

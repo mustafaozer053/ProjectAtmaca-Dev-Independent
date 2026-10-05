@@ -3,6 +3,8 @@
 @using ProjectAtmaca.Web.Services
 @using System.Text.RegularExpressions
 @inject PersonRegistrationsApiClient Api
+@inject ScoutingApiClient ScoutingApi
+@inject NavigationManager Navigation
 
 <PageTitle>Kişi Kaydı</PageTitle>
 
@@ -23,11 +25,23 @@
                 <dt>AtmacaCard Kimliği</dt><dd>@receipt.AtmacaCardId</dd>
                 <dt>Oluşturulma</dt><dd>@receipt.IssuedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
             </dl>
+            @if (linkMessage is not null) { <p class="muted">@linkMessage</p> }
             <button class="btn btn-primary" @onclick="StartNewRegistration">Yeni kayıt oluştur</button>
         </div>
     }
     else
     {
+        @if (existingMatches.Count > 0)
+        {
+            <div class="alert alert-warning">
+                <strong>Dikkat: Bu aday sistemde zaten kayıtlı olabilir.</strong> Mükerrer kayıt açmak yerine mevcut Atmaca Kart'a bağlayın.
+                @foreach (var m in existingMatches)
+                {
+                    <div>@m.FullName · Kart: @m.CardNumber @(m.IsExactIdentity ? "· TC kimlik no eşleşti" : "· ad ve doğum tarihi benzer")
+                        <button type="button" class="btn btn-link" disabled="@isSubmitting" @onclick="() => LinkExistingAsync(m.PersonId)">Bu karta bağla</button></div>
+                }
+            </div>
+        }
         <EditForm Model="form" OnValidSubmit="SubmitAsync">
             <section class="form-section">
                 <h2>Kimlik Bilgileri</h2>
@@ -208,16 +222,97 @@
     private string? errorMessage;
     private bool showPassportDuplicateConfirmation;
     private RegistrationReceiptResponse? receipt;
+    private string? linkMessage;
+    private IReadOnlyList<ScoutingRegistrationMatchResponse> existingMatches = [];
 
+    [SupplyParameterFromQuery(Name = "scoutingCandidateId")]
+    public Guid? ScoutingCandidateId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (ScoutingCandidateId is not { } candidateId)
+            return;
+
+        try
+        {
+            var candidate = await ScoutingApi.GetAsync(candidateId);
+            if (candidate is null)
+                return;
+
+            if (candidate.RegisteredPersonId is not null)
+            {
+                Navigation.NavigateTo("/scouting/" + candidateId);
+                return;
+            }
+
+            existingMatches = await ScoutingApi.GetRegistrationMatchesAsync(candidateId);
+
+            form.FullName = candidate.Name;
+            form.BirthDate = candidate.BirthDate;
+            form.Email = candidate.Email;
+            if (!string.IsNullOrWhiteSpace(candidate.PhoneNationalNumber))
+            {
+                form.PrimaryPhoneCountryCode = "+" + (candidate.PhoneCountryCode ?? "90").TrimStart('+');
+                form.PrimaryPhoneNumber = candidate.PhoneNationalNumber;
+            }
+
+            if (candidate.IdentityType == 1)
+            {
+                form.NationalIdentityNumber = candidate.IdentityNumber;
+            }
+            else if (candidate.IdentityType == 2)
+            {
+                form.Status = 3;
+                form.PassportNumber = candidate.IdentityNumber;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Aday bilgileri yüklenemedi: " + ex.Message;
+        }
+    }
     private void AddCitizenship() => form.Citizenships.Add(new CitizenshipRow());
     private void RemoveCitizenship(CitizenshipRow row) => form.Citizenships.Remove(row);
 
     private void StartNewRegistration()
     {
         receipt = null;
+        linkMessage = null;
         errorMessage = null;
         showPassportDuplicateConfirmation = false;
         form.Reset();
+    }
+
+    private async Task LinkExistingAsync(Guid personId)
+    {
+        if (ScoutingCandidateId is not { } candidateId)
+            return;
+
+        try
+        {
+            await ScoutingApi.LinkRegistrationAsync(candidateId, personId);
+            Navigation.NavigateTo("/scouting/" + candidateId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task LinkScoutingCandidateAsync()
+    {
+        if (ScoutingCandidateId is not { } candidateId || receipt is null)
+            return;
+
+        try
+        {
+            await ScoutingApi.LinkRegistrationAsync(candidateId, receipt.PersonId);
+            linkMessage = "Scouting adayı bu Atmaca Kart'a bağlandı.";
+        }
+        catch (Exception ex)
+        {
+            linkMessage = "Kayıt tamamlandı ancak aday bağlanamadı: " + ex.Message + " Aday detayından mevcut karta bağlayabilirsiniz.";
+        }
     }
 
     private async Task SubmitAsync()
@@ -241,6 +336,7 @@
             if (outcome.IsSuccess)
             {
                 receipt = outcome.Receipt;
+                await LinkScoutingCandidateAsync();
                 return;
             }
 

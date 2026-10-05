@@ -1,5 +1,6 @@
 using ProjectAtmaca.Application.Abstractions.Persistence;
 using ProjectAtmaca.Application.Abstractions.Security;
+using ProjectAtmaca.Application.AtmacaCards;
 using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Common.Enums;
 using ProjectAtmaca.Domain.Common.ValueObjects;
@@ -91,7 +92,24 @@ public sealed record ScoutingCandidateDetails(
     string? IdentityNumber = null,
     string? IdentityCountryCode = null,
     string? PhoneCountryCode = null,
-    string? PhoneNationalNumber = null);
+    string? PhoneNationalNumber = null,
+    Guid? RegisteredPersonId = null,
+    Guid? RegisteredAtmacaCardId = null,
+    string? RegisteredCardNumber = null);
+
+public sealed record ScoutingRegistrationMatch(
+    Guid PersonId,
+    Guid AtmacaCardId,
+    string CardNumber,
+    string FullName,
+    bool IsExactIdentity);
+
+public interface IScoutingRegistrationLookup
+{
+    Task<Guid?> FindPersonIdByNationalIdAsync(string nationalIdentityNumber, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Guid>> FindSimilarPersonIdsAsync(string fullName, DateOnly? birthDate, CancellationToken cancellationToken = default);
+}
 
 public static class ScoutingErrors
 {
@@ -101,6 +119,8 @@ public static class ScoutingErrors
     public static readonly Error InvalidIdentity = Error.Create("Scouting.Candidate.InvalidIdentity", "The identity number is invalid.");
     public static readonly Error ObservationNotFound = Error.Create("Scouting.Observation.NotFound", "The scouting observation was not found.");
     public static readonly Error InsufficientIdentification = Error.Create("Scouting.Candidate.InsufficientIdentification", "At least one identifying detail (identity number, birth date, event, club or team) is required.");
+    public static readonly Error RegisteredPersonNotFound = Error.Create("Scouting.Registration.PersonNotFound", "The registered person or Atmaca Card was not found.");
+    public static readonly Error PersonAlreadyLinked = Error.Create("Scouting.Registration.PersonAlreadyLinked", "This person is already linked to another scouting candidate.");
     public static readonly Error InvalidData = Error.Create("Scouting.Candidate.InvalidData", "The scouting candidate data is invalid.");
 }
 
@@ -109,6 +129,8 @@ public sealed class ScoutingService(
     ICurrentActor currentActor,
     IScoutingCandidateRepository candidates,
     IPositionRepository positions,
+    IAtmacaCardReader cardReader,
+    IScoutingRegistrationLookup registrationLookup,
     IUnitOfWork unitOfWork)
 {
     public async Task<Result<Guid>> CreateAsync(
@@ -407,9 +429,77 @@ public sealed class ScoutingService(
             candidate.InitialSource.SourceDescription, candidate.ScoutingDecision,
             await ToObservationsAsync(candidate, cancellationToken),
             candidate.IdentityNumber?.IdentityType, candidate.IdentityNumber?.Number, candidate.IdentityNumber?.CountryCode,
-            candidate.PrimaryPhoneNumber?.CountryCode, candidate.PrimaryPhoneNumber?.NationalNumber));
+            candidate.PrimaryPhoneNumber?.CountryCode, candidate.PrimaryPhoneNumber?.NationalNumber,
+            candidate.RegisteredPersonId, candidate.RegisteredAtmacaCardId, candidate.RegisteredCardNumber));
     }
 
+    public async Task<Result<IReadOnlyList<ScoutingRegistrationMatch>>> FindRegistrationMatchesAsync(
+        Guid candidateId,
+        CancellationToken cancellationToken = default)
+    {
+        var authorized = await authorization.AuthorizeAsync(Permissions.Scouting.List, cancellationToken);
+        if (authorized.IsFailure)
+            return Result<IReadOnlyList<ScoutingRegistrationMatch>>.Failure(authorized.Error!);
+
+        var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken);
+        if (candidate is null)
+            return Result<IReadOnlyList<ScoutingRegistrationMatch>>.Failure(ScoutingErrors.NotFound);
+
+        var matches = new List<ScoutingRegistrationMatch>();
+        if (candidate.RegisteredPersonId is not null)
+            return Result<IReadOnlyList<ScoutingRegistrationMatch>>.Success(matches);
+
+        var exactPersonId = candidate.IdentityNumber is { IdentityType: IdentityType.NationalId } identity
+            ? await registrationLookup.FindPersonIdByNationalIdAsync(identity.Number, cancellationToken)
+            : null;
+        if (exactPersonId is not null)
+            await AddMatchAsync(matches, exactPersonId.Value, true, cancellationToken);
+
+        var birthDate = ToDate(candidate.BirthDate);
+        foreach (var personId in await registrationLookup.FindSimilarPersonIdsAsync(
+            candidate.Name.FullName, birthDate, cancellationToken))
+            if (matches.All(x => x.PersonId != personId))
+                await AddMatchAsync(matches, personId, false, cancellationToken);
+
+        return Result<IReadOnlyList<ScoutingRegistrationMatch>>.Success(matches);
+    }
+
+    public async Task<Result> LinkRegistrationAsync(
+        Guid candidateId,
+        Guid personId,
+        CancellationToken cancellationToken = default)
+    {
+        var authorized = await authorization.AuthorizeAsync(Permissions.Scouting.Update, cancellationToken);
+        if (authorized.IsFailure)
+            return Result.Failure(authorized.Error!);
+
+        var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken);
+        if (candidate is null)
+            return Result.Failure(ScoutingErrors.NotFound);
+
+        var card = await cardReader.GetByPersonIdAsync(personId, cancellationToken);
+        if (card is null)
+            return Result.Failure(ScoutingErrors.RegisteredPersonNotFound);
+
+        if (await candidates.ExistsByRegisteredPersonAsync(personId, candidateId, cancellationToken))
+            return Result.Failure(ScoutingErrors.PersonAlreadyLinked);
+
+        var linked = candidate.LinkRegisteredPerson(card.PersonId, card.AtmacaCardId, card.CardNumber);
+        if (linked.IsFailure)
+            return linked;
+
+        candidate.MarkAsModified(currentActor.ActorId);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    private async Task AddMatchAsync(
+        List<ScoutingRegistrationMatch> matches, Guid personId, bool exact, CancellationToken cancellationToken)
+    {
+        var card = await cardReader.GetByPersonIdAsync(personId, cancellationToken);
+        if (card is not null)
+            matches.Add(new(card.PersonId, card.AtmacaCardId, card.CardNumber, card.FullName, exact));
+    }
     private static ScoutingCandidateListItem ToListItem(ScoutingCandidate x)
     {
         var last = x.Observations.OrderByDescending(o => o.ObservedOn).FirstOrDefault();

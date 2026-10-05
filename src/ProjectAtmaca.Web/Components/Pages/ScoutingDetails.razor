@@ -1,4 +1,4 @@
-@page "/scouting/{CandidateId:guid}"
+﻿@page "/scouting/{CandidateId:guid}"
 @rendermode InteractiveServer
 @using ProjectAtmaca.Web.Services
 @inject ScoutingApiClient ScoutingApi
@@ -19,6 +19,27 @@
                 <button class="secondary" @onclick="OpenCandidateForm">Aday bilgilerini düzenle</button>
                 <button class="primary" @onclick="OpenForm">+ Gözlem ekle</button></div>
         </header>
+        <section class="card reg">
+            <h2 class="section">Kulüp kaydı</h2>
+            @if (candidate.RegisteredPersonId is not null)
+            {
+                <p>Sporcu kulübe kayıtlı. Atmaca Kart No: <strong>@candidate.RegisteredCardNumber</strong></p>
+            }
+            else
+            {
+                @if (matches.Count > 0)
+                {
+                    <p class="warn">Dikkat: Bu aday sistemde zaten kayıtlı olabilir. Mükerrer kayıt açmamak için mevcut karta bağlayın.</p>
+                    @foreach (var m in matches)
+                    {
+                        <p>@m.FullName · Kart: @m.CardNumber @(m.IsExactIdentity ? "· TC kimlik no eşleşti" : "· ad ve doğum tarihi benzer")
+                            <button class="link" disabled="@saving" @onclick="() => LinkAsync(m.PersonId)">Bu karta bağla</button></p>
+                    }
+                }
+                <p class="meta">Henüz kulüp kaydı yok.</p>
+                <a class="primary" href="/people/register?scoutingCandidateId=@candidate.Id">Kulübe kaydet</a>
+            }
+        </section>
         <section class="card">
             <h2 class="section">Gözlemler (@candidate.Observations.Count)</h2>
             @foreach (var o in candidate.Observations)
@@ -66,13 +87,14 @@
         }
 
 <style>
-.scout-page{max-width:1000px;margin:0 auto;color:#19243a}.back{color:#4058d6;text-decoration:none;font-weight:650}.scout-page header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin:1rem 0 1.5rem}.scout-page h1{margin:0}.scout-page header p,.empty,.meta{color:#8290a8}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.primary{border:0;border-radius:8px;padding:.7rem 1rem;background:#4058d6;color:white;font-weight:650;cursor:pointer}.secondary{border:1px solid #d5dbea;border-radius:8px;padding:.7rem 1rem;background:white;color:#4058d6;font-weight:650;cursor:pointer}.link{margin-left:.8rem;border:0;background:none;color:#4058d6;font-weight:650;cursor:pointer}.decision{display:flex;gap:.8rem;align-items:flex-end}.decision label{color:#56647b;font-size:.78rem;font-weight:650}.decision select{display:block;margin-top:.3rem;padding:.65rem;border:1px solid #e1e5ee;border-radius:7px}.card{background:white;border:1px solid #e8ebf2;border-radius:12px;padding:1rem 1.4rem}.section{font-size:1rem;margin:.2rem 0 1rem}.obs{padding:1rem 0;border-top:1px solid #edf0f5}.obs p{margin:.4rem 0}.rating{margin-left:.6rem;padding:.2rem .55rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:700}.overlay{position:fixed;inset:0;z-index:10;background:#17223a55;display:flex;justify-content:flex-end}.panel{width:min(520px,100%);height:100%;overflow:auto;background:white;padding:2rem;position:relative;box-sizing:border-box}.panel label{display:block;margin-top:1rem;color:#56647b;font-size:.78rem;font-weight:650}.panel input,.panel select,.panel textarea{display:block;width:100%;box-sizing:border-box;margin-top:.4rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.full{width:100%;margin-top:1.4rem}.close{position:absolute;right:1rem;top:.8rem;border:0;background:none;font-size:1.6rem;color:#8994a8}.error,.success{margin:.8rem 0;padding:.8rem;border-radius:8px}.error{background:#fff1f1;color:#b45757}.success{background:#e7f7ee;color:#25804a}
+.scout-page{max-width:1000px;margin:0 auto;color:#19243a}.back{color:#4058d6;text-decoration:none;font-weight:650}.scout-page header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin:1rem 0 1.5rem}.scout-page h1{margin:0}.scout-page header p,.empty,.meta{color:#8290a8}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.primary{border:0;border-radius:8px;padding:.7rem 1rem;background:#4058d6;color:white;font-weight:650;cursor:pointer}.secondary{border:1px solid #d5dbea;border-radius:8px;padding:.7rem 1rem;background:white;color:#4058d6;font-weight:650;cursor:pointer}.link{margin-left:.8rem;border:0;background:none;color:#4058d6;font-weight:650;cursor:pointer}.decision{display:flex;gap:.8rem;align-items:flex-end}.decision label{color:#56647b;font-size:.78rem;font-weight:650}.decision select{display:block;margin-top:.3rem;padding:.65rem;border:1px solid #e1e5ee;border-radius:7px}.card{background:white;border:1px solid #e8ebf2;border-radius:12px;padding:1rem 1.4rem}.section{font-size:1rem;margin:.2rem 0 1rem}.obs{padding:1rem 0;border-top:1px solid #edf0f5}.obs p{margin:.4rem 0}.rating{margin-left:.6rem;padding:.2rem .55rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:700}.overlay{position:fixed;inset:0;z-index:10;background:#17223a55;display:flex;justify-content:flex-end}.panel{width:min(520px,100%);height:100%;overflow:auto;background:white;padding:2rem;position:relative;box-sizing:border-box}.panel label{display:block;margin-top:1rem;color:#56647b;font-size:.78rem;font-weight:650}.panel input,.panel select,.panel textarea{display:block;width:100%;box-sizing:border-box;margin-top:.4rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.full{width:100%;margin-top:1.4rem}.close{position:absolute;right:1rem;top:.8rem;border:0;background:none;font-size:1.6rem;color:#8994a8}.warn{color:#9a6700;background:#fff8e1;padding:.6rem .8rem;border-radius:8px}.reg{margin-bottom:1rem}.reg .primary{display:inline-block;text-decoration:none}.error,.success{margin:.8rem 0;padding:.8rem;border-radius:8px}.error{background:#fff1f1;color:#b45757}.success{background:#e7f7ee;color:#25804a}
 </style>
 
 @code {
     [Parameter] public Guid CandidateId { get; set; }
 
     private ScoutingCandidateDetailsResponse? candidate;
+    private IReadOnlyList<ScoutingRegistrationMatchResponse> matches = [];
     private bool loading = true, showForm, saving;
     private string? error, success, formError;
     private ScoutingObservationModel observation = new();
@@ -130,7 +152,11 @@
 
     private async Task LoadAsync()
     {
-        try { candidate = await ScoutingApi.GetAsync(CandidateId); error = null; }
+        try
+        {
+            candidate = await ScoutingApi.GetAsync(CandidateId); error = null;
+            matches = candidate?.RegisteredPersonId is null ? await ScoutingApi.GetRegistrationMatchesAsync(CandidateId) : [];
+        }
         catch (Exception ex) { error = ex.Message; }
         loading = false;
     }
@@ -161,6 +187,19 @@
             await LoadAsync();
         }
         catch (Exception ex) { formError = ex.Message; }
+        saving = false;
+    }
+
+    private async Task LinkAsync(Guid personId)
+    {
+        saving = true; error = null;
+        try
+        {
+            await ScoutingApi.LinkRegistrationAsync(CandidateId, personId);
+            success = "Aday mevcut Atmaca Kart'a bağlandı.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { error = ex.Message; }
         saving = false;
     }
 

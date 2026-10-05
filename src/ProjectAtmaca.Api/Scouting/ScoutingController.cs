@@ -9,6 +9,8 @@ namespace ProjectAtmaca.Api.Scouting;
 
 public sealed record ChangeScoutingDecisionRequest(ScoutingDecision Decision);
 
+public sealed record LinkScoutingRegistrationRequest(Guid PersonId);
+
 [ApiController]
 [Route("api/scouting/candidates")]
 public sealed class ScoutingController(ScoutingService service) : ControllerBase
@@ -69,6 +71,21 @@ public sealed class ScoutingController(ScoutingService service) : ControllerBase
         return result.IsFailure ? ToProblem(result.Error!) : NoContent();
     }
 
+    [HttpGet("{candidateId:guid}/registration-matches")]
+    public async Task<ActionResult<IReadOnlyList<ScoutingRegistrationMatch>>> FindRegistrationMatches(
+        Guid candidateId, CancellationToken cancellationToken)
+    {
+        var result = await service.FindRegistrationMatchesAsync(candidateId, cancellationToken);
+        return result.IsFailure ? ToProblem(result.Error!) : Ok(result.Value!);
+    }
+
+    [HttpPut("{candidateId:guid}/registration")]
+    public async Task<IActionResult> LinkRegistration(
+        Guid candidateId, [FromBody] LinkScoutingRegistrationRequest request, CancellationToken cancellationToken)
+    {
+        var result = await service.LinkRegistrationAsync(candidateId, request.PersonId, cancellationToken);
+        return result.IsFailure ? ToProblem(result.Error!) : NoContent();
+    }
     private ObjectResult ToProblem(Error error)
     {
         var status = error.Code == ActorAuthorizationErrors.Forbidden.Code

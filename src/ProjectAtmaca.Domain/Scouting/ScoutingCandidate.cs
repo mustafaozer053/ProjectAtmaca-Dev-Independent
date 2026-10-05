@@ -34,6 +34,12 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
 
     public ScoutingDecision ScoutingDecision { get; private set; }
 
+    public Guid? RegisteredPersonId { get; private set; }
+
+    public Guid? RegisteredAtmacaCardId { get; private set; }
+
+    public string? RegisteredCardNumber { get; private set; }
+
     public IReadOnlyCollection<ScoutingObservation> Observations =>
         _observations.AsReadOnly();
 
@@ -486,6 +492,19 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
 
         return observationResult.Value!
             .RemovePosition(positionId);
+    }
+    public Result LinkRegisteredPerson(Guid personId, Guid atmacaCardId, string cardNumber)
+    {
+        if (personId == Guid.Empty || atmacaCardId == Guid.Empty || string.IsNullOrWhiteSpace(cardNumber))
+            return Result.Failure(Error.Create("SCOUTING_REGISTRATION_LINK_INVALID", "Person, card and card number are required."));
+
+        if (RegisteredPersonId.HasValue && RegisteredPersonId != personId)
+            return Result.Failure(Error.Create("SCOUTING_CANDIDATE_ALREADY_LINKED", "The candidate is already linked to a different person."));
+
+        RegisteredPersonId = personId;
+        RegisteredAtmacaCardId = atmacaCardId;
+        RegisteredCardNumber = cardNumber.Trim();
+        return Result.Success();
     }
     public Result ChangeScoutingDecision(
         ScoutingDecision scoutingDecision)

@@ -37,6 +37,8 @@ public sealed class ScoutingCandidateConfiguration : IEntityTypeConfiguration<Sc
             x => RegistrationJson.Write(new ScoutingSourceData((int)x.SourceType, x.ReferrerName == null ? null : x.ReferrerName.FullName, x.SourceDescription)),
             x => ToSource(RegistrationJson.Read<ScoutingSourceData>(x))).IsRequired();
         b.Property(x => x.ScoutingDecision).HasConversion<int>().IsRequired();
+        b.Property(x => x.RegisteredCardNumber).HasMaxLength(50);
+        b.HasIndex(x => x.RegisteredPersonId);
         b.Property(x => x.IdentityNumber).HasConversion(
             x => x!.CountryCode + "|" + (int)x.IdentityType + "|" + x.Number,
             x => ToIdentity(x)).HasMaxLength(60);
