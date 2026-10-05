@@ -16,6 +16,7 @@
             <p>Doğum: @(candidate.BirthDate?.ToString("dd.MM.yyyy") ?? "—") · Kaynak: @ScoutingLabels.Of(ScoutingLabels.Sources, candidate.SourceType)@(string.IsNullOrWhiteSpace(candidate.ReferrerName) ? "" : $" ({candidate.ReferrerName})")@(string.IsNullOrWhiteSpace(candidate.SourceDescription) ? "" : $" ({candidate.SourceDescription})")</p>
             <p>Telefon: @(candidate.PhoneNumber ?? "—") · E-posta: @(candidate.Email ?? "—") · Kimlik: @(candidate.IdentityNumber is null ? "—" : $"{ScoutingLabels.Of(ScoutingLabels.IdentityTypes, candidate.IdentityType)} {candidate.IdentityNumber}")</p></div>
             <div class="decision"><label>Durum<select value="@candidate.Decision" @onchange="ChangeDecisionAsync" disabled="@saving">@foreach (var d in ScoutingLabels.Decisions) { <option value="@d.Value">@d.Label</option> }</select></label>
+                <button class="secondary" @onclick="OpenCandidateForm">Aday bilgilerini düzenle</button>
                 <button class="primary" @onclick="OpenForm">+ Gözlem ekle</button></div>
         </header>
         <section class="card">
@@ -24,7 +25,8 @@
             {
                 <article class="obs">
                     <div class="obs-head"><strong>@o.ObservedOn.ToString("dd.MM.yyyy")</strong> · @ScoutingLabels.Of(ScoutingLabels.ObservationTypes, o.ObservationType)
-                        @if (o.Rating is not null) { <span class="rating">@o.Rating / 10</span> }</div>
+                        @if (o.Rating is not null) { <span class="rating">@o.Rating / 10</span> }
+                        <button class="link" @onclick="() => OpenEditForm(o)">Düzenle</button></div>
                     <div class="meta">@(string.IsNullOrWhiteSpace(o.ObservedEvent) ? "" : o.ObservedEvent + " · ")@(string.IsNullOrWhiteSpace(o.ObservedClub) ? "" : o.ObservedClub)@(string.IsNullOrWhiteSpace(o.ObservedTeam) ? "" : " / " + o.ObservedTeam) · Ayak: @ScoutingLabels.Of(ScoutingLabels.Feet, o.DominantFoot) · Gözlemci: @o.ObserverName</div>
                     @if (o.Positions.Count > 0) { <p><b>Mevkiler:</b> @string.Join(", ", o.Positions.Select(p => p.Name))</p> }
                     @if (!string.IsNullOrWhiteSpace(o.Strengths)) { <p><b>Güçlü yönler:</b> @o.Strengths</p> }
@@ -39,15 +41,32 @@
 @if (showForm)
 {
     <div class="overlay" @onclick="CloseForm"><section class="panel" @onclick:stopPropagation>
-        <button class="close" @onclick="CloseForm">×</button><h2>Gözlem ekle</h2>
-        <ScoutingObservationFields Model="observation" />
+        <button class="close" @onclick="CloseForm">×</button>        <h2>@(editingObservationId is null ? "Gözlem ekle" : "Gözlemi düzenle")</h2>
+                <ScoutingObservationFields @key="formKey" Model="observation" />
         @if (formError is not null) { <div class="error">@formError</div> }
         <button class="primary full" @onclick="SaveObservationAsync" disabled="@saving">@(saving ? "Kaydediliyor..." : "Gözlemi kaydet")</button>
     </section></div>
 }
 
+        @if (showCandidateForm)
+        {
+            <div class="overlay" @onclick="() => showCandidateForm = false"><section class="panel" @onclick:stopPropagation>
+                <button class="close" @onclick="() => showCandidateForm = false">×</button><h2>Aday bilgilerini düzenle</h2>
+                <label>Ad soyad<input maxlength="150" @bind="editName" /></label>
+                <div class="grid"><label>Doğum tarihi<input type="date" @bind="editBirthDate" /></label>
+                    <label>E-posta<input maxlength="200" @bind="editEmail" /></label></div>
+                <div class="grid"><label>Telefon<input maxlength="20" @bind="editPhone" /></label>
+                    <label>Telefon ülke kodu<input maxlength="4" @bind="editPhoneCountry" /></label></div>
+                <div class="grid"><label>Kimlik türü<select @bind="editIdentityType"><option value="0">Belirtilmedi</option>@foreach (var i in ScoutingLabels.IdentityTypes) { <option value="@i.Value">@i.Label</option> }</select></label>
+                    <label>Kimlik / pasaport no<input maxlength="30" @bind="editIdentityNumber" disabled="@(editIdentityType == 0)" /></label></div>
+                @if (editIdentityType > 1) { <label>Ülke kodu (ISO, ör. DE)<input maxlength="2" @bind="editIdentityCountry" /></label> }
+                @if (formError is not null) { <div class="error">@formError</div> }
+                <button class="primary full" @onclick="SaveCandidateAsync" disabled="@saving">@(saving ? "Kaydediliyor..." : "Bilgileri kaydet")</button>
+            </section></div>
+        }
+
 <style>
-.scout-page{max-width:1000px;margin:0 auto;color:#19243a}.back{color:#4058d6;text-decoration:none;font-weight:650}.scout-page header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin:1rem 0 1.5rem}.scout-page h1{margin:0}.scout-page header p,.empty,.meta{color:#8290a8}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.primary{border:0;border-radius:8px;padding:.7rem 1rem;background:#4058d6;color:white;font-weight:650;cursor:pointer}.decision{display:flex;gap:.8rem;align-items:flex-end}.decision label{color:#56647b;font-size:.78rem;font-weight:650}.decision select{display:block;margin-top:.3rem;padding:.65rem;border:1px solid #e1e5ee;border-radius:7px}.card{background:white;border:1px solid #e8ebf2;border-radius:12px;padding:1rem 1.4rem}.section{font-size:1rem;margin:.2rem 0 1rem}.obs{padding:1rem 0;border-top:1px solid #edf0f5}.obs p{margin:.4rem 0}.rating{margin-left:.6rem;padding:.2rem .55rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:700}.overlay{position:fixed;inset:0;z-index:10;background:#17223a55;display:flex;justify-content:flex-end}.panel{width:min(520px,100%);height:100%;overflow:auto;background:white;padding:2rem;position:relative;box-sizing:border-box}.panel label{display:block;margin-top:1rem;color:#56647b;font-size:.78rem;font-weight:650}.panel input,.panel select,.panel textarea{display:block;width:100%;box-sizing:border-box;margin-top:.4rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.full{width:100%;margin-top:1.4rem}.close{position:absolute;right:1rem;top:.8rem;border:0;background:none;font-size:1.6rem;color:#8994a8}.error,.success{margin:.8rem 0;padding:.8rem;border-radius:8px}.error{background:#fff1f1;color:#b45757}.success{background:#e7f7ee;color:#25804a}
+.scout-page{max-width:1000px;margin:0 auto;color:#19243a}.back{color:#4058d6;text-decoration:none;font-weight:650}.scout-page header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin:1rem 0 1.5rem}.scout-page h1{margin:0}.scout-page header p,.empty,.meta{color:#8290a8}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.primary{border:0;border-radius:8px;padding:.7rem 1rem;background:#4058d6;color:white;font-weight:650;cursor:pointer}.secondary{border:1px solid #d5dbea;border-radius:8px;padding:.7rem 1rem;background:white;color:#4058d6;font-weight:650;cursor:pointer}.link{margin-left:.8rem;border:0;background:none;color:#4058d6;font-weight:650;cursor:pointer}.decision{display:flex;gap:.8rem;align-items:flex-end}.decision label{color:#56647b;font-size:.78rem;font-weight:650}.decision select{display:block;margin-top:.3rem;padding:.65rem;border:1px solid #e1e5ee;border-radius:7px}.card{background:white;border:1px solid #e8ebf2;border-radius:12px;padding:1rem 1.4rem}.section{font-size:1rem;margin:.2rem 0 1rem}.obs{padding:1rem 0;border-top:1px solid #edf0f5}.obs p{margin:.4rem 0}.rating{margin-left:.6rem;padding:.2rem .55rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:700}.overlay{position:fixed;inset:0;z-index:10;background:#17223a55;display:flex;justify-content:flex-end}.panel{width:min(520px,100%);height:100%;overflow:auto;background:white;padding:2rem;position:relative;box-sizing:border-box}.panel label{display:block;margin-top:1rem;color:#56647b;font-size:.78rem;font-weight:650}.panel input,.panel select,.panel textarea{display:block;width:100%;box-sizing:border-box;margin-top:.4rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.full{width:100%;margin-top:1.4rem}.close{position:absolute;right:1rem;top:.8rem;border:0;background:none;font-size:1.6rem;color:#8994a8}.error,.success{margin:.8rem 0;padding:.8rem;border-radius:8px}.error{background:#fff1f1;color:#b45757}.success{background:#e7f7ee;color:#25804a}
 </style>
 
 @code {
@@ -57,6 +76,55 @@
     private bool loading = true, showForm, saving;
     private string? error, success, formError;
     private ScoutingObservationModel observation = new();
+    private Guid? editingObservationId;
+    private Guid formKey = Guid.NewGuid();
+    private bool showCandidateForm;
+    private string editName = "", editEmail = "", editPhone = "", editPhoneCountry = "90", editIdentityNumber = "", editIdentityCountry = "";
+    private int editIdentityType;
+    private DateOnly? editBirthDate;
+
+    private void OpenCandidateForm()
+    {
+        if (candidate is null) return;
+        editName = candidate.Name; editBirthDate = candidate.BirthDate; editEmail = candidate.Email ?? "";
+        editPhone = candidate.PhoneNationalNumber ?? ""; editPhoneCountry = candidate.PhoneCountryCode ?? "90";
+        editIdentityType = candidate.IdentityType ?? 0; editIdentityNumber = candidate.IdentityNumber ?? "";
+        editIdentityCountry = candidate.IdentityCountryCode ?? "";
+        formError = null; success = null;
+        showCandidateForm = true;
+    }
+
+    private async Task SaveCandidateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(editName)) { formError = "Ad soyad zorunludur."; return; }
+        var hasIdentity = editIdentityType != 0 && !string.IsNullOrWhiteSpace(editIdentityNumber);
+        saving = true; formError = null;
+        try
+        {
+            await ScoutingApi.UpdateCandidateAsync(CandidateId, new UpdateScoutingCandidateRequest(
+                editName, editBirthDate,
+                string.IsNullOrWhiteSpace(editPhone) ? null : editPhoneCountry,
+                string.IsNullOrWhiteSpace(editPhone) ? null : editPhone,
+                string.IsNullOrWhiteSpace(editEmail) ? null : editEmail,
+                hasIdentity ? editIdentityType : null,
+                hasIdentity ? editIdentityNumber.Trim() : null,
+                string.IsNullOrWhiteSpace(editIdentityCountry) ? null : editIdentityCountry.Trim().ToUpperInvariant()));
+            showCandidateForm = false;
+            success = "Aday bilgileri güncellendi.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { formError = ex.Message; }
+        saving = false;
+    }
+
+    private void OpenEditForm(ScoutingObservationResponse o)
+    {
+        observation = ScoutingObservationModel.From(o);
+        editingObservationId = o.Id;
+        formKey = Guid.NewGuid();
+        formError = null; success = null;
+        showForm = true;
+    }
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -70,6 +138,8 @@
     private void OpenForm()
     {
         observation = new();
+        editingObservationId = null;
+        formKey = Guid.NewGuid();
         formError = null; success = null;
         showForm = true;
     }
@@ -82,9 +152,12 @@
         saving = true; formError = null;
         try
         {
-            await ScoutingApi.AddObservationAsync(CandidateId, observation.ToRequest());
+            if (editingObservationId is { } id)
+                await ScoutingApi.UpdateObservationAsync(CandidateId, id, observation.ToRequest());
+            else
+                await ScoutingApi.AddObservationAsync(CandidateId, observation.ToRequest());
             showForm = false;
-            success = "Gözlem eklendi.";
+            success = editingObservationId is null ? "Gözlem eklendi." : "Gözlem güncellendi.";
             await LoadAsync();
         }
         catch (Exception ex) { formError = ex.Message; }

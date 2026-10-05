@@ -1,4 +1,4 @@
-﻿using ProjectAtmaca.Domain.Common.Enums;
+using ProjectAtmaca.Domain.Common.Enums;
 using ProjectAtmaca.Domain.Common.ValueObjects;
 using ProjectAtmaca.Domain.Scouting;
 using ProjectAtmaca.Domain.Scouting.ValueObjects;
@@ -46,5 +46,29 @@ public sealed class ScoutingObservationRatingTests
 
         Assert.True(result.IsFailure);
         Assert.Single(candidate.Observations);
+    }
+
+    [Fact]
+    public void SetObservationRating_Should_UpdateOrClearRating()
+    {
+        var candidate = Create(5);
+        var id = candidate.Observations.Single().Id;
+
+        Assert.True(candidate.SetObservationRating(id, 8).IsSuccess);
+        Assert.Equal(8, candidate.Observations.Single().Rating);
+        Assert.True(candidate.SetObservationRating(id, null).IsSuccess);
+        Assert.Null(candidate.Observations.Single().Rating);
+        Assert.True(candidate.SetObservationRating(id, 11).IsFailure);
+    }
+
+    [Fact]
+    public void ChangeObservationType_Should_UpdateTypeAndRejectUndefined()
+    {
+        var candidate = Create(5);
+        var id = candidate.Observations.Single().Id;
+
+        Assert.True(candidate.ChangeObservationType(id, ObservationType.Training).IsSuccess);
+        Assert.Equal(ObservationType.Training, candidate.Observations.Single().ObservationType);
+        Assert.True(candidate.ChangeObservationType(id, (ObservationType)999).IsFailure);
     }
 }

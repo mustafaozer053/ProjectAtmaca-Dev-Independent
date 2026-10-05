@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Scouting;
@@ -45,6 +45,22 @@ public sealed class ScoutingController(ScoutingService service) : ControllerBase
         return result.IsFailure ? ToProblem(result.Error!) : NoContent();
     }
 
+    [HttpPut("{candidateId:guid}")]
+    public async Task<IActionResult> UpdateCandidate(
+        Guid candidateId, [FromBody] UpdateScoutingCandidateCommand request, CancellationToken cancellationToken)
+    {
+        var result = await service.UpdateCandidateAsync(candidateId, request, cancellationToken);
+        return result.IsFailure ? ToProblem(result.Error!) : NoContent();
+    }
+
+    [HttpPut("{candidateId:guid}/observations/{observationId:guid}")]
+    public async Task<IActionResult> UpdateObservation(
+        Guid candidateId, Guid observationId, [FromBody] ScoutingObservationInput request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.UpdateObservationAsync(candidateId, observationId, request, cancellationToken);
+        return result.IsFailure ? ToProblem(result.Error!) : NoContent();
+    }
     [HttpPut("{candidateId:guid}/decision")]
     public async Task<IActionResult> ChangeDecision(
         Guid candidateId, [FromBody] ChangeScoutingDecisionRequest request, CancellationToken cancellationToken)
@@ -57,7 +73,7 @@ public sealed class ScoutingController(ScoutingService service) : ControllerBase
     {
         var status = error.Code == ActorAuthorizationErrors.Forbidden.Code
             ? StatusCodes.Status403Forbidden
-            : error.Code == ScoutingErrors.NotFound.Code
+            : error.Code == ScoutingErrors.NotFound.Code || error.Code == ScoutingErrors.ObservationNotFound.Code
                 ? StatusCodes.Status404NotFound
                 : StatusCodes.Status400BadRequest;
         var details = new ProblemDetails

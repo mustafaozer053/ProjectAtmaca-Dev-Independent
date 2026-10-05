@@ -1,4 +1,4 @@
-﻿using ProjectAtmaca.Domain.Common;
+using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Common.Enums;
 using ProjectAtmaca.Domain.Common.ValueObjects;
 
@@ -287,6 +287,23 @@ public sealed class ScoutingObservation : Entity
         RecommendationNote = NormalizeOptionalText(recommendationNote);
     }
 
+    internal Result ChangeObservationType(ObservationType observationType)
+    {
+        if (!Enum.IsDefined(observationType))
+            return Result.Failure(Error.Create("SCOUTING_OBSERVATION_TYPE_INVALID", "Observation type is invalid."));
+
+        ObservationType = observationType;
+        return Result.Success();
+    }
+
+    internal Result SetRating(int? rating)
+    {
+        if (rating.HasValue && (rating.Value < MinRating || rating.Value > MaxRating))
+            return Result.Failure(Error.Create("SCOUTING_OBSERVATION_RATING_INVALID", "Observation rating must be between 1 and 10."));
+
+        Rating = rating;
+        return Result.Success();
+    }
     internal Result ChangeObserverName(PersonName observerName)
     {
         if (observerName is null)

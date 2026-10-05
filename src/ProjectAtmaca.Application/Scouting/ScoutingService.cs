@@ -39,6 +39,15 @@ public sealed record CreateScoutingCandidateCommand(
     string? IdentityNumber = null,
     string? IdentityCountryCode = null);
 
+public sealed record UpdateScoutingCandidateCommand(
+    string Name,
+    DateOnly? BirthDate,
+    string? PhoneCountryCode,
+    string? PhoneNumber,
+    string? Email,
+    IdentityType? IdentityType = null,
+    string? IdentityNumber = null,
+    string? IdentityCountryCode = null);
 public sealed record ScoutingObservationDetails(
     Guid Id,
     DateOnly ObservedOn,
@@ -80,7 +89,9 @@ public sealed record ScoutingCandidateDetails(
     IReadOnlyList<ScoutingObservationDetails> Observations,
     IdentityType? IdentityType = null,
     string? IdentityNumber = null,
-    string? IdentityCountryCode = null);
+    string? IdentityCountryCode = null,
+    string? PhoneCountryCode = null,
+    string? PhoneNationalNumber = null);
 
 public static class ScoutingErrors
 {
@@ -88,6 +99,8 @@ public static class ScoutingErrors
     public static readonly Error DuplicateIdentity = Error.Create("Scouting.Candidate.DuplicateIdentity", "A scouting candidate with this identity number already exists.");
     public static readonly Error PositionInvalid = Error.Create("Scouting.Position.Invalid", "One or more selected positions are invalid or inactive.");
     public static readonly Error InvalidIdentity = Error.Create("Scouting.Candidate.InvalidIdentity", "The identity number is invalid.");
+    public static readonly Error ObservationNotFound = Error.Create("Scouting.Observation.NotFound", "The scouting observation was not found.");
+    public static readonly Error InsufficientIdentification = Error.Create("Scouting.Candidate.InsufficientIdentification", "At least one identifying detail (identity number, birth date, event, club or team) is required.");
     public static readonly Error InvalidData = Error.Create("Scouting.Candidate.InvalidData", "The scouting candidate data is invalid.");
 }
 
@@ -221,6 +234,127 @@ public sealed class ScoutingService(
         return Result.Success();
     }
 
+    public async Task<Result> UpdateCandidateAsync(
+        Guid candidateId,
+        UpdateScoutingCandidateCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var authorized = await authorization.AuthorizeAsync(Permissions.Scouting.Update, cancellationToken);
+        if (authorized.IsFailure)
+            return Result.Failure(authorized.Error!);
+
+        var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken);
+        if (candidate is null)
+            return Result.Failure(ScoutingErrors.NotFound);
+
+        try
+        {
+            var name = PersonName.Create(command.Name);
+            if (name.IsFailure)
+                return Result.Failure(name.Error!);
+
+            IdentityNumber? identity = null;
+            if (!string.IsNullOrWhiteSpace(command.IdentityNumber))
+            {
+                var identityResult = BuildIdentity(command.IdentityType, command.IdentityCountryCode, command.IdentityNumber);
+                if (identityResult.IsFailure)
+                    return Result.Failure(identityResult.Error!);
+                identity = identityResult.Value;
+                if (await candidates.ExistsByIdentityNumberAsync(identity!, candidate.Id, cancellationToken))
+                    return Result.Failure(ScoutingErrors.DuplicateIdentity);
+            }
+
+            var birthDate = command.BirthDate is null
+                ? null
+                : BirthDate.Create(command.BirthDate.Value.ToDateTime(TimeOnly.MinValue));
+            if (identity is null && birthDate is null &&
+                !candidate.Observations.Any(x => x.ObservedEvent is not null || x.ObservedClub is not null || x.ObservedTeam is not null))
+                return Result.Failure(ScoutingErrors.InsufficientIdentification);
+
+            var renamed = candidate.ChangeName(name.Value!);
+            if (renamed.IsFailure)
+                return renamed;
+            candidate.SetIdentityNumber(identity);
+            candidate.SetBirthDate(birthDate);
+            candidate.SetPrimaryPhoneNumber(ToPhone(command.PhoneCountryCode, command.PhoneNumber));
+            candidate.SetEmail(string.IsNullOrWhiteSpace(command.Email) ? null : Email.Create(command.Email));
+        }
+        catch (ArgumentException)
+        {
+            return Result.Failure(ScoutingErrors.InvalidData);
+        }
+
+        candidates.RefreshIdentityKey(candidate);
+        candidate.MarkAsModified(currentActor.ActorId);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> UpdateObservationAsync(
+        Guid candidateId,
+        Guid observationId,
+        ScoutingObservationInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var authorized = await authorization.AuthorizeAsync(Permissions.Scouting.Update, cancellationToken);
+        if (authorized.IsFailure)
+            return Result.Failure(authorized.Error!);
+
+        var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken);
+        if (candidate is null)
+            return Result.Failure(ScoutingErrors.NotFound);
+        var observation = candidate.Observations.FirstOrDefault(x => x.Id == observationId);
+        if (observation is null)
+            return Result.Failure(ScoutingErrors.ObservationNotFound);
+
+        var observerName = PersonName.Create(input.ObserverName);
+        if (observerName.IsFailure)
+            return Result.Failure(observerName.Error!);
+        var positionCheck = await ValidatePositionsAsync(input.PositionIds, cancellationToken);
+        if (positionCheck.IsFailure)
+            return positionCheck;
+
+        var steps = new Func<Result>[]
+        {
+            () => candidate.CorrectObservationDate(observationId, input.ObservedOn),
+            () => candidate.ChangeObservationType(observationId, input.ObservationType),
+            () => candidate.ChangeObservationEvent(observationId, Clean(input.ObservedEvent)),
+            () => candidate.ChangeObservationClub(observationId, Clean(input.ObservedClub)),
+            () => candidate.ChangeObservationTeam(observationId, Clean(input.ObservedTeam)),
+            () => candidate.SetObservationDominantFoot(observationId, input.DominantFoot),
+            () => candidate.UpdateObservationStrengths(observationId, Clean(input.Strengths)),
+            () => candidate.UpdateObservationWeaknesses(observationId, Clean(input.Weaknesses)),
+            () => candidate.ChangeObservationRecommendation(observationId, input.Recommendation),
+            () => candidate.UpdateObservationRecommendationNote(observationId, Clean(input.RecommendationNote)),
+            () => candidate.ChangeObservationObserverName(observationId, observerName.Value!),
+            () => candidate.SetObservationRating(observationId, input.Rating)
+        };
+        foreach (var step in steps)
+        {
+            var result = step();
+            if (result.IsFailure)
+                return result;
+        }
+
+        var wanted = input.PositionIds?.Distinct().ToHashSet() ?? [];
+        foreach (var id in observation.PositionIds.Where(x => !wanted.Contains(x)).ToList())
+        {
+            var removed = candidate.RemoveObservationPosition(observationId, id);
+            if (removed.IsFailure)
+                return removed;
+        }
+
+        foreach (var id in wanted.Where(x => !observation.PositionIds.Contains(x)))
+        {
+            var added = candidate.AddObservationPosition(observationId, id);
+            if (added.IsFailure)
+                return added;
+        }
+
+        candidate.MarkAsModified(currentActor.ActorId);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
     public async Task<Result> ChangeDecisionAsync(
         Guid candidateId,
         ScoutingDecision decision,
@@ -272,7 +406,8 @@ public sealed class ScoutingService(
             candidate.InitialSource.SourceType, candidate.InitialSource.ReferrerName?.FullName,
             candidate.InitialSource.SourceDescription, candidate.ScoutingDecision,
             await ToObservationsAsync(candidate, cancellationToken),
-            candidate.IdentityNumber?.IdentityType, candidate.IdentityNumber?.Number, candidate.IdentityNumber?.CountryCode));
+            candidate.IdentityNumber?.IdentityType, candidate.IdentityNumber?.Number, candidate.IdentityNumber?.CountryCode,
+            candidate.PrimaryPhoneNumber?.CountryCode, candidate.PrimaryPhoneNumber?.NationalNumber));
     }
 
     private static ScoutingCandidateListItem ToListItem(ScoutingCandidate x)

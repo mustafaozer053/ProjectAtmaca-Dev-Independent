@@ -30,6 +30,22 @@ public sealed class ScoutingApiClient(HttpClient httpClient)
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public async Task UpdateCandidateAsync(
+        Guid candidateId, UpdateScoutingCandidateRequest request, CancellationToken cancellationToken = default)
+    {
+        using var response = await httpClient.PutAsJsonAsync(
+            $"api/scouting/candidates/{candidateId:D}", request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task UpdateObservationAsync(
+        Guid candidateId, Guid observationId, ScoutingObservationRequest request, CancellationToken cancellationToken = default)
+    {
+        using var response = await httpClient.PutAsJsonAsync(
+            $"api/scouting/candidates/{candidateId:D}/observations/{observationId:D}", request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task ChangeDecisionAsync(
         Guid candidateId, int decision, CancellationToken cancellationToken = default)
     {
@@ -81,6 +97,16 @@ public sealed record ScoutingCandidateRequest(
     string? IdentityNumber = null,
     string? IdentityCountryCode = null);
 
+public sealed record UpdateScoutingCandidateRequest(
+    string Name,
+    DateOnly? BirthDate,
+    string? PhoneCountryCode,
+    string? PhoneNumber,
+    string? Email,
+    int? IdentityType = null,
+    string? IdentityNumber = null,
+    string? IdentityCountryCode = null);
+
 public sealed record ScoutingCandidateListResponse(
     Guid Id,
     string Name,
@@ -122,7 +148,9 @@ public sealed record ScoutingCandidateDetailsResponse(
     IReadOnlyList<ScoutingObservationResponse> Observations,
     int? IdentityType = null,
     string? IdentityNumber = null,
-    string? IdentityCountryCode = null);
+    string? IdentityCountryCode = null,
+    string? PhoneCountryCode = null,
+    string? PhoneNationalNumber = null);
 
 public static class ScoutingLabels
 {
@@ -157,6 +185,19 @@ public sealed class ScoutingObservationModel
     public string ObserverName { get; set; } = "";
     public int Rating { get; set; }
     public HashSet<Guid> PositionIds { get; } = [];
+
+    public static ScoutingObservationModel From(ScoutingObservationResponse o)
+    {
+        var model = new ScoutingObservationModel
+        {
+            ObservedOn = o.ObservedOn, ObservationType = o.ObservationType, ObservedEvent = o.ObservedEvent,
+            ObservedClub = o.ObservedClub, ObservedTeam = o.ObservedTeam, DominantFoot = o.DominantFoot ?? 0,
+            Strengths = o.Strengths, Weaknesses = o.Weaknesses, Recommendation = o.Recommendation ?? 0,
+            RecommendationNote = o.RecommendationNote, ObserverName = o.ObserverName, Rating = o.Rating ?? 0
+        };
+        foreach (var p in o.Positions) model.PositionIds.Add(p.Id);
+        return model;
+    }
 
     public ScoutingObservationRequest ToRequest() => new(
         ObservedOn, ObservationType, ObservedEvent, ObservedClub, ObservedTeam,

@@ -1,4 +1,4 @@
-﻿using ProjectAtmaca.Domain.Common;
+using ProjectAtmaca.Domain.Common;
 using ProjectAtmaca.Domain.Common.Enums;
 using ProjectAtmaca.Domain.Common.ValueObjects;
 using ProjectAtmaca.Domain.Scouting.Entities;
@@ -447,6 +447,21 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
             .ChangeObserverName(observerName);
     }
 
+    public Result ChangeObservationType(Guid observationId, ObservationType observationType)
+    {
+        var observationResult = FindObservation(observationId);
+        return observationResult.IsFailure
+            ? Result.Failure(observationResult.Error!)
+            : observationResult.Value!.ChangeObservationType(observationType);
+    }
+
+    public Result SetObservationRating(Guid observationId, int? rating)
+    {
+        var observationResult = FindObservation(observationId);
+        return observationResult.IsFailure
+            ? Result.Failure(observationResult.Error!)
+            : observationResult.Value!.SetRating(rating);
+    }
     public Result AddObservationPosition(
         Guid observationId,
         Guid positionId)
