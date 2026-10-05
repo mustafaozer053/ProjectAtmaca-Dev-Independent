@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using ProjectAtmaca.Application.Abstractions.Security;
 using ProjectAtmaca.Application.Security;
 using ProjectAtmaca.Application.Participations.GetById;
@@ -33,6 +33,7 @@ using ProjectAtmaca.Application.SeasonTeams.GetById;
 using ProjectAtmaca.Application.SeasonTeams.AddMembershipAssignment;
 using ProjectAtmaca.Application.SeasonTeams.EndMembershipAssignment;
 using ProjectAtmaca.Application.Fixtures;
+using ProjectAtmaca.Application.Scouting;
 using ProjectAtmaca.Application.AtmacaCards.ChangeStatus;
 using ProjectAtmaca.Application.AtmacaCards.ManageSportsProfile;
 using ProjectAtmaca.Application.AtmacaCards.ManageMeasurements;
@@ -146,6 +147,7 @@ public static class DependencyInjection
         services.AddScoped<PositionCatalogService>();
         services.AddScoped<OrganizationCatalogService>();
         services.AddScoped<FixtureService>();
+        services.AddScoped<ScoutingService>();
 
         return services;
     }

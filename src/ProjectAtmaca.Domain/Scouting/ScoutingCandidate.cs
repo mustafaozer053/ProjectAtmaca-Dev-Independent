@@ -97,7 +97,8 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
         ObserverRecommendation? observerRecommendation,
         string? recommendationNote,
         PersonName observerName,
-        Guid createdByAssignmentId)
+        Guid createdByAssignmentId,
+        int? rating = null)
     {
         if (name is null)
         {
@@ -129,7 +130,8 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
             observerRecommendation,
             recommendationNote,
             observerName,
-            createdByAssignmentId);
+            createdByAssignmentId,
+            rating);
 
         if (observationResult.IsFailure)
         {
@@ -184,7 +186,8 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
         ObserverRecommendation? observerRecommendation,
         string? recommendationNote,
         PersonName observerName,
-        Guid createdByAssignmentId)
+        Guid createdByAssignmentId,
+        int? rating = null)
     {
         var observationResult = ScoutingObservation.Create(
             observedOn,
@@ -200,7 +203,8 @@ public sealed class ScoutingCandidate : AuditableAggregateRoot
             observerRecommendation,
             recommendationNote,
             observerName,
-            createdByAssignmentId);
+            createdByAssignmentId,
+            rating);
 
         if (observationResult.IsFailure)
         {

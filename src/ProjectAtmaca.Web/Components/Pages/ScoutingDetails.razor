@@ -1,0 +1,107 @@
+@page "/scouting/{CandidateId:guid}"
+@rendermode InteractiveServer
+@using ProjectAtmaca.Web.Services
+@inject ScoutingApiClient ScoutingApi
+
+<PageTitle>Aday detayı | ProjectAtmaca</PageTitle>
+
+<div class="scout-page">
+    <a href="/scouting" class="back">← Aday havuzu</a>
+    @if (error is not null) { <div class="error">@error</div> }
+    @if (success is not null) { <div class="success">@success</div> }
+    @if (loading) { <p class="empty">Yükleniyor...</p> }
+    else if (candidate is not null)
+    {
+        <header><div><div class="eyebrow">ADAY</div><h1>@candidate.Name</h1>
+            <p>Doğum: @(candidate.BirthDate?.ToString("dd.MM.yyyy") ?? "—") · Kaynak: @ScoutingLabels.Of(ScoutingLabels.Sources, candidate.SourceType)@(string.IsNullOrWhiteSpace(candidate.ReferrerName) ? "" : $" ({candidate.ReferrerName})")@(string.IsNullOrWhiteSpace(candidate.SourceDescription) ? "" : $" ({candidate.SourceDescription})")</p>
+            <p>Telefon: @(candidate.PhoneNumber ?? "—") · E-posta: @(candidate.Email ?? "—") · Kimlik: @(candidate.IdentityNumber is null ? "—" : $"{ScoutingLabels.Of(ScoutingLabels.IdentityTypes, candidate.IdentityType)} {candidate.IdentityNumber}")</p></div>
+            <div class="decision"><label>Durum<select value="@candidate.Decision" @onchange="ChangeDecisionAsync" disabled="@saving">@foreach (var d in ScoutingLabels.Decisions) { <option value="@d.Value">@d.Label</option> }</select></label>
+                <button class="primary" @onclick="OpenForm">+ Gözlem ekle</button></div>
+        </header>
+        <section class="card">
+            <h2 class="section">Gözlemler (@candidate.Observations.Count)</h2>
+            @foreach (var o in candidate.Observations)
+            {
+                <article class="obs">
+                    <div class="obs-head"><strong>@o.ObservedOn.ToString("dd.MM.yyyy")</strong> · @ScoutingLabels.Of(ScoutingLabels.ObservationTypes, o.ObservationType)
+                        @if (o.Rating is not null) { <span class="rating">@o.Rating / 10</span> }</div>
+                    <div class="meta">@(string.IsNullOrWhiteSpace(o.ObservedEvent) ? "" : o.ObservedEvent + " · ")@(string.IsNullOrWhiteSpace(o.ObservedClub) ? "" : o.ObservedClub)@(string.IsNullOrWhiteSpace(o.ObservedTeam) ? "" : " / " + o.ObservedTeam) · Ayak: @ScoutingLabels.Of(ScoutingLabels.Feet, o.DominantFoot) · Gözlemci: @o.ObserverName</div>
+                    @if (o.Positions.Count > 0) { <p><b>Mevkiler:</b> @string.Join(", ", o.Positions.Select(p => p.Name))</p> }
+                    @if (!string.IsNullOrWhiteSpace(o.Strengths)) { <p><b>Güçlü yönler:</b> @o.Strengths</p> }
+                    @if (!string.IsNullOrWhiteSpace(o.Weaknesses)) { <p><b>Gelişim alanları:</b> @o.Weaknesses</p> }
+                    <p><b>Öneri:</b> @ScoutingLabels.Of(ScoutingLabels.Recommendations, o.Recommendation)@(string.IsNullOrWhiteSpace(o.RecommendationNote) ? "" : " — " + o.RecommendationNote)</p>
+                </article>
+            }
+        </section>
+    }
+</div>
+
+@if (showForm)
+{
+    <div class="overlay" @onclick="CloseForm"><section class="panel" @onclick:stopPropagation>
+        <button class="close" @onclick="CloseForm">×</button><h2>Gözlem ekle</h2>
+        <ScoutingObservationFields Model="observation" />
+        @if (formError is not null) { <div class="error">@formError</div> }
+        <button class="primary full" @onclick="SaveObservationAsync" disabled="@saving">@(saving ? "Kaydediliyor..." : "Gözlemi kaydet")</button>
+    </section></div>
+}
+
+<style>
+.scout-page{max-width:1000px;margin:0 auto;color:#19243a}.back{color:#4058d6;text-decoration:none;font-weight:650}.scout-page header{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin:1rem 0 1.5rem}.scout-page h1{margin:0}.scout-page header p,.empty,.meta{color:#8290a8}.eyebrow{color:#71809b;font-size:.72rem;font-weight:700;letter-spacing:.14em}.primary{border:0;border-radius:8px;padding:.7rem 1rem;background:#4058d6;color:white;font-weight:650;cursor:pointer}.decision{display:flex;gap:.8rem;align-items:flex-end}.decision label{color:#56647b;font-size:.78rem;font-weight:650}.decision select{display:block;margin-top:.3rem;padding:.65rem;border:1px solid #e1e5ee;border-radius:7px}.card{background:white;border:1px solid #e8ebf2;border-radius:12px;padding:1rem 1.4rem}.section{font-size:1rem;margin:.2rem 0 1rem}.obs{padding:1rem 0;border-top:1px solid #edf0f5}.obs p{margin:.4rem 0}.rating{margin-left:.6rem;padding:.2rem .55rem;border-radius:999px;background:#edf0ff;color:#4058d6;font-size:.75rem;font-weight:700}.overlay{position:fixed;inset:0;z-index:10;background:#17223a55;display:flex;justify-content:flex-end}.panel{width:min(520px,100%);height:100%;overflow:auto;background:white;padding:2rem;position:relative;box-sizing:border-box}.panel label{display:block;margin-top:1rem;color:#56647b;font-size:.78rem;font-weight:650}.panel input,.panel select,.panel textarea{display:block;width:100%;box-sizing:border-box;margin-top:.4rem;padding:.7rem;border:1px solid #e1e5ee;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}.full{width:100%;margin-top:1.4rem}.close{position:absolute;right:1rem;top:.8rem;border:0;background:none;font-size:1.6rem;color:#8994a8}.error,.success{margin:.8rem 0;padding:.8rem;border-radius:8px}.error{background:#fff1f1;color:#b45757}.success{background:#e7f7ee;color:#25804a}
+</style>
+
+@code {
+    [Parameter] public Guid CandidateId { get; set; }
+
+    private ScoutingCandidateDetailsResponse? candidate;
+    private bool loading = true, showForm, saving;
+    private string? error, success, formError;
+    private ScoutingObservationModel observation = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try { candidate = await ScoutingApi.GetAsync(CandidateId); error = null; }
+        catch (Exception ex) { error = ex.Message; }
+        loading = false;
+    }
+
+    private void OpenForm()
+    {
+        observation = new();
+        formError = null; success = null;
+        showForm = true;
+    }
+
+    private void CloseForm() => showForm = false;
+
+    private async Task SaveObservationAsync()
+    {
+        if (string.IsNullOrWhiteSpace(observation.ObserverName)) { formError = "Gözlemci adı zorunludur."; return; }
+        saving = true; formError = null;
+        try
+        {
+            await ScoutingApi.AddObservationAsync(CandidateId, observation.ToRequest());
+            showForm = false;
+            success = "Gözlem eklendi.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { formError = ex.Message; }
+        saving = false;
+    }
+
+    private async Task ChangeDecisionAsync(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var decision)) return;
+        saving = true;
+        try
+        {
+            await ScoutingApi.ChangeDecisionAsync(CandidateId, decision);
+            success = "Durum güncellendi.";
+            await LoadAsync();
+        }
+        catch (Exception ex) { error = ex.Message; }
+        saving = false;
+    }
+}

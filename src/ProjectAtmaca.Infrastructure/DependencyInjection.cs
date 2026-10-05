@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProjectAtmaca.Application.Abstractions.Persistence;
@@ -10,6 +10,7 @@ using ProjectAtmaca.Domain.Trainings;
 using ProjectAtmaca.Domain.TrainingTypes;
 using ProjectAtmaca.Domain.SeasonTeams;
 using ProjectAtmaca.Domain.Fixtures;
+using ProjectAtmaca.Domain.Scouting;
 using ProjectAtmaca.Domain.AtmacaCards;
 using ProjectAtmaca.Domain.Positions;
 using ProjectAtmaca.Application.Abstractions.Files;
@@ -85,6 +86,7 @@ public static class DependencyInjection
             OrganizationDutyAssignmentRepository>();
 
         services.AddScoped<IFixtureRepository, FixtureRepository>();
+        services.AddScoped<IScoutingCandidateRepository, ScoutingCandidateRepository>();
         services.AddScoped<IPositionRepository, PositionRepository>();
         services.AddScoped<IOrganizationCatalogRepository, OrganizationCatalogRepository>();
         services.AddScoped<IAtmacaCardDocumentStorage>(

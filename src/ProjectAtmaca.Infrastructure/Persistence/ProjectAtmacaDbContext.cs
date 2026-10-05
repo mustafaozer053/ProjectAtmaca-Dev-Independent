@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ProjectAtmaca.Domain.Participations;
 using ProjectAtmaca.Domain.TrainingTypes;
 using ProjectAtmaca.Domain.Trainings;
@@ -8,6 +8,7 @@ using ProjectAtmaca.Domain.Organizations;
 using ProjectAtmaca.Domain.AgeGroups;
 using ProjectAtmaca.Domain.Fixtures;
 using ProjectAtmaca.Domain.Positions;
+using ProjectAtmaca.Domain.Scouting;
 
 namespace ProjectAtmaca.Infrastructure.Persistence;
 
@@ -39,6 +40,7 @@ public sealed class ProjectAtmacaDbContext
     public DbSet<AgeGroup> AgeGroups => Set<AgeGroup>();
     public DbSet<Fixture> Fixtures => Set<Fixture>();
     public DbSet<Position> Positions => Set<Position>();
+    public DbSet<ScoutingCandidate> ScoutingCandidates => Set<ScoutingCandidate>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

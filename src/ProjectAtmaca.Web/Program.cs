@@ -48,6 +48,13 @@ builder.Services.AddHttpClient<FixturesApiClient>(client =>
             "ProjectAtmacaApi:BaseUrl configuration is missing.");
     client.BaseAddress = new Uri(baseUrl);
 });
+builder.Services.AddHttpClient<ScoutingApiClient>(client =>
+{
+    var baseUrl = builder.Configuration["ProjectAtmacaApi:BaseUrl"]
+        ?? throw new InvalidOperationException(
+            "ProjectAtmacaApi:BaseUrl configuration is missing.");
+    client.BaseAddress = new Uri(baseUrl);
+});
 
 builder.Services.AddHttpClient<OrganizationApiClient>(client =>
 {

@@ -185,6 +185,16 @@ public static class Permissions
             Permission.Create("Fixtures.Cancel");
     }
 
+    public static class Scouting
+    {
+        public static readonly Permission Create =
+            Permission.Create("Scouting.Create");
+        public static readonly Permission List =
+            Permission.Create("Scouting.List");
+        public static readonly Permission Update =
+            Permission.Create("Scouting.Update");
+    }
+
     private static readonly IReadOnlyList<Permission>
         AllPermissions =
             Array.AsReadOnly(
@@ -242,7 +252,10 @@ public static class Permissions
                     Fixtures.Create,
                     Fixtures.List,
                     Fixtures.Update,
-                    Fixtures.Cancel
+                    Fixtures.Cancel,
+                    Scouting.Create,
+                    Scouting.List,
+                    Scouting.Update
                 });
 
     public static IReadOnlyList<Permission> All

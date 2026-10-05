@@ -164,7 +164,10 @@ public sealed class PermissionContractTests
             Permissions.Fixtures.Create,
             Permissions.Fixtures.List,
             Permissions.Fixtures.Update,
-            Permissions.Fixtures.Cancel
+            Permissions.Fixtures.Cancel,
+            Permissions.Scouting.Create,
+            Permissions.Scouting.List,
+            Permissions.Scouting.Update
         };
 
         string[] expectedCodes =
@@ -217,7 +220,10 @@ public sealed class PermissionContractTests
             "Fixtures.Create",
             "Fixtures.List",
             "Fixtures.Update",
-            "Fixtures.Cancel"
+            "Fixtures.Cancel",
+            "Scouting.Create",
+            "Scouting.List",
+            "Scouting.Update"
         };
 
         permissions

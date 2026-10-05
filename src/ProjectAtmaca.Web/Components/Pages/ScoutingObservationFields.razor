@@ -1,0 +1,50 @@
+@using ProjectAtmaca.Web.Services
+
+<div class="grid"><label>Gözlem tarihi<input type="date" @bind="Model.ObservedOn" /></label>
+    <label>Gözlem türü<select @bind="Model.ObservationType">@foreach (var o in ScoutingLabels.ObservationTypes) { <option value="@o.Value">@o.Label</option> }</select></label></div>
+<label>Gözlenen etkinlik<input maxlength="200" @bind="Model.ObservedEvent" /></label>
+<div class="grid"><label>Kulüp<input maxlength="150" @bind="Model.ObservedClub" /></label>
+    <label>Takım<input maxlength="150" @bind="Model.ObservedTeam" /></label></div>
+<div class="grid"><label>Baskın ayak<select @bind="Model.DominantFoot"><option value="0">Belirtilmedi</option>@foreach (var o in ScoutingLabels.Feet) { <option value="@o.Value">@o.Label</option> }</select></label>
+    <label>Gözlem puanı (1–10)<select @bind="Model.Rating"><option value="0">Puanlanmadı</option>@for (var i = 1; i <= 10; i++) { <option value="@i">@i</option> }</select></label></div>
+<label>Güçlü yönler<textarea maxlength="1000" rows="2" @bind="Model.Strengths"></textarea></label>
+<label>Gelişim alanları<textarea maxlength="1000" rows="2" @bind="Model.Weaknesses"></textarea></label>
+<div class="grid"><label>Gözlemci önerisi<select @bind="Model.Recommendation"><option value="0">Belirtilmedi</option>@foreach (var o in ScoutingLabels.Recommendations) { <option value="@o.Value">@o.Label</option> }</select></label>
+    <label>Gözlemci adı<input maxlength="150" @bind="Model.ObserverName" /></label></div>
+<label>Öneri notu<textarea maxlength="1000" rows="2" @bind="Model.RecommendationNote"></textarea></label>
+<label>Spor<input maxlength="100" value="@sportName" @onchange="OnSportChanged" /></label>
+<div class="positions">
+    <style>.positions{display:flex;flex-wrap:wrap;gap:.4rem .9rem;margin-top:.5rem}.positions .check{display:flex;align-items:center;gap:.35rem;margin:0}.positions .check input{width:auto;margin:0}.hint{color:#8290a8;font-size:.78rem}</style>
+    @if (positions.Count == 0) { <span class="hint">Bu spor için aktif mevki bulunamadı.</span> }
+    @foreach (var p in positions)
+    {
+        <label class="check"><input type="checkbox" checked="@Model.PositionIds.Contains(p.Id)" @onchange="e => Toggle(p.Id, (bool)e.Value!)" /> @p.Name</label>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ScoutingObservationModel Model { get; set; } = new();
+    [Inject] private PeopleApiClient PeopleApi { get; set; } = default!;
+    private string sportName = "Futbol";
+    private IReadOnlyList<PositionCatalogItem> positions = [];
+
+    protected override async Task OnInitializedAsync() => await LoadPositionsAsync();
+
+    private async Task OnSportChanged(ChangeEventArgs e)
+    {
+        sportName = e.Value?.ToString() ?? "";
+        Model.PositionIds.Clear();
+        await LoadPositionsAsync();
+    }
+
+    private async Task LoadPositionsAsync()
+    {
+        try { positions = string.IsNullOrWhiteSpace(sportName) ? [] : (await PeopleApi.GetPositionsAsync(sportName.Trim())).Where(p => p.IsActive).ToList(); }
+        catch { positions = []; }
+    }
+
+    private void Toggle(Guid id, bool on)
+    {
+        if (on) Model.PositionIds.Add(id); else Model.PositionIds.Remove(id);
+    }
+}

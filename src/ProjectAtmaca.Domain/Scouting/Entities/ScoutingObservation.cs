@@ -6,6 +6,9 @@ namespace ProjectAtmaca.Domain.Scouting.Entities;
 
 public sealed class ScoutingObservation : Entity
 {
+    public const int MinRating = 1;
+    public const int MaxRating = 10;
+
     private readonly List<Guid> _positionIds = [];
 
     public DateOnly ObservedOn { get; private set; }
@@ -34,6 +37,8 @@ public sealed class ScoutingObservation : Entity
 
     public PersonName ObserverName { get; private set; }
 
+    public int? Rating { get; private set; }
+
     public Guid CreatedByAssignmentId { get; private set; }
 
     public IReadOnlyCollection<Guid> PositionIds =>
@@ -59,7 +64,8 @@ public sealed class ScoutingObservation : Entity
         ObserverRecommendation? observerRecommendation,
         string? recommendationNote,
         PersonName observerName,
-        Guid createdByAssignmentId)
+        Guid createdByAssignmentId,
+        int? rating)
         : base(id)
     {
         ObservedOn = observedOn;
@@ -76,6 +82,7 @@ public sealed class ScoutingObservation : Entity
         RecommendationNote = recommendationNote;
         ObserverName = observerName;
         CreatedByAssignmentId = createdByAssignmentId;
+        Rating = rating;
     }
 
     internal static Result<ScoutingObservation> Create(
@@ -92,8 +99,17 @@ public sealed class ScoutingObservation : Entity
         ObserverRecommendation? observerRecommendation,
         string? recommendationNote,
         PersonName observerName,
-        Guid createdByAssignmentId)
+        Guid createdByAssignmentId,
+        int? rating = null)
     {
+        if (rating.HasValue && (rating.Value < MinRating || rating.Value > MaxRating))
+        {
+            return Result<ScoutingObservation>.Failure(
+                Error.Create(
+                    "SCOUTING_OBSERVATION_RATING_INVALID",
+                    "Observation rating must be between 1 and 10."));
+        }
+
         if (observedOn > DateOnly.FromDateTime(DateTime.Now))
         {
             return Result<ScoutingObservation>.Failure(
@@ -169,7 +185,8 @@ public sealed class ScoutingObservation : Entity
                 observerRecommendation,
                 NormalizeOptionalText(recommendationNote),
                 observerName,
-                createdByAssignmentId));
+                createdByAssignmentId,
+                rating));
     }
     internal Result CorrectObservedDate(DateOnly observedOn)
     {

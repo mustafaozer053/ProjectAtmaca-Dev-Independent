@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ProjectAtmaca.Infrastructure.Persistence;
 
@@ -12,9 +13,11 @@ using ProjectAtmaca.Infrastructure.Persistence;
 namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ProjectAtmacaDbContext))]
-    partial class ProjectAtmacaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003124722_AddScoutingCandidates")]
+    partial class AddScoutingCandidates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1061,12 +1064,6 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<string>("_positionIds")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("PositionIds");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ScoutingCandidateId");
@@ -1097,14 +1094,6 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("IdentityKey")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<string>("IdentityNumber")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
 
                     b.Property<string>("InitialSource")
                         .IsRequired()
@@ -1143,10 +1132,6 @@ namespace ProjectAtmaca.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("IdentityKey")
-                        .IsUnique()
-                        .HasFilter("[IdentityKey] IS NOT NULL");
 
                     b.ToTable("ScoutingCandidates", (string)null);
                 });
